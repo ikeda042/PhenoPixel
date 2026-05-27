@@ -1,0 +1,48 @@
+---
+sidebar_position: 4
+title: 面積と raw pixel export
+description: contour area と輪郭内部 pixel の抽出を、集団解析の基本量として整理する。
+---
+
+# 面積と raw pixel export
+
+Cell Extraction で保存された contour は、面積と pixel 強度を取り出すための基本単位です。Bulk Engine では、ラベルで絞り込んだ細胞に対して area や raw intensity をそのまま返せます。
+
+## 細胞面積
+
+細胞面積は輪郭に囲まれた領域の面積です。
+
+$$
+A(C) = \iint_{\Omega_C} 1\,dA
+$$
+
+実装では抽出時に `cv2.contourArea(contour)` を計算し、database の `cells.area` に保存します。Bulk Engine の `Cell area` は、この保存値をラベルで絞り込んで返します。
+
+## raw pixel export
+
+選択チャンネルの画像 $I$ と細胞内部 $\Omega_C$ について、raw export は未集約の強度列を返します。
+
+$$
+\{ I(p) \mid p \in \Omega_C \}
+$$
+
+この値は histogram、外部解析、しきい値設計の素材として使えます。normalized median などの集約値を作る前の、もっとも低レベルな signal です。
+
+## チャンネル
+
+| channel | database column | 用途 |
+| --- | --- | --- |
+| `ph` | `img_ph` | 位相差画像の形状・背景確認 |
+| `fluo1` | `img_fluo1` | FITC/HU-GFP などの蛍光 1 |
+| `fluo2` | `img_fluo2` | PI などの蛍光 2 |
+
+## 実装との対応
+
+| 役割 | 実装 |
+| --- | --- |
+| 抽出時に area を保存する | `backend/app/cellextraction/crud.py` |
+| area をラベル別に返す | `backend/app/bulk_engine/crud.py` の `get_cell_areas_by_label` |
+| mask 内の pixel 強度を取る | `backend/app/bulk_engine/crud.py` の `_get_points_inside_cell` |
+| raw intensity を返す | `backend/app/bulk_engine/crud.py` の `get_raw_intensities_by_label` |
+
+raw intensity を正規化して集約する流れは [正規化と凝集スコア](/docs/algorithms/aggregation-scores/) で扱います。

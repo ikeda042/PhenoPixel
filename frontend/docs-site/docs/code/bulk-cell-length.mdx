@@ -1,0 +1,89 @@
+---
+sidebar_position: 2
+title: Cell length API
+description: Bulk Engine の細胞長算出 API と PCA extent 実装。
+---
+
+# Cell length API
+
+ラベル済み database から細胞ごとの長さを返します。Bulk Engine の `Cell length` と boxplot の元になる API です。
+
+## Endpoint
+
+```http
+GET /api/v1/get-cell-lengths
+```
+
+## Query parameters
+
+| name | type | default | 説明 |
+| --- | --- | --- | --- |
+| `dbname` | `string` | required | `backend/app/databases/` 内の database 名 |
+| `label` | `string` | `null` | `1`, `N/A`, `all` など。未指定なら全対象 |
+
+```bash
+curl "http://localhost:3000/api/v1/get-cell-lengths?dbname=sample.db&label=1"
+```
+
+## Response
+
+```json
+[
+  {
+    "cell_id": "F0C12",
+    "length": 6.305
+  },
+  {
+    "cell_id": "F0C13",
+    "length": 5.9475
+  }
+]
+```
+
+## 実装の芯
+
+```python title="backend/app/bulk_engine/router.py"
+@router_bulk_engine.get("/get-cell-lengths", response_model=list[CellLength])
+async def get_cell_lengths(
+    dbname: Annotated[str, Query()] = ...,
+    label: Annotated[str | None, Query()] = None,
+) -> list[CellLength]:
+    lengths = await loop.run_in_executor(
+        bulk_executor,
+        BulkEngineCrud.get_cell_lengths_by_label,
+        dbname,
+        label,
+    )
+    return [CellLength(cell_id=cell_id, length=length) for cell_id, length in lengths]
+```
+
+PCA 主軸方向の extent を px 単位で出し、`0.065 um/px` を掛けます。
+
+```python title="backend/app/bulk_engine/crud.py"
+def _pca_length(points: np.ndarray) -> float:
+    pts = points.astype(float)
+    mean = pts.mean(axis=0)
+    centered = pts - mean
+    cov = np.cov(centered.T)
+    eigvals, eigvecs = np.linalg.eig(cov)
+    axis = eigvecs[:, np.argmax(eigvals)]
+    proj = centered @ axis
+    return float(proj.max() - proj.min())
+```
+
+```python title="backend/app/bulk_engine/crud.py"
+length_px = _pca_length(coords_inside[:, ::-1])
+return round(length_px * PIXEL_SIZE_UM, 4)
+```
+
+## エラー
+
+| status | 条件 |
+| --- | --- |
+| `400` | `dbname` や内部値が不正 |
+| `404` | database が存在しない |
+| `500` | 予期しない計算・DB エラー |
+
+## 関連
+
+数式の背景は [中心線と細胞長](/docs/algorithms/centerline-and-length/) を参照してください。面積や raw pixel は [面積と raw pixel export](/docs/algorithms/area-and-raw-export/) にあります。

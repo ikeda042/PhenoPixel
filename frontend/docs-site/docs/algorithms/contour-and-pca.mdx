@@ -1,0 +1,75 @@
+---
+sidebar_position: 2
+title: 輪郭と主軸
+description: PH 画像から得た輪郭を mask 化し、PCA で細胞固有座標へ変換する。
+---
+
+# 輪郭と主軸
+
+1 細胞の輪郭点を
+
+$$
+C = \{(x_i, y_i)\}_{i=1}^{n}
+$$
+
+とし、輪郭内部のピクセル集合を $\Omega_C$ とします。PhenoPixel では Canny で候補輪郭を取り、面積や中心位置で絞り込んだあと、各細胞 crop と一緒に contour を database に保存します。
+
+## mask と内部点
+
+輪郭を rasterize すると、細胞内の pixel 座標と強度をまとめて取り出せます。
+
+$$
+\Omega_C = \{p \mid p \text{ is inside } C\}
+$$
+
+この内部点は、細胞長、raw intensity、normalized median、蛍光ベクトル化で共通して使われます。
+
+## PCA 主軸
+
+輪郭または内部点の共分散行列は次の形です。
+
+$$
+\Sigma =
+\begin{pmatrix}
+\mathrm{Var}[X_1] & \mathrm{Cov}[X_1, X_2] \\
+\mathrm{Cov}[X_1, X_2] & \mathrm{Var}[X_2]
+\end{pmatrix}
+$$
+
+主方向は次の固有値問題で求めます。
+
+$$
+\mathbf{w}^* =
+\underset{\|\mathbf{w}\| = 1}{\mathrm{arg\,max}}
+\mathbf{w}^{\mathsf{T}} \Sigma \mathbf{w},
+\qquad
+\Sigma \mathbf{w} = \lambda \mathbf{w}
+$$
+
+最大固有値に対応する固有ベクトルが細胞の長軸方向です。正規直交固有ベクトル基底を $Q = (\mathbf{v}_1\ \mathbf{v}_2)$ とすると、細胞整列座標は次で得られます。
+
+$$
+\mathbf{u} = Q^{\mathsf{T}}\mathbf{x},
+\qquad
+\mathbf{x} = Q\mathbf{u}
+$$
+
+$Q$ が正規直交行列なので、変換前後で距離は保存されます。
+
+$$
+\|\mathbf{u}\|^2 =
+(Q^{\mathsf{T}}\mathbf{x})^{\mathsf{T}}(Q^{\mathsf{T}}\mathbf{x})
+= \mathbf{x}^{\mathsf{T}} Q Q^{\mathsf{T}} \mathbf{x}
+= \|\mathbf{x}\|^2
+$$
+
+## 実装との対応
+
+| 役割 | 実装 |
+| --- | --- |
+| PH 画像から contour を作る | `backend/app/cellextraction/crud.py` |
+| contour と mask から内部点を取る | `backend/app/bulk_engine/crud.py` |
+| heatmap 用に細胞座標へ変換する | `backend/app/bulk_engine/heatmap_bulk_core.py` |
+| replot や contour grid を描く | `backend/app/database_manager/crud.py` |
+
+次に読むなら [中心線と細胞長](/docs/algorithms/centerline-and-length/)、コードから追うなら [Cell Extraction パイプライン](/docs/code/cell-extraction-pipeline/) が近い入口です。

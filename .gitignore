@@ -1,0 +1,11 @@
+venv/
+__pycache__/
+*.pyc
+*.nd2
+.DS_Store
+backend/app/file_manager/storage/
+backend/app/nd2parser/parsednd2/
+backend/.env
+backend/app/activity_tracker/data/
+frontend/storybook-static/
+screen_records_edits/

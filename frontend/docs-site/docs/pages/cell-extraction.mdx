@@ -1,0 +1,87 @@
+---
+sidebar_position: 3
+title: Cell Extraction
+description: ND2 から細胞輪郭と cropped cell database を生成する手順と Canny/Auto Annotation の仕組み。
+---
+
+# Cell Extraction
+
+Cell Extraction は、ND2 の位相差画像から細胞輪郭を検出し、各細胞の PH/蛍光 crop と輪郭情報を SQLite データベースへ保存する画面です。
+
+![Cell extraction setup](/img/screenshots/cell_extraction1.png)
+
+## 使い方
+
+1. ND2 Manager から対象ファイルを選び、Cell Extraction を開く。
+2. レイヤー構成を選ぶ。`Single`, `Dual`, `Dual reversed`, `Triple`, `Quad` を指定できる。
+3. `Canny parameter` と crop の `Image size` を調整する。
+4. Auto Annotation を有効にする場合は `On` にする。
+5. `Extract cells` を押し、ジョブ完了まで待つ。
+6. 右側の抽出画像を確認し、必要ならパラメータを変えて再抽出する。
+7. 生成された database を開くか、Annotation へ進む。
+
+![Extraction results](/img/screenshots/cell_extraction3.png)
+
+## 輪郭抽出アルゴリズム
+
+バックエンドは ND2 を一時 TIFF に変換し、フレームとチャンネルを `PH`, `Fluo1`, `Fluo2` へ分けます。各 PH フレームに対して次の処理を行います。
+
+1. PH 画像を grayscale に変換する。
+2. `param1` をしきい値にして二値化する。
+3. `cv2.Canny(thresh, 0, 130)` でエッジを検出する。
+4. `cv2.findContours(..., RETR_EXTERNAL, CHAIN_APPROX_NONE)` で外側輪郭を抽出する。
+5. 面積が `300 px^2` 未満の輪郭を除外する。
+6. 重心が画像中央領域にない輪郭を除外する。
+7. 重心を中心に `image_size x image_size` で PH/蛍光画像を crop する。
+8. crop が欠けていない細胞だけを SQLite の `cells` テーブルへ保存する。
+
+抽出結果の overlay PNG は `backend/app/extracted_data/<nd2_stem>/` に、データベースは `backend/app/databases/` に保存されます。
+
+## Auto Annotation
+
+![Auto annotation processing](/img/screenshots/cell_extraction2.png)
+
+Auto Annotation は、輪郭形状だけを使った軽量なヒューリスティックです。輪郭点を
+
+$$
+C = \{(x_i, y_i)\}_{i=1}^{N}
+$$
+
+とすると、まず輪郭座標の共分散を計算します。
+
+$$
+\Sigma_C =
+\frac{1}{N-1}
+\sum_{i=1}^{N}
+(\mathbf{p}_i - \bar{\mathbf{p}})
+(\mathbf{p}_i - \bar{\mathbf{p}})^{\mathsf{T}}
+$$
+
+固有値を $\lambda_1 \ge \lambda_2$ としたとき、小さい固有値 $\lambda_2$ を横方向の広がりとして使い、次を満たすものを候補に残します。
+
+$$
+\lambda_2 \le 120
+$$
+
+次に輪郭の凸性を、輪郭周長と凸包周長の比で評価します。
+
+$$
+\kappa(C) = \frac{P(\mathrm{Hull}(C))}{P(C)}
+$$
+
+不規則なデブリや結合細胞では輪郭周長が長くなり、$\kappa$ が小さくなります。PhenoPixel は $\kappa(C) > 0.85$ を満たす輪郭だけを `Label 1` にします。
+
+$$
+s(C) = \mathbf{1}[\lambda_2 \le 120] \mathbf{1}[\kappa(C) > 0.85]
+$$
+
+`s(C) = 1` なら `Label 1`、それ以外は `N/A` です。最終判断は Annotation 画面で人が確認します。
+
+## 関連 API
+
+```bash
+POST /api/v1/extract-cells
+GET  /api/v1/extract-cells/{job_id}
+GET  /api/v1/get-extracted-image
+GET  /api/v1/get-extracted-image-count
+```

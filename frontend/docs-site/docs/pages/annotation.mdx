@@ -1,0 +1,41 @@
+---
+sidebar_position: 6
+title: Annotation
+description: Auto Annotation 後の細胞/デブリを手動でラベル補正する。
+---
+
+# Annotation
+
+Annotation は、Auto Annotation や輪郭抽出で混入したデブリ、結合細胞、非単一細胞を手動で除外する画面です。`N/A` と対象ラベルを左右に並べ、クリックまたは Shift + drag でまとめてラベルを入れ替えます。
+
+![Annotation cleanup](/img/screenshots/annotation1.png)
+
+## 使い方
+
+1. database を指定して Annotation を開く。
+2. `Label` で作業対象のラベルを選ぶ。標準では `1` を単一細胞として扱います。
+3. `N/A` 側から単一細胞を選び、`Apply` で `Label 1` に移動する。
+4. `Label 1` 側にデブリや結合細胞が混ざっていれば選択し、`Apply` で `N/A` に戻す。
+5. 大量に選ぶ場合は Shift + drag を使う。
+6. 表示が重い場合は downscale を下げて読み込みを軽くする。
+
+![Annotation labeling](/img/screenshots/annotation2.png)
+
+![Annotation multiple](/img/screenshots/annotation3.png)
+
+## 裏側の処理
+
+画面は `GET /api/v1/get-annotation-zip` で annotation 用 PNG と `manifest.json` を ZIP として取得します。フロントエンドは ZIP を `fflate` で展開し、各画像を object URL として表示します。
+
+ラベル更新は `PATCH /api/v1/update-cell-label` を細胞ごとに呼びます。UI は先に表示上のラベルを移動し、API 更新を並列に送る optimistic update に近い動きです。更新に失敗した場合はエラーメッセージを表示し、再操作できるようにします。
+
+ZIP 生成では PH 画像を downscale でき、蛍光画像や raw 出力時は必要に応じて full resolution を維持します。各画像には現在の輪郭を描画し、manifest には `cell_id`, `label`, `file` が入ります。
+
+## 関連 API
+
+```bash
+GET   /api/v1/get-annotation-zip
+PATCH /api/v1/update-cell-label
+GET   /api/v1/get-manual-labels
+GET   /api/v1/get-cell-ids-by-label
+```

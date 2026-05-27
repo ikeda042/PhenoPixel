@@ -1,0 +1,122 @@
+---
+sidebar_position: 1
+title: Cell Extraction パイプライン
+description: extract-cells API と輪郭抽出コードの読み方。
+---
+
+# Cell Extraction パイプライン
+
+ND2 ファイルから細胞 crop、contour、area、manual label を持つ SQLite database を作る入口です。
+
+## Endpoint
+
+```http
+POST /api/v1/extract-cells
+```
+
+## Request body
+
+| field | type | default | 説明 |
+| --- | --- | --- | --- |
+| `filename` | `string` | required | `backend/app/nd2files/` にある `.nd2` |
+| `layer_mode` | `string` | required | `single`, `dual`, `dual reversed`, `triple`, `quad` |
+| `param1` | `integer` | `130` | PH 画像の二値化しきい値 |
+| `image_size` | `integer` | `200` | 細胞 crop の一辺 px |
+| `auto_annotation` | `boolean` | `false` | 輪郭形状による初期 label 付与 |
+
+```json
+{
+  "filename": "sample.nd2",
+  "layer_mode": "dual",
+  "param1": 130,
+  "image_size": 200,
+  "auto_annotation": true
+}
+```
+
+## Response
+
+ジョブは別プロセスで走り、すぐに `202 Accepted` を返します。
+
+```json
+{
+  "job_id": "5f4f0f9d47cf4e8e8c4a6a6a9b8b0b25",
+  "status": "running"
+}
+```
+
+進捗確認:
+
+```http
+GET /api/v1/extract-cells/{job_id}
+```
+
+完了時:
+
+```json
+{
+  "job_id": "5f4f0f9d47cf4e8e8c4a6a6a9b8b0b25",
+  "status": "completed",
+  "result": {
+    "num_tiff": 120,
+    "ulid": "01HX...",
+    "databases": [
+      {
+        "db_name": "sample.db",
+        "contour_count": 482
+      }
+    ],
+    "nd2_stem": "sample",
+    "param1": 130,
+    "image_size": 200
+  }
+}
+```
+
+## 実装の芯
+
+```python title="backend/app/cellextraction/router.py"
+@router_cellextraction.post("/extract-cells", status_code=202)
+def extract_cells(payload: ExtractCellsRequest) -> dict[str, Any]:
+    sanitized = _sanitize_nd2_filename(payload.filename)
+    mode, reverse_layers = _normalize_layer_mode(payload.layer_mode)
+    process = ctx.Process(
+        target=_run_extraction,
+        args=(
+            str(nd2_path),
+            mode,
+            payload.param1,
+            payload.image_size,
+            reverse_layers,
+            payload.auto_annotation,
+            result_queue,
+        ),
+    )
+```
+
+輪郭抽出は PH 画像の二値化、Canny、外側輪郭検出、面積と中心位置によるフィルタで進みます。
+
+```python title="backend/app/cellextraction/crud.py"
+_, thresh = cv2.threshold(img_ph_gray, self.param1, 255, cv2.THRESH_BINARY)
+img_canny = cv2.Canny(thresh, 0, 150)
+contours_raw, _ = cv2.findContours(
+    img_canny, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE
+)
+contours = list(filter(lambda x: cv2.contourArea(x) >= 300, contours_raw))
+```
+
+## 保存されるもの
+
+| data | 保存先 |
+| --- | --- |
+| overlay PNG | `backend/app/extracted_data/<nd2_stem>/` |
+| SQLite database | `backend/app/databases/` |
+| PH crop | `cells.img_ph` |
+| Fluo crop | `cells.img_fluo1`, `cells.img_fluo2` |
+| contour | `cells.contour` |
+| area | `cells.area` |
+| label | `cells.manual_label` |
+
+## 関連
+
+アルゴリズムの背景は [輪郭と主軸](/docs/algorithms/contour-and-pca/)、後段の集団解析は [Cell length API](/docs/code/bulk-cell-length/) と [Heatmap vector CSV](/docs/code/heatmap-vector-csv/) から追えます。

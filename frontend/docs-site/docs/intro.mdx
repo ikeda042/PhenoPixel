@@ -1,0 +1,67 @@
+---
+sidebar_position: 1
+slug: /
+title: Overview
+description: PhenoPixel の画面構成、基本ワークフロー、ローカル起動方法。
+---
+
+# PhenoPixel ドキュメント
+
+PhenoPixel は、ND2 顕微鏡画像から細胞を抽出し、SQLite データベースとして保存し、アノテーションと集団解析まで進めるためのアプリケーションです。バックエンドは FastAPI、フロントエンドは React + Vite、ドキュメントは React ベースの Docusaurus で構成しています。
+
+![Cell extraction preview](/img/screen-records/cell-extraction.preview.gif)
+
+## 基本ワークフロー
+
+1. **ND2 Manager** で `.nd2` ファイルをアップロードし、必要に応じてメタデータを確認する。
+2. **ND2 Parser** でフレームとチャンネルを確認し、任意領域をクロップして確認・エクスポートする。
+3. **Cell Extraction** で Canny 系パラメータ、レイヤー構成、クロップサイズを指定して細胞を抽出する。
+4. **Database Console / Cell Viewer** で抽出済み細胞画像、輪郭、ヒートマップ、分布などを確認する。
+5. **Annotation** で単一細胞とデブリを手動ラベル付けする。
+6. **Bulk Engine** でラベル済み細胞に対して長さ、面積、蛍光局在、強度分布などを集団解析する。
+7. **Graph Engine** で CSV 化済みのピークベクトルをまとめ、HU aggregation ratio などの比較図を生成する。
+
+## ローカル起動
+
+バックエンド:
+
+```bash
+python3.14 -m venv venv
+source ./venv/bin/activate
+cd backend
+pip install -r requirements.txt
+python main.py
+```
+
+フロントエンド:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Docusaurus ドキュメントのみを開発する場合:
+
+```bash
+cd frontend
+npm run docs:dev
+```
+
+本番ビルドでは `npm run build` が Vite アプリを `frontend/dist` に出力したあと、Docusaurus を `frontend/dist/docs` に出力します。そのためバックエンドの静的配信では `/docs/` からこのドキュメントを開けます。
+
+## 画面と API の対応
+
+| 画面 | 主なパス | 主な API |
+| --- | --- | --- |
+| ND2 Manager | `/nd2files` | `/api/v1/nd2_files` |
+| ND2 Parser | `/nd2parser` | `/api/v1/nd2parser/*` |
+| Cell Extraction | `/cell-extraction` | `/api/v1/extract-cells` |
+| Database Console | `/databases` | `/api/v1/get-databases`, `/api/v1/database_files/*` |
+| Cell Viewer | `/cells` | `/api/v1/get-cell-*` |
+| Annotation | `/annotation` | `/api/v1/get-annotation-zip`, `/api/v1/update-cell-label` |
+| Bulk Engine | `/bulk-engine` | `/api/v1/get-cell-lengths`, `/api/v1/get-heatmap-*` |
+| File Manager | `/files` | `/api/v1/filemanager/files` |
+| Graph Engine | `/graph-engine` | `/api/v1/graph_engine/*` |
+
+より詳しい定量化の数式は [Quantitative Methods](/docs/algorithms/quantitative-methods/) と、サイドバーの「アルゴリズム」配下の各ページにまとめています。実装の読み方は「コード」配下から追えます。

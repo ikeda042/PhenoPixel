@@ -1,0 +1,31 @@
+---
+sidebar_position: 8
+title: File Manager
+description: ローカルサーバー上の一般ファイルをアップロード、検索、ダウンロード、削除する。
+---
+
+# File Manager
+
+File Manager は、ND2 や database 以外の補助ファイルをサーバー側に置いておくための汎用ファイル管理画面です。
+
+## 使い方
+
+1. `Upload File` でファイルを追加する。
+2. 検索欄でファイル名を絞り込む。
+3. 一覧でサイズと更新時刻を確認する。
+4. `Download` で取得し、不要になったものは `Delete` で削除する。
+
+## 裏側の処理
+
+バックエンドは `DirectoryStorageCrud` 系の共通処理で保存先ディレクトリを管理します。アップロードは chunk 単位で書き込み、一覧ではファイル名、サイズ、更新時刻を返します。ダウンロードは `application/octet-stream` として返し、削除時はパス成分を含む危険なファイル名を受け付けないように sanitize します。
+
+この画面は解析アルゴリズムそのものには関与しませんが、CSV、追加画像、補助データなどを同じサーバー上で扱うための入口として使えます。
+
+## 関連 API
+
+```bash
+GET    /api/v1/filemanager/files
+POST   /api/v1/filemanager/files
+GET    /api/v1/filemanager/files/{filename}
+DELETE /api/v1/filemanager/files/{filename}
+```

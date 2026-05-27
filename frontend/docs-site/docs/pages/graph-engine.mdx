@@ -1,0 +1,46 @@
+---
+sidebar_position: 9
+title: Graph Engine
+description: CSV 化済みピークベクトルから HU aggregation ratio と比較プロットを生成する。
+---
+
+# Graph Engine
+
+Graph Engine は、Bulk Engine などから得た CSV を複数まとめて読み込み、HU aggregation ratio 系の指標と可視化を作る画面です。
+
+## 使い方
+
+1. `Graph mode` で `HU aggregation ratio` を選ぶ。
+2. 対照データがある場合は control CSV を指定する。
+3. 解析対象 CSV を 1 つ以上アップロードする。
+4. `Analyze` を実行すると、平均細胞長、aggregation rate、heatmap、relative heatmap、distribution、box plot が生成される。
+
+## 裏側の処理
+
+CSV は 2 行 1 細胞の形式として解釈されます。1 行目は細胞軸方向の座標、2 行目はピークベクトルです。座標数が `35` 点でない行はスキップされます。
+
+細胞長は座標の端点差から計算し、ピクセルサイズ `0.065 um/px` を掛けます。
+
+$$
+L = (u_{1,\max} - u_{1,\min}) \times 0.065
+$$
+
+ピークベクトルは細胞ごとに min-max normalize し、平均値を phenotype score として使います。
+
+$$
+s(C) = \frac{1}{35}\sum_{j=1}^{35} g_j
+$$
+
+control CSV がある場合は、control score を降順に並べ、`int(len(data) * 0.95)` の位置をしきい値として使います。解析対象では、そのしきい値を下回る細胞の割合を `nagg_rate` として返します。
+
+heatmap は raw matrix、relative heatmap は行ごとに normalize した matrix を `viridis` で描画します。distribution は全値の histogram、box plot は行平均の分布を描画します。
+
+## 関連 API
+
+```bash
+POST /api/v1/graph_engine/HU_aggregation_ratio
+POST /api/v1/graph_engine/heatmap_abs
+POST /api/v1/graph_engine/heatmap_rel
+POST /api/v1/graph_engine/distribution
+POST /api/v1/graph_engine/distribution_box
+```

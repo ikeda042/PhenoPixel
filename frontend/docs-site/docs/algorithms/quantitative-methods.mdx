@@ -1,0 +1,36 @@
+---
+sidebar_position: 1
+title: Quantitative Methods
+description: PhenoPixel の定量アルゴリズムを読むための入口。
+---
+
+# Quantitative Methods
+
+PhenoPixel の定量処理は、位相差画像から輪郭を検出し、細胞固有の座標系へ変換し、形状・蛍光記述子を細胞間で比較する流れで統一されています。
+
+この章はサイドバーで細かく分けています。最初に概念を読み、必要なところだけ実装ページへ進むのがおすすめです。
+
+## セクション
+
+| セクション | 読む内容 | 主な実装 |
+| --- | --- | --- |
+| [輪郭と主軸](/docs/algorithms/contour-and-pca/) | 輪郭、mask、PCA 主軸、細胞座標系 | `cellextraction`, `bulk_engine`, `database_manager` |
+| [中心線と細胞長](/docs/algorithms/centerline-and-length/) | 中心線フィッティング、PCA extent、um 換算 | `bulk_engine.crud._calc_cell_length_um` |
+| [面積と raw pixel export](/docs/algorithms/area-and-raw-export/) | 輪郭面積、内部 pixel の抽出 | `get-cell-areas`, `get-raw-intensities` |
+| [蛍光ベクトル化](/docs/algorithms/fluorescence-vectorization/) | 中心線への投影、35 点ピークベクトル、CSV | `heatmap_bulk_core.calculate_heatmap_path_vector` |
+| [正規化と凝集スコア](/docs/algorithms/aggregation-scores/) | normalized median、FITC/HU 系スコア | `bulk_engine`, `graphengine` |
+
+## 解析パイプライン
+
+| 段階 | 入力 | 出力 |
+| --- | --- | --- |
+| 輪郭抽出 | PH 画像 | contour、crop、area |
+| 座標変換 | contour と内部 pixel | 主軸方向 `u1`、横方向 `u2` |
+| 形状評価 | 主軸投影、輪郭面積 | cell length、cell area |
+| 強度評価 | channel 画像と mask | raw intensity、normalized median |
+| 局在評価 | 蛍光画像、中心線、多項式次数 | peak vector、heatmap CSV |
+| 集団評価 | ラベル済み細胞、control CSV | aggregation ratio、比較 plot |
+
+## コードと一緒に読む
+
+API と実装の対応を見たい場合は、サイドバーの「コード」を使います。たとえば細胞長は [Cell length API](/docs/code/bulk-cell-length/)、ピークベクトルは [Heatmap vector CSV](/docs/code/heatmap-vector-csv/) から、エンドポイント、パラメータ、レスポンス、内部関数の順に追えます。

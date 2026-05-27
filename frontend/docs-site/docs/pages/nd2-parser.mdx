@@ -1,0 +1,39 @@
+---
+sidebar_position: 2
+title: ND2 Parser
+description: ND2 のフレーム確認、光学ブースト、クロップ、PNG エクスポート。
+---
+
+# ND2 Parser
+
+ND2 Parser は、抽出前の ND2 をフレーム単位・チャンネル単位で確認する画面です。位相差画像、蛍光 1、蛍光 2 を並べて見ながら、光学ブーストやクロップ範囲の調整を行えます。
+
+## 使い方
+
+1. ND2 Manager から `Parse` してこの画面を開く。
+2. フレーム送りで時系列を確認する。
+3. `Mode` で `None`, `Optical boost`, `Crop` を切り替える。
+4. `Crop` では `Size (px)` と十字キーでクロップ中心を調整する。
+5. `Export` で表示中フレームの指定領域を PNG として保存する。
+
+## 裏側の処理
+
+`POST /api/v1/nd2parser/parse` は ND2 を `backend/app/nd2parser/parsednd2/` に展開し、`meta.json` にフレーム数、画像サイズ、検出チャンネル、元ファイル名を記録します。重いパース処理は `ProcessPoolExecutor` に逃がし、UI のリクエスト処理を詰まらせないようにしています。
+
+画像取得では、チャンネルごとに `ph`, `fluo1`, `fluo2` を読み出します。数値配列は表示用に 8-bit へ変換されます。
+
+- 整数画像は dtype の範囲を使って 0-255 にスケールする。
+- 浮動小数点画像は 0-1 範囲なら 255 倍し、それ以外は 255, 1023, 4095, 16383, 65535 などの候補から上限を推定する。
+- `Optical boost` では現在の画像内の最小値・最大値で正規化し、暗い蛍光シグナルを見やすくする。
+- `fluo1` は緑、`fluo2` は青へ疑似カラー化する。
+
+クロップ時は中心座標と `grid_size` から安全な crop box を計算します。画像境界を超えないように左右上下をクランプし、必要な場合はゼロ埋めして指定サイズの PNG を返します。
+
+## 関連 API
+
+```bash
+POST /api/v1/nd2parser/parse
+GET  /api/v1/nd2parser/metadata
+GET  /api/v1/nd2parser/image
+GET  /api/v1/nd2parser/export-region
+```

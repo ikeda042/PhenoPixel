@@ -1,0 +1,352 @@
+---
+sidebar_position: 5
+title: Cell Viewer
+description: 個別細胞の画像、輪郭、overlay、replot、heatmap、map256、distribution を確認する。
+---
+
+# Cell Viewer
+
+Cell Viewer は、Database Console の `Access` から開く個別細胞ビューアです。database 内の `cell_id` を順に見ながら、画像チャンネル、輪郭、ラベル、解析用の派生画像を確認します。
+
+![Function panel modes](/img/screenshots/database_manager3.png)
+
+## 開き方
+
+通常は Database Console から database を選び、`Access` で開きます。URL では次の query を使います。
+
+| query | 例 | 説明 |
+| --- | --- | --- |
+| `db` | `?db=sample.db` | 開く database 名。必須です。 |
+| `cell_id` | `&cell_id=F0C12` | 最初に表示したい細胞 ID。`cell` でも受け付けます。 |
+| `fast` | `&fast=1` | fast preload を使う指定。`1`, `true`, `yes`, `on` が有効です。 |
+
+`cell_id` を指定すると、その ID が cell list に存在する場合は自動でその細胞へ移動します。存在しない場合は通常の先頭 cell から表示されます。
+
+## 画面構成
+
+Cell Viewer は大きく 5 つの領域で構成されています。
+
+| 領域 | 役割 |
+| --- | --- |
+| `Cell Control Panel` | database、label filter、manual label、overlay 表示、現在位置を管理する。 |
+| `Modification` | contour、蛍光表示の gain、optical boost を切り替える。 |
+| `PH / FLUO1 / FLUO2` | 3 チャンネルの cell crop を並べて確認する。 |
+| `Navigator` | 前後移動、slider 移動、現在 index の確認を行う。 |
+| `Function Panel` | contour、replot、overlay、heatmap、map256、distribution などの派生表示を切り替える。 |
+
+## Cell Control Panel
+
+上部の `Cell Control Panel` は、表示対象の細胞集合と現在 cell のラベルを決める場所です。
+
+### Database と Fast mode
+
+右上に `Database: <dbname>` が表示されます。`fast=1` などで開いた場合は `Fast mode` badge も表示されます。
+
+Fast mode は `get-cells-fast-bundle` で cell ID、manual label、PH/FLUO 画像を ZIP としてまとめて取得する表示高速化です。ただし、次の条件を満たすときだけ fast bundle の画像を使います。
+
+| 条件 | 内容 |
+| --- | --- |
+| Label Filter | `All` |
+| Overlay options | `Contour` と `Scale` が両方 ON |
+| Fluo colors | `FLUO1 = Green`, `FLUO2 = Magenta` |
+| Modification mode | `Elastic contour` |
+| contour 更新 | まだ contour 変更が入っていない |
+
+条件から外れると、通常の個別 API 読み込みへ戻ります。fast preload に失敗した場合も、エラーを表示したうえで通常読み込みへフォールバックします。
+
+### Label Filter
+
+`Label Filter` は、viewer で巡回する cell list を絞り込むプルダウンです。
+
+| 選択肢 | できること | 呼ばれる API |
+| --- | --- | --- |
+| `All` | database 内の全 cell を表示対象にする。 | `GET /api/v1/get-cell-ids` |
+| `N/A` | manual label が `N/A` の cell だけを表示する。 | `GET /api/v1/get-cell-ids-by-label` |
+| `1` | label `1` の cell だけを表示する。標準では単一細胞候補として使います。 | `GET /api/v1/get-cell-ids-by-label` |
+| `2` | label `2` の cell だけを表示する。追加分類用です。 | `GET /api/v1/get-cell-ids-by-label` |
+| `3` | label `3` の cell だけを表示する。追加分類用です。 | `GET /api/v1/get-cell-ids-by-label` |
+
+フィルタを変えると cell list を読み直し、index は先頭へ戻ります。`Apply bulk` を使う場合、`All` 以外の filter が入っていれば、その label の cell 群にだけ bulk contour 操作が適用されます。
+
+### Manual label
+
+`Manual label` は現在表示中の cell の `manual_label` を変更するプルダウンです。
+
+| 選択肢 | 意味 |
+| --- | --- |
+| `Not set` | label が読み込めない、または未設定の表示状態。選択用ではなく placeholder です。 |
+| `N/A` | 解析対象外、デブリ、結合細胞などとして扱う。 |
+| `1` | 解析対象の単一細胞として扱う標準 label。 |
+| `2` | ユーザー定義の追加 label。 |
+| `3` | ユーザー定義の追加 label。 |
+| 現在の custom label | database に `N/A`, `1`, `2`, `3` 以外の label が入っている場合、現在値として先頭に追加表示されます。 |
+
+変更すると即座に `PATCH /api/v1/update-cell-label` が呼ばれます。UI は先に label を切り替え、API が失敗した場合は元の label へ戻してエラーを表示します。
+
+### Overlays
+
+`Overlays` には `Contour` と `Scale` の checkbox があります。
+
+| checkbox | 影響範囲 | 説明 |
+| --- | --- | --- |
+| `Contour` | PH/FLUO1/FLUO2 の画像カード | cell crop 上に保存済み contour を描画するかを切り替えます。 |
+| `Scale` | PH/FLUO1/FLUO2 の画像カード、Function Panel の overlay 系表示 | scale bar を描画するかを切り替えます。 |
+
+`Contour` はチャンネル画像の `GET /api/v1/get-cell-image` に `draw_contour` として渡されます。Function Panel の `Overlay`, `Overlay Raw`, `Overlay Fluo` は overlay 専用 API を使うため、ここでは主に `Scale` が反映されます。
+
+### Navigator readout
+
+右側の `Navigator` readout は、現在の状態を読むための表示です。
+
+| 表示 | 内容 |
+| --- | --- |
+| `Current cell` | 現在表示している `cell_id`。例: `F0C12`。 |
+| `Manual label` | 現在 cell の label。読み込み中は `Loading...`。 |
+| `Index` | 現在位置と対象 cell 数。例: `13 / 482`。 |
+
+## 画像チャンネルパネル
+
+中央左には `PH`, `FLUO1`, `FLUO2` の 3 つの画像カードが並びます。
+
+| パネル | 内容 | 主な用途 |
+| --- | --- | --- |
+| `PH` | 位相差 crop。contour や scale bar の確認に使います。 | 輪郭が細胞に合っているか、デブリが混ざっていないかを見る。 |
+| `FLUO1` | `img_fluo1` の crop。デフォルト疑似カラーは `Green`。 | FITC/HU-GFP など 1 番目の蛍光 signal を見る。 |
+| `FLUO2` | `img_fluo2` の crop。デフォルト疑似カラーは `Magenta`。 | PI など 2 番目の蛍光 signal を見る。 |
+
+各カードの download icon から、表示中の PNG を保存できます。ファイル名は `cell-<db>-<cell_id>-<channel>.png` です。
+
+### 蛍光カラーのプルダウン
+
+`FLUO1` と `FLUO2` には疑似カラーを選ぶプルダウンがあります。
+
+| 選択肢 | 表示色 |
+| --- | --- |
+| `Blue` | 青 |
+| `Green` | 緑 |
+| `Red` | 赤 |
+| `Yellow` | 黄 |
+| `Magenta` | マゼンタ |
+| `Gray` | grayscale |
+
+この色は `get-cell-image` の `fluo_color` に渡されます。`Overlay`, `Overlay Raw`, `Overlay Fluo` でも `fluo1_color`, `fluo2_color` として使われます。
+
+蛍光チャンネルが database にない場合は、画像領域に `fluo1 does not exist.` または `fluo2 does not exist.` と表示されます。
+
+## Modification パネル
+
+`Modification` は、表示中 cell の contour や蛍光表示を調整するパネルです。
+
+### Mode
+
+`Mode` プルダウンには 3 つの選択肢があります。
+
+| Mode | できること | 永続化 |
+| --- | --- | --- |
+| `Elastic contour` | 保存済み contour を膨張または収縮する。 | database の `cells.contour` を更新します。 |
+| `Gain` | FLUO1/FLUO2 の表示強度を倍率で明るくする。 | 表示だけです。database は更新しません。 |
+| `Optical boost` | FLUO1/FLUO2 を画像内 min/max で contrast boost する。 | 表示だけです。database は更新しません。 |
+
+### Elastic contour
+
+`Elastic contour` を選ぶと `Elastic Δ`, `Apply`, `Apply bulk` が表示されます。
+
+| UI | 説明 |
+| --- | --- |
+| `Elastic Δ` | contour の膨張・収縮量。UI 上は `-3` から `3`、step `1` の数値入力です。 |
+| `Apply` | 現在 cell だけに `PATCH /api/v1/elastic-contour` を実行します。 |
+| `Apply bulk` | 現在の Label Filter に該当する cell 群へ `PATCH /api/v1/elastic-contour-bulk` を実行します。 |
+
+`Elastic Δ` が正なら 3x3 kernel の dilation、負なら erosion です。処理後は contour を読み直し、PH/FLUO や Function Panel の表示も更新されます。
+
+bulk 適用では、`Label Filter = All` の場合は全 cell、`Label Filter = 1` などの場合はその label の cell だけが対象です。失敗 cell があった場合は `Applied to <updated> / <total> cells. <failed> failed.` のように表示されます。
+
+### Gain
+
+`Gain` を選ぶと `Gain (x)` と `Apply` が表示されます。
+
+| UI | 説明 |
+| --- | --- |
+| `Gain (x)` | FLUO1/FLUO2 の強度に掛ける倍率。`0` より大きい値だけ有効です。 |
+| `Apply` | 入力値を表示に反映し、チャンネル画像を再読み込みします。 |
+
+`Gain` は `GET /api/v1/get-cell-image` の `gain` に渡されます。PH 画像には適用されません。解析値や database の BLOB は変わりません。
+
+### Optical boost
+
+`Optical boost` は FLUO1/FLUO2 の contrast を画像ごとに見やすくする表示モードです。追加ボタンは出ません。Mode を選んだ時点で、蛍光画像は `GET /api/v1/get-cell-image-optical-boost` から読み込まれます。
+
+PH 画像は通常の `get-cell-image` のままです。暗い蛍光 signal の有無を目視確認するためのモードなので、数値解析や database には影響しません。
+
+## Navigator 操作
+
+画像カードの下に `Previous`, slider, `Next` があります。
+
+| UI | 操作 |
+| --- | --- |
+| `Previous` | 1 つ前の cell へ移動します。先頭では disabled です。 |
+| slider | 対象 cell list 内の任意 index へ移動します。 |
+| `Next` | 1 つ次の cell へ移動します。末尾では disabled です。 |
+
+キーボード操作も使えます。ただし input、textarea、select に focus があるときは無効です。
+
+| key | 動作 |
+| --- | --- |
+| `Enter` | 次の cell へ移動 |
+| `Space` | 前の cell へ移動 |
+| `N` | manual label を `N/A` に更新 |
+| `1` | manual label を `1` に更新 |
+| `2` | manual label を `2` に更新 |
+| `3` | manual label を `3` に更新 |
+
+## Function Panel
+
+右側の `Function Panel` は、現在 cell から作れる派生表示を切り替える領域です。`Draw mode` プルダウンで表示内容を選びます。
+
+### Draw mode
+
+| Draw mode | 表示内容 | 主な API |
+| --- | --- | --- |
+| `Contour` | 保存済み contour 座標を SVG path として描きます。 | `GET /api/v1/get-cell-contour` |
+| `Replot` | PCA 主軸で細胞を整列し、指定 channel を再描画します。 | `GET /api/v1/get-cell-replot` |
+| `Overlay` | PH を基準に、contour mask 内の蛍光 signal を重ねます。 | `GET /api/v1/get-cell-overlay?overlay_mode=ph` |
+| `Overlay Raw` | PH 上に蛍光 signal を raw overlay します。contour mask による通常 overlay との違いを確認できます。 | `GET /api/v1/get-cell-overlay?overlay_mode=raw` |
+| `Overlay Fluo` | PH なしで、FLUO1/FLUO2 の合成 overlay を表示します。 | `GET /api/v1/get-cell-overlay?overlay_mode=fluo` |
+| `Heatmap` | 中心線に沿った単一 cell の蛍光 heatmap を表示します。 | `GET /api/v1/get-cell-heatmap` |
+| `Map 256` | 細胞座標へ map した signal を 256 px 系の正規化画像として表示します。 | `GET /api/v1/get-cell-map256?map_mode=map256` |
+| `Map Raw` | map256 と同じ座標変換を使い、raw 寄りの map 表示を行います。 | `GET /api/v1/get-cell-map256?map_mode=raw` |
+| `Distribution` | 指定 channel の細胞内 intensity distribution を plot します。 | `GET /api/v1/get-cell-distribution` |
+
+### Replot の Channel
+
+`Draw mode = Replot` のときは `Channel` プルダウンが出ます。
+
+| Channel | 説明 |
+| --- | --- |
+| `PH` | PH 画像を PCA 主軸に合わせて再描画します。 |
+| `Fluo1` | FLUO1 を同じ座標系で再描画します。 |
+| `Fluo2` | FLUO2 を同じ座標系で再描画します。 |
+| `Overlay` | 複数チャンネルの overlay を再描画します。 |
+
+内部では `degree=4`, `dark_mode=true` を指定して `get-cell-replot` を呼びます。
+
+### Heatmap の Channel
+
+`Draw mode = Heatmap` のときは `Channel` プルダウンが出ます。
+
+| Channel | 説明 |
+| --- | --- |
+| `Fluo1` | FLUO1 の中心線方向 heatmap を表示します。 |
+| `Fluo2` | FLUO2 の中心線方向 heatmap を表示します。 |
+
+PH は heatmap 対象ではありません。内部では `degree=4` を指定します。
+
+### Map 256 / Map Raw の Channel
+
+`Draw mode = Map 256` または `Map Raw` のときは `Channel` プルダウンが出ます。
+
+| Channel | 説明 |
+| --- | --- |
+| `Fluo1` | FLUO1 の map を作ります。 |
+| `Fluo2` | FLUO2 の map を作ります。 |
+| `Overlay` | 蛍光 overlay の map を作ります。 |
+
+この mode では表示領域が上下 2 段になります。
+
+| 段 | 内容 |
+| --- | --- |
+| 上段 | `Map 256` または `Map Raw` の通常表示。 |
+| 下段 | 同じ map に Jet colormap を適用した表示。 |
+
+通常表示は `get-cell-map256`、Jet 表示は `get-cell-map256-jet` から取得します。
+
+### Distribution の Channel
+
+`Draw mode = Distribution` のときは `Channel` プルダウンが出ます。
+
+| Channel | 説明 |
+| --- | --- |
+| `PH` | PH の intensity distribution。 |
+| `Fluo1` | FLUO1 の intensity distribution。 |
+| `Fluo2` | FLUO2 の intensity distribution。 |
+
+細胞 contour 内の pixel を対象に plot を作ります。蛍光 channel の強度分布や background の混入確認に使えます。
+
+## 表示とエラー状態
+
+各 panel は読み込み中に spinner または loading text を表示します。取得できない場合は次のような文言が出ます。
+
+| 表示 | 主な意味 |
+| --- | --- |
+| `Image not available.` | 対象画像を取得できない。 |
+| `fluo1 does not exist.` / `fluo2 does not exist.` | database にその蛍光 channel がない。 |
+| `Replot not available.` | replot 画像を生成できない。 |
+| `Overlay not available.` | overlay 画像を生成できない。 |
+| `Heatmap not available.` | heatmap 画像を生成できない。 |
+| `Map 256 not available.` / `Map Raw not available.` | map 画像を生成できない。 |
+| `Distribution not available.` | distribution plot を生成できない。 |
+| `No contour data.` | contour 座標がない、または読み込めない。 |
+
+API エラーの詳細がある場合は、Function Panel 下や control panel 付近にエラーメッセージとして表示されます。
+
+## よく使う確認フロー
+
+### ラベル補正をしながら巡回する
+
+1. `Label Filter` を `All` または作業対象 label にする。
+2. `PH` と `FLUO1/FLUO2` を確認する。
+3. `Manual label` または keyboard shortcut で `N/A`, `1`, `2`, `3` を付ける。
+4. `Enter` で次へ進む。
+
+### 輪郭のずれを直す
+
+1. `Overlays > Contour` を ON にして PH/FLUO 上の contour を見る。
+2. `Function Panel > Draw mode = Contour` で contour だけを確認する。
+3. `Modification > Mode = Elastic contour` を選ぶ。
+4. 輪郭を外へ広げたい場合は正の `Elastic Δ`、内側へ縮めたい場合は負の `Elastic Δ` を入れる。
+5. `Apply` で現在 cell だけ更新する。対象 label 全体に同じ調整をかける場合は `Apply bulk` を使う。
+
+### 蛍光 signal を見やすくする
+
+1. FLUO1/FLUO2 の color dropdown で見やすい色を選ぶ。
+2. 暗い signal を見る場合は `Modification > Optical boost` を選ぶ。
+3. 一定倍率で確認したい場合は `Modification > Gain` を選び、`Gain (x)` を入れて `Apply` する。
+4. 合成状態は `Function Panel > Overlay Fluo` や `Overlay Raw` で確認する。
+
+### 局在・分布を見る
+
+1. `Function Panel > Replot` で細胞方向を揃えた見え方を確認する。
+2. `Heatmap` で中心線方向の signal を見る。
+3. `Map 256` / `Map Raw` で map 化された signal と Jet 表示を比較する。
+4. `Distribution` で細胞内 intensity の分布を見る。
+
+## 裏側の処理
+
+画像系 API は database の BLOB から PNG を復元します。PH は grayscale/RGB 表示、蛍光は `fluo1` が green、`fluo2` が magenta をデフォルトに疑似カラー化されます。overlay は mask 内の蛍光強度を PH 画像の上に合成します。
+
+`Replot` と contour grid は、輪郭内部を rasterize して PCA の主軸を求め、細胞固有座標へ変換します。これにより画像上の向きに依存しない輪郭比較ができます。
+
+`Elastic contour` は輪郭を mask 化し、3x3 kernel で dilation または erosion を行います。複数輪郭が出た場合は元輪郭の重心に最も近い候補を保存します。
+
+`Heatmap`, `Map 256`, `Map Raw` は多項式中心線 fitting を使います。UI では `degree=4` を固定で渡しています。
+
+## 関連 API
+
+```bash
+GET   /api/v1/get-cell-ids
+GET   /api/v1/get-cell-ids-by-label
+GET   /api/v1/get-cells-fast-bundle
+GET   /api/v1/get-cell-label
+GET   /api/v1/get-cell-contour
+GET   /api/v1/get-cell-image
+GET   /api/v1/get-cell-image-optical-boost
+GET   /api/v1/get-cell-overlay
+GET   /api/v1/get-cell-replot
+GET   /api/v1/get-cell-heatmap
+GET   /api/v1/get-cell-map256
+GET   /api/v1/get-cell-map256-jet
+GET   /api/v1/get-cell-distribution
+PATCH /api/v1/update-cell-label
+PATCH /api/v1/elastic-contour
+PATCH /api/v1/elastic-contour-bulk
+```

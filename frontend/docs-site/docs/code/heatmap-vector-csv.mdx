@@ -1,0 +1,101 @@
+---
+sidebar_position: 4
+title: Heatmap vector CSV
+description: Bulk Engine の蛍光ピークベクトル API と CSV 出力。
+---
+
+# Heatmap vector CSV
+
+Bulk Engine の heatmap 系 API は、細胞ごとに蛍光 signal を中心線方向へ投影し、Graph Engine が読める CSV を生成します。
+
+## Endpoint
+
+```http
+GET /api/v1/get-heatmap-vectors-csv
+```
+
+## Query parameters
+
+| name | type | default | 説明 |
+| --- | --- | --- | --- |
+| `dbname` | `string` | required | 対象 database |
+| `label` | `string` | `null` | 集計対象 label |
+| `channel` | `string` | `fluo1` | `fluo1`, `fluo2` |
+| `degree` | `integer` | `4` | 中心線 fit の多項式次数 |
+
+```bash
+curl -L \
+  "http://localhost:3000/api/v1/get-heatmap-vectors-csv?dbname=sample.db&label=1&channel=fluo1&degree=4" \
+  -o heatmap.csv
+```
+
+## CSV response
+
+2 行で 1 細胞です。1 行目が `u1` 座標、2 行目が peak intensity です。
+
+```csv
+-83.1,-77.8,-72.2,-66.9
+12,18,35,41
+-91.5,-86.0,-80.6,-75.2
+9,15,28,33
+```
+
+JSON で確認したい場合は、同じ計算を `GET /api/v1/get-heatmap-vectors` から取れます。
+
+```json
+[
+  {
+    "cell_id": "F0C12",
+    "u1": [-83.1, -77.8, -72.2],
+    "g": [12.0, 18.0, 35.0]
+  }
+]
+```
+
+## 実装の芯
+
+```python title="backend/app/bulk_engine/router.py"
+@router_bulk_engine.get("/get-heatmap-vectors-csv")
+async def get_heatmap_vectors_csv_endpoint(
+    dbname: Annotated[str, Query()] = ...,
+    label: Annotated[str | None, Query()] = None,
+    channel: Annotated[str, Query(description="fluo1 | fluo2")] = "fluo1",
+    degree: Annotated[int, Query(ge=1)] = 4,
+) -> StreamingResponse:
+    csv_bytes = await loop.run_in_executor(
+        heatmap_bulk_executor,
+        BulkEngineCrud.get_heatmap_vectors_csv,
+        dbname,
+        label,
+        channel,
+        degree,
+    )
+```
+
+中心線への投影と 35 ビンの peak selection は `calculate_heatmap_path_vector` にあります。
+
+```python title="backend/app/bulk_engine/heatmap_bulk_core.py"
+split_num = 35
+delta_l = (max_u1 - min_u1) / split_num if split_num > 0 else 0
+bin_idx = np.floor((projected_u1 - min_u1) / delta_l).astype(int)
+bin_idx = np.clip(bin_idx, 0, split_num - 1)
+max_val = np.full(split_num, -np.inf)
+```
+
+```python title="backend/app/bulk_engine/heatmap_bulk_core.py"
+for idx, (b_idx, intensity) in enumerate(zip(bin_idx, points_inside_cell)):
+    if b_idx == 0:
+        continue
+    if intensity > max_val[b_idx]:
+        max_val[b_idx] = intensity
+        max_idx[b_idx] = idx
+```
+
+## 関連 plot API
+
+| endpoint | 内容 |
+| --- | --- |
+| `GET /api/v1/get-heatmap-abs-plot` | 細胞長の絶対位置を揃えた heatmap |
+| `GET /api/v1/get-heatmap-rel-plot` | 相対位置として並べた heatmap |
+
+アルゴリズムの流れは [蛍光ベクトル化](/docs/algorithms/fluorescence-vectorization/) にあります。

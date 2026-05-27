@@ -1,0 +1,49 @@
+:root {
+  color-scheme: light;
+  --app-bg: var(--chakra-colors-sand-50, #ffffff);
+  --app-fg: var(--chakra-colors-ink-900, #0b0d10);
+  --app-accent-ring: rgba(0, 174, 211, 0.6);
+  --app-accent-glow: rgba(0, 174, 211, 0.25);
+  font-size: 138%;
+}
+
+:root.dark {
+  color-scheme: dark;
+  --app-bg: var(--chakra-colors-sand-50, #0b0d10);
+  --app-fg: var(--chakra-colors-ink-900, #f8fafc);
+  --app-accent-ring: rgba(45, 212, 191, 0.6);
+  --app-accent-glow: rgba(45, 212, 191, 0.25);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  background-color: var(--app-bg);
+  color: var(--app-fg);
+  margin: 0;
+}
+
+#root {
+  min-height: 100vh;
+  background-color: var(--app-bg);
+}
+
+select,
+option,
+optgroup {
+  background-color: var(--chakra-colors-sand-100, #111318);
+  color: var(--chakra-colors-ink-900, #f8fafc);
+}
+
+select {
+  color-scheme: inherit;
+}
+
+option:disabled {
+  color: var(--chakra-colors-ink-700, #9aa3af);
+}

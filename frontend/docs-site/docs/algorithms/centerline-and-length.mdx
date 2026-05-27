@@ -1,0 +1,64 @@
+---
+sidebar_position: 3
+title: 中心線と細胞長
+description: 細胞整列座標における中心線フィットと、API 実装で使う PCA extent の細胞長。
+---
+
+# 中心線と細胞長
+
+細胞整列座標では、長軸を $u_1$、短軸を $u_2$ として扱えます。曲がった細胞の局在解析では、内部 pixel の分布から中心線を近似し、蛍光シグナルをその中心線へ投影します。
+
+## 中心線フィッティング
+
+中心線は $k$ 次多項式で近似できます。
+
+$$
+\hat{f}(u_1) = \theta^{\mathsf{T}}\phi(u_1),
+\qquad
+\theta = (W^{\mathsf{T}} W)^{-1} W^{\mathsf{T}} f
+$$
+
+ここで $W$ は Vandermonde 行列、$f$ は短軸方向の値です。実装では通常 `degree=4` を使い、線形代数的に特異な場合は擬似逆行列へフォールバックします。
+
+![Centerline fitting](/img/images/method-centerline-fit.png)
+
+## 理論上の弧長
+
+中心線に沿った長さは、輪郭と中心線の交点間の弧長として書けます。
+
+$$
+L =
+\int_{u_{1,a}}^{u_{1,b}}
+\sqrt{1 + \left(\frac{d\hat{f}}{du_1}\right)^2}\,du_1
+$$
+
+この考え方は蛍光ベクトル化の投影先として重要です。
+
+## API の細胞長
+
+現在の `get-cell-lengths` 系 API では、細胞長は輪郭内部 pixel を PCA 主軸へ射影し、最大射影値と最小射影値の差として近似します。
+
+$$
+L_{\mathrm{px}} =
+\max_i \pi_i - \min_i \pi_i
+$$
+
+固定 pixel size は `0.065 um/px` です。
+
+$$
+L_{\mathrm{API}} =
+L_{\mathrm{px}} \times 0.065
+$$
+
+内部 pixel が取れない場合は contour 点の PCA extent にフォールバックします。
+
+## 実装との対応
+
+| 役割 | 実装 |
+| --- | --- |
+| PCA extent を計算する | `backend/app/bulk_engine/crud.py` の `_pca_length` |
+| um に換算する | `backend/app/bulk_engine/crud.py` の `_calc_cell_length_um` |
+| 中心線多項式を作る | `backend/app/bulk_engine/heatmap_bulk_core.py` の `_poly_fit` |
+| 中心線へ最近点投影する | `backend/app/bulk_engine/heatmap_bulk_core.py` の `_find_minimum_distance_point` |
+
+実際の API の読み方は [Cell length API](/docs/code/bulk-cell-length/) にまとめています。

@@ -1,0 +1,3235 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "FastAPI",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/nd2_files": {
+      "get": {
+        "tags": [
+          "nd2files"
+        ],
+        "summary": "Get Nd2 Files",
+        "operationId": "get_nd2_files_api_v1_nd2_files_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "nd2files"
+        ],
+        "summary": "Upload Nd2 File",
+        "operationId": "upload_nd2_file_api_v1_nd2_files_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_nd2_file_api_v1_nd2_files_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/nd2_files/{filename}": {
+      "delete": {
+        "tags": [
+          "nd2files"
+        ],
+        "summary": "Delete Nd2 File",
+        "operationId": "delete_nd2_file_api_v1_nd2_files__filename__delete",
+        "parameters": [
+          {
+            "name": "filename",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Filename"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/nd2_files/bulk-delete": {
+      "post": {
+        "tags": [
+          "nd2files"
+        ],
+        "summary": "Bulk Delete Nd2 Files",
+        "operationId": "bulk_delete_nd2_files_api_v1_nd2_files_bulk_delete_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Nd2BulkDeleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/nd2_files/{filename}/metadata": {
+      "get": {
+        "tags": [
+          "nd2files"
+        ],
+        "summary": "Get Nd2 File Metadata",
+        "operationId": "get_nd2_file_metadata_api_v1_nd2_files__filename__metadata_get",
+        "parameters": [
+          {
+            "name": "filename",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Filename"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/nd2parser/parse": {
+      "post": {
+        "tags": [
+          "nd2parser"
+        ],
+        "summary": "Parse Nd2",
+        "operationId": "parse_nd2_api_v1_nd2parser_parse_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ParseNd2Request"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/nd2parser/metadata": {
+      "get": {
+        "tags": [
+          "nd2parser"
+        ],
+        "summary": "Get Nd2 Metadata",
+        "operationId": "get_nd2_metadata_api_v1_nd2parser_metadata_get",
+        "parameters": [
+          {
+            "name": "nd2file",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Nd2File"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/nd2parser/image": {
+      "get": {
+        "tags": [
+          "nd2parser"
+        ],
+        "summary": "Get Nd2 Image",
+        "operationId": "get_nd2_image_api_v1_nd2parser_image_get",
+        "parameters": [
+          {
+            "name": "nd2file",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Nd2File"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Channel"
+            }
+          },
+          {
+            "name": "frame",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "title": "Frame"
+            }
+          },
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "none",
+              "title": "Mode"
+            }
+          },
+          {
+            "name": "brightness",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "default": 1.0,
+              "title": "Brightness"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/nd2parser/export-region": {
+      "get": {
+        "tags": [
+          "nd2parser"
+        ],
+        "summary": "Export Nd2 Region",
+        "operationId": "export_nd2_region_api_v1_nd2parser_export_region_get",
+        "parameters": [
+          {
+            "name": "nd2file",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Nd2File"
+            }
+          },
+          {
+            "name": "frame",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "title": "Frame"
+            }
+          },
+          {
+            "name": "grid_size",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Grid Size"
+            }
+          },
+          {
+            "name": "center_x",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Center X"
+            }
+          },
+          {
+            "name": "center_y",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Center Y"
+            }
+          },
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "none",
+              "title": "Mode"
+            }
+          },
+          {
+            "name": "brightness",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "default": 1.0,
+              "title": "Brightness"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/get-folder-names": {
+      "get": {
+        "tags": [
+          "extracted_data"
+        ],
+        "summary": "Get Folder Names",
+        "operationId": "get_folder_names_api_v1_get_folder_names_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array",
+                  "title": "Response Get Folder Names Api V1 Get Folder Names Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/get-extracted-image": {
+      "get": {
+        "tags": [
+          "extracted_data"
+        ],
+        "summary": "Get Extracted Image",
+        "operationId": "get_extracted_image_api_v1_get_extracted_image_get",
+        "parameters": [
+          {
+            "name": "folder",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Folder"
+            }
+          },
+          {
+            "name": "n",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "title": "N"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/get-extracted-image-count": {
+      "get": {
+        "tags": [
+          "extracted_data"
+        ],
+        "summary": "Get Extracted Image Count",
+        "operationId": "get_extracted_image_count_api_v1_get_extracted_image_count_get",
+        "parameters": [
+          {
+            "name": "folder",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Folder"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/extract-cells/{job_id}": {
+      "get": {
+        "tags": [
+          "cellextraction"
+        ],
+        "summary": "Get Extract Cells Status",
+        "operationId": "get_extract_cells_status_api_v1_extract_cells__job_id__get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/extract-cells": {
+      "post": {
+        "tags": [
+          "cellextraction"
+        ],
+        "summary": "Extract Cells",
+        "operationId": "extract_cells_api_v1_extract_cells_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtractCellsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/get-databases": {
+      "get": {
+        "tags": [
+          "database_manager"
+        ],
+        "summary": "Get Databases",
+        "operationId": "get_databases_api_v1_get_databases_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array",
+                  "title": "Response Get Databases Api V1 Get Databases Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/database_files": {
+      "post": {
+        "tags": [
+          "database_manager"
+        ],
+        "summary": "Upload Database",
+        "operationId": "upload_database_api_v1_database_files_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_database_api_v1_database_files_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Upload Database Api V1 Database Files Post"
+                }
+              }
+            },
+            "422": {
+              "description": "Validation Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/database_files/{dbname}": {
+      "get": {
+        "tags": [
+          "database_manager"
+        ],
+        "summary": "Download Database Endpoint",
+        "operationId": "download_database_endpoint_api_v1_database_files__dbname__get",
+        "parameters": [
+          {
+            "name": "dbname",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dbname"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "database_manager"
+        ],
+        "summary": "Delete Database Endpoint",
+        "operationId": "delete_database_endpoint_api_v1_database_files__dbname__delete",
+        "parameters": [
+          {
+            "name": "dbname",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dbname"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Delete Database Endpoint Api V1 Database Files  Dbname  Delete"
+                }
+              }
+            },
+            "422": {
+              "description": "Validation Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/get-cell-ids": {
+      "get": {
+        "tags": [
+          "database_manager"
+        ],
+        "summary": "Get Cell Ids Endpoint",
+        "operationId": "get_cell_ids_endpoint_api_v1_get_cell_ids_get",
+        "parameters": [
+          {
+            "name": "dbname",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dbname"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Response Get Cell Ids Endpoint Api V1 Get Cell Ids Get"
+                }
+              }
+            },
+            "422": {
+              "description": "Validation Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/get-cell-ids-by-label": {
+      "get": {
+        "tags": [
+          "database_manager"
+        ],
+        "summary": "Get Cell Ids By Label Endpoint",
+        "operationId": "get_cell_ids_by_label_endpoint_api_v1_get_cell_ids_by_label_get",
+        "parameters": [
+          {
+            "name": "dbname",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dbname"
+            }
+          },
+          {
+            "name": "label",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Label"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Response Get Cell Ids By Label Endpoint Api V1 Get Cell Ids By Label Get"
+                }
+              }
+            },
+            "422": {
+              "description": "Validation Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/get-manual-labels": {
+      "get": {
+        "tags": [
+          "database_manager"
+        ],
+        "summary": "Get Manual Labels Endpoint",
+        "operationId": "get_manual_labels_endpoint_api_v1_get_manual_labels_get",
+        "parameters": [
+          {
+            "name": "dbname",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dbname"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Response Get Manual Labels Endpoint Api V1 Get Manual Labels Get"
+                }
+              }
+            },
+            "422": {
+              "description": "Validation Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/get-cell-contour": {
+      "get": {
+        "tags": [
+          "database_manager"
+        ],
+        "summary": "Get Cell Contour Endpoint",
+        "operationId": "get_cell_contour_endpoint_api_v1_get_cell_contour_get",
+        "parameters": [
+          {
+            "name": "dbname",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dbname"
+            }
+          },
+          {
+            "name": "cell_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Cell Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Cell Contour Endpoint Api V1 Get Cell Contour Get"
+                }
+              }
+            },
+            "422": {
+              "description": "Validation Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/get-cell-label": {
+      "get": {
+        "tags": [
+          "database_manager"
+        ],
+        "summary": "Get Cell Label Endpoint",
+        "operationId": "get_cell_label_endpoint_api_v1_get_cell_label_get",
+        "parameters": [
+          {
+            "name": "dbname",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dbname"
+            }
+          },
+          {
+            "name": "cell_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Cell Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string",
+                  "title": "Response Get Cell Label Endpoint Api V1 Get Cell Label Get"
+                }
+              }
+            },
+            "422": {
+              "description": "Validation Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/get-cell-image": {
+      "get": {
+        "tags": [
+          "database_manager"
+        ],
+        "summary": "Get Cell Image Endpoint",
+        "operationId": "get_cell_image_endpoint_api_v1_get_cell_image_get",
+        "parameters": [
+          {
+            "name": "dbname",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dbname"
+            }
+          },
+          {
+            "name": "cell_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Cell Id"
+            }
+          },
+          {
+            "name": "image_type",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "ph | fluo1 | fluo2",
+              "title": "Image Type"
+            },
+            "description": "ph | fluo1 | fluo2"
+          },
+          {
+            "name": "draw_contour",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Draw Contour"
+            }
+          },
+          {
+            "name": "draw_scale_bar",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Draw Scale Bar"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/get-cell-image-optical-boost": {
+      "get": {
+        "tags": [
+          "database_manager"
+        ],
+        "summary": "Get Cell Image Optical Boost Endpoint",
+        "operationId": "get_cell_image_optical_boost_endpoint_api_v1_get_cell_image_optical_boost_get",
+        "parameters": [
+          {
+            "name": "dbname",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dbname"
+            }
+          },
+          {
+            "name": "cell_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Cell Id"
+            }
+          },
+          {
+            "name": "image_type",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "fluo1 | fluo2",
+              "title": "Image Type"
+            },
+            "description": "fluo1 | fluo2"
+          },
+          {
+            "name": "draw_contour",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Draw Contour"
+            }
+          },
+          {
+            "name": "draw_scale_bar",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Draw Scale Bar"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/get-cell-overlay": {
+      "get": {
+        "tags": [
+          "database_manager"
+        ],
+        "summary": "Get Cell Overlay Endpoint",
+        "operationId": "get_cell_overlay_endpoint_api_v1_get_cell_overlay_get",
+        "parameters": [
+          {
+            "name": "dbname",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dbname"
+            }
+          },
+          {
+            "name": "cell_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Cell Id"
+            }
+          },
+          {
+            "name": "draw_scale_bar",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Draw Scale Bar"
+            }
+          },
+          {
+            "name": "overlay_mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "ph",
+              "title": "Overlay Mode",
+              "enum": [
+                "ph",
+                "fluo",
+                "raw"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/update-cell-label": {
+      "patch": {
+        "tags": [
+          "database_manager"
+        ],
+        "summary": "Update Cell Label Endpoint",
+        "operationId": "update_cell_label_endpoint_api_v1_update_cell_label_patch",
+        "parameters": [
+          {
+            "name": "dbname",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dbname"
+            }
+          },
+          {
+            "name": "cell_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Cell Id"
+            }
+          },
+          {
+            "name": "label",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Label"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Update Cell Label Endpoint Api V1 Update Cell Label Patch"
+                }
+              }
+            },
+            "422": {
+              "description": "Validation Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/elastic-contour": {
+      "patch": {
+        "tags": [
+          "database_manager"
+        ],
+        "summary": "Elastic Contour Endpoint",
+        "operationId": "elastic_contour_endpoint_api_v1_elastic_contour_patch",
+        "parameters": [
+          {
+            "name": "dbname",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dbname"
+            }
+          },
+          {
+            "name": "cell_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Cell Id"
+            }
+          },
+          {
+            "name": "delta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Delta"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Elastic Contour Endpoint Api V1 Elastic Contour Patch"
+                }
+              }
+            },
+            "422": {
+              "description": "Validation Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/get-cell-replot": {
+      "get": {
+        "tags": [
+          "database_manager"
+        ],
+        "summary": "Get Cell Replot Endpoint",
+        "operationId": "get_cell_replot_endpoint_api_v1_get_cell_replot_get",
+        "parameters": [
+          {
+            "name": "dbname",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dbname"
+            }
+          },
+          {
+            "name": "cell_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Cell Id"
+            }
+          },
+          {
+            "name": "image_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "ph | fluo1 | fluo2 | overlay",
+              "default": "fluo1",
+              "title": "Image Type"
+            },
+            "description": "ph | fluo1 | fluo2 | overlay"
+          },
+          {
+            "name": "degree",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 4,
+              "title": "Degree"
+            }
+          },
+          {
+            "name": "dark_mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Dark Mode"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/get-cell-heatmap": {
+      "get": {
+        "tags": [
+          "database_manager"
+        ],
+        "summary": "Get Cell Heatmap Endpoint",
+        "operationId": "get_cell_heatmap_endpoint_api_v1_get_cell_heatmap_get",
+        "parameters": [
+          {
+            "name": "dbname",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dbname"
+            }
+          },
+          {
+            "name": "cell_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Cell Id"
+            }
+          },
+          {
+            "name": "image_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "fluo1 | fluo2",
+              "default": "fluo1",
+              "title": "Image Type"
+            },
+            "description": "fluo1 | fluo2"
+          },
+          {
+            "name": "degree",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 4,
+              "title": "Degree"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/get-cell-distribution": {
+      "get": {
+        "tags": [
+          "database_manager"
+        ],
+        "summary": "Get Cell Distribution Endpoint",
+        "operationId": "get_cell_distribution_endpoint_api_v1_get_cell_distribution_get",
+        "parameters": [
+          {
+            "name": "dbname",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dbname"
+            }
+          },
+          {
+            "name": "cell_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Cell Id"
+            }
+          },
+          {
+            "name": "image_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "ph | fluo1 | fluo2",
+              "default": "fluo1",
+              "title": "Image Type"
+            },
+            "description": "ph | fluo1 | fluo2"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/get-cell-map256": {
+      "get": {
+        "tags": [
+          "database_manager"
+        ],
+        "summary": "Get Cell Map256 Endpoint",
+        "operationId": "get_cell_map256_endpoint_api_v1_get_cell_map256_get",
+        "parameters": [
+          {
+            "name": "dbname",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dbname"
+            }
+          },
+          {
+            "name": "cell_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Cell Id"
+            }
+          },
+          {
+            "name": "image_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "fluo1 | fluo2 | overlay",
+              "default": "fluo1",
+              "title": "Image Type"
+            },
+            "description": "fluo1 | fluo2 | overlay"
+          },
+          {
+            "name": "degree",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 4,
+              "title": "Degree"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/get-cell-map256-jet": {
+      "get": {
+        "tags": [
+          "database_manager"
+        ],
+        "summary": "Get Cell Map256 Jet Endpoint",
+        "operationId": "get_cell_map256_jet_endpoint_api_v1_get_cell_map256_jet_get",
+        "parameters": [
+          {
+            "name": "dbname",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dbname"
+            }
+          },
+          {
+            "name": "cell_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Cell Id"
+            }
+          },
+          {
+            "name": "image_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "fluo1 | fluo2 | overlay",
+              "default": "fluo1",
+              "title": "Image Type"
+            },
+            "description": "fluo1 | fluo2 | overlay"
+          },
+          {
+            "name": "degree",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 4,
+              "title": "Degree"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/get-annotation-zip": {
+      "get": {
+        "tags": [
+          "database_manager"
+        ],
+        "summary": "Get Annotation Zip Endpoint",
+        "operationId": "get_annotation_zip_endpoint_api_v1_get_annotation_zip_get",
+        "parameters": [
+          {
+            "name": "dbname",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dbname"
+            }
+          },
+          {
+            "name": "image_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "ph | fluo1 | fluo2",
+              "default": "ph",
+              "title": "Image Type"
+            },
+            "description": "ph | fluo1 | fluo2"
+          },
+          {
+            "name": "raw",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Raw"
+            }
+          },
+          {
+            "name": "downscale",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "maximum": 1.0,
+                  "minimum": 0.05
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Downscale"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/get-heatmap-vectors-csv": {
+      "get": {
+        "tags": [
+          "bulk_engine"
+        ],
+        "summary": "Get Heatmap Vectors Csv Endpoint",
+        "operationId": "get_heatmap_vectors_csv_endpoint_api_v1_get_heatmap_vectors_csv_get",
+        "parameters": [
+          {
+            "name": "dbname",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dbname"
+            }
+          },
+          {
+            "name": "label",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Label"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "fluo1 | fluo2",
+              "default": "fluo1",
+              "title": "Channel"
+            },
+            "description": "fluo1 | fluo2"
+          },
+          {
+            "name": "degree",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 4,
+              "title": "Degree"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/get-heatmap-abs-plot": {
+      "get": {
+        "tags": [
+          "bulk_engine"
+        ],
+        "summary": "Get Heatmap Abs Plot Endpoint",
+        "operationId": "get_heatmap_abs_plot_endpoint_api_v1_get_heatmap_abs_plot_get",
+        "parameters": [
+          {
+            "name": "dbname",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dbname"
+            }
+          },
+          {
+            "name": "label",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Label"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "fluo1 | fluo2",
+              "default": "fluo1",
+              "title": "Channel"
+            },
+            "description": "fluo1 | fluo2"
+          },
+          {
+            "name": "degree",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 4,
+              "title": "Degree"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/get-heatmap-rel-plot": {
+      "get": {
+        "tags": [
+          "bulk_engine"
+        ],
+        "summary": "Get Heatmap Rel Plot Endpoint",
+        "operationId": "get_heatmap_rel_plot_endpoint_api_v1_get_heatmap_rel_plot_get",
+        "parameters": [
+          {
+            "name": "dbname",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dbname"
+            }
+          },
+          {
+            "name": "label",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Label"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "fluo1 | fluo2",
+              "default": "fluo1",
+              "title": "Channel"
+            },
+            "description": "fluo1 | fluo2"
+          },
+          {
+            "name": "degree",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 4,
+              "title": "Degree"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/get-hu-separation-overlay": {
+      "get": {
+        "tags": [
+          "bulk_engine"
+        ],
+        "summary": "Get Hu Separation Overlay Endpoint",
+        "operationId": "get_hu_separation_overlay_endpoint_api_v1_get_hu_separation_overlay_get",
+        "parameters": [
+          {
+            "name": "dbname",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dbname"
+            }
+          },
+          {
+            "name": "label",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Label"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "fluo1 | fluo2",
+              "default": "fluo1",
+              "title": "Channel"
+            },
+            "description": "fluo1 | fluo2"
+          },
+          {
+            "name": "degree",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 4,
+              "title": "Degree"
+            }
+          },
+          {
+            "name": "center_ratio",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "default": 0.15,
+              "title": "Center Ratio"
+            }
+          },
+          {
+            "name": "max_to_min_ratio",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "minimum": 0.0,
+              "default": 0.9,
+              "title": "Max To Min Ratio"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/get-map256-strip": {
+      "get": {
+        "tags": [
+          "bulk_engine"
+        ],
+        "summary": "Get Map256 Strip Endpoint",
+        "operationId": "get_map256_strip_endpoint_api_v1_get_map256_strip_get",
+        "parameters": [
+          {
+            "name": "dbname",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dbname"
+            }
+          },
+          {
+            "name": "label",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Label"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "fluo1 | fluo2",
+              "default": "fluo1",
+              "title": "Channel"
+            },
+            "description": "fluo1 | fluo2"
+          },
+          {
+            "name": "degree",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 4,
+              "title": "Degree"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/get-contours-grid-plot": {
+      "get": {
+        "tags": [
+          "bulk_engine"
+        ],
+        "summary": "Get Contours Grid Plot",
+        "operationId": "get_contours_grid_plot_api_v1_get_contours_grid_plot_get",
+        "parameters": [
+          {
+            "name": "dbname",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dbname"
+            }
+          },
+          {
+            "name": "label",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Label"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/get-contours-grid-json": {
+      "get": {
+        "tags": [
+          "bulk_engine"
+        ],
+        "summary": "Get Contours Grid Json",
+        "operationId": "get_contours_grid_json_api_v1_get_contours_grid_json_get",
+        "parameters": [
+          {
+            "name": "dbname",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dbname"
+            }
+          },
+          {
+            "name": "label",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Label"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/get-cell-lengths": {
+      "get": {
+        "tags": [
+          "bulk_engine"
+        ],
+        "summary": "Get Cell Lengths",
+        "operationId": "get_cell_lengths_api_v1_get_cell_lengths_get",
+        "parameters": [
+          {
+            "name": "dbname",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dbname"
+            }
+          },
+          {
+            "name": "label",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Label"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CellLength"
+                  },
+                  "title": "Response Get Cell Lengths Api V1 Get Cell Lengths Get"
+                }
+              }
+            },
+            "422": {
+              "description": "Validation Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/get-cell-lengths-plot": {
+      "get": {
+        "tags": [
+          "bulk_engine"
+        ],
+        "summary": "Get Cell Lengths Plot",
+        "operationId": "get_cell_lengths_plot_api_v1_get_cell_lengths_plot_get",
+        "parameters": [
+          {
+            "name": "dbname",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dbname"
+            }
+          },
+          {
+            "name": "label",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Label"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/get-cell-areas": {
+      "get": {
+        "tags": [
+          "bulk_engine"
+        ],
+        "summary": "Get Cell Areas",
+        "operationId": "get_cell_areas_api_v1_get_cell_areas_get",
+        "parameters": [
+          {
+            "name": "dbname",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dbname"
+            }
+          },
+          {
+            "name": "label",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Label"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CellArea"
+                  },
+                  "title": "Response Get Cell Areas Api V1 Get Cell Areas Get"
+                }
+              }
+            },
+            "422": {
+              "description": "Validation Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/get-cell-areas-plot": {
+      "get": {
+        "tags": [
+          "bulk_engine"
+        ],
+        "summary": "Get Cell Areas Plot",
+        "operationId": "get_cell_areas_plot_api_v1_get_cell_areas_plot_get",
+        "parameters": [
+          {
+            "name": "dbname",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dbname"
+            }
+          },
+          {
+            "name": "label",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Label"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/get-normalized-medians": {
+      "get": {
+        "tags": [
+          "bulk_engine"
+        ],
+        "summary": "Get Normalized Medians",
+        "operationId": "get_normalized_medians_api_v1_get_normalized_medians_get",
+        "parameters": [
+          {
+            "name": "dbname",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dbname"
+            }
+          },
+          {
+            "name": "label",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Label"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "ph | fluo1 | fluo2",
+              "default": "ph",
+              "title": "Channel"
+            },
+            "description": "ph | fluo1 | fluo2"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NormalizedMedian"
+                  },
+                  "title": "Response Get Normalized Medians Api V1 Get Normalized Medians Get"
+                }
+              }
+            },
+            "422": {
+              "description": "Validation Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/get-normalized-medians-plot": {
+      "get": {
+        "tags": [
+          "bulk_engine"
+        ],
+        "summary": "Get Normalized Medians Plot",
+        "operationId": "get_normalized_medians_plot_api_v1_get_normalized_medians_plot_get",
+        "parameters": [
+          {
+            "name": "dbname",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dbname"
+            }
+          },
+          {
+            "name": "label",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Label"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "ph | fluo1 | fluo2",
+              "default": "ph",
+              "title": "Channel"
+            },
+            "description": "ph | fluo1 | fluo2"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/get-raw-intensities": {
+      "get": {
+        "tags": [
+          "bulk_engine"
+        ],
+        "summary": "Get Raw Intensities",
+        "operationId": "get_raw_intensities_api_v1_get_raw_intensities_get",
+        "parameters": [
+          {
+            "name": "dbname",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dbname"
+            }
+          },
+          {
+            "name": "label",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Label"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "ph | fluo1 | fluo2",
+              "default": "ph",
+              "title": "Channel"
+            },
+            "description": "ph | fluo1 | fluo2"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RawIntensity"
+                  },
+                  "title": "Response Get Raw Intensities Api V1 Get Raw Intensities Get"
+                }
+              }
+            },
+            "422": {
+              "description": "Validation Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/filemanager/files": {
+      "get": {
+        "tags": [
+          "file_manager"
+        ],
+        "summary": "List Files Endpoint",
+        "operationId": "list_files_endpoint_api_v1_filemanager_files_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "file_manager"
+        ],
+        "summary": "Upload File Endpoint",
+        "operationId": "upload_file_endpoint_api_v1_filemanager_files_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_file_endpoint_api_v1_filemanager_files_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/filemanager/files/{filename}": {
+      "get": {
+        "tags": [
+          "file_manager"
+        ],
+        "summary": "Download File Endpoint",
+        "operationId": "download_file_endpoint_api_v1_filemanager_files__filename__get",
+        "parameters": [
+          {
+            "name": "filename",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Filename"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "file_manager"
+        ],
+        "summary": "Delete File Endpoint",
+        "operationId": "delete_file_endpoint_api_v1_filemanager_files__filename__delete",
+        "parameters": [
+          {
+            "name": "filename",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Filename"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/system/git-pull": {
+      "post": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Git Pull",
+        "operationId": "git_pull_api_v1_system_git_pull_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/": {
+      "get": {
+        "summary": "Read Root",
+        "operationId": "read_root_api_v1__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/health": {
+      "get": {
+        "summary": "Read Health",
+        "operationId": "read_health_api_v1_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_upload_database_api_v1_database_files_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_database_api_v1_database_files_post"
+      },
+      "Body_upload_file_endpoint_api_v1_filemanager_files_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_file_endpoint_api_v1_filemanager_files_post"
+      },
+      "Body_upload_nd2_file_api_v1_nd2_files_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_nd2_file_api_v1_nd2_files_post"
+      },
+      "CellArea": {
+        "properties": {
+          "cell_id": {
+            "type": "string",
+            "title": "Cell Id"
+          },
+          "area": {
+            "type": "number",
+            "title": "Area"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cell_id",
+          "area"
+        ],
+        "title": "CellArea"
+      },
+      "CellLength": {
+        "properties": {
+          "cell_id": {
+            "type": "string",
+            "title": "Cell Id"
+          },
+          "length": {
+            "type": "number",
+            "title": "Length"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cell_id",
+          "length"
+        ],
+        "title": "CellLength"
+      },
+      "ExtractCellsRequest": {
+        "properties": {
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "layer_mode": {
+            "type": "string",
+            "title": "Layer Mode"
+          },
+          "param1": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Param1",
+            "default": 130
+          },
+          "image_size": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Image Size",
+            "default": 200
+          }
+        },
+        "type": "object",
+        "required": [
+          "filename",
+          "layer_mode"
+        ],
+        "title": "ExtractCellsRequest"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Nd2BulkDeleteRequest": {
+        "properties": {
+          "filenames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Filenames"
+          }
+        },
+        "type": "object",
+        "required": [
+          "filenames"
+        ],
+        "title": "Nd2BulkDeleteRequest"
+      },
+      "NormalizedMedian": {
+        "properties": {
+          "cell_id": {
+            "type": "string",
+            "title": "Cell Id"
+          },
+          "normalized_median": {
+            "type": "number",
+            "title": "Normalized Median"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cell_id",
+          "normalized_median"
+        ],
+        "title": "NormalizedMedian"
+      },
+      "ParseNd2Request": {
+        "properties": {
+          "nd2file": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Nd2File"
+          },
+          "force": {
+            "type": "boolean",
+            "title": "Force",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "nd2file"
+        ],
+        "title": "ParseNd2Request"
+      },
+      "RawIntensity": {
+        "properties": {
+          "cell_id": {
+            "type": "string",
+            "title": "Cell Id"
+          },
+          "intensities": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Intensities"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cell_id",
+          "intensities"
+        ],
+        "title": "RawIntensity"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

@@ -1,0 +1,71 @@
+---
+sidebar_position: 6
+title: 正規化と凝集スコア
+description: normalized median、FITC aggregation ratio、HU aggregation ratio の計算方法。
+---
+
+# 正規化と凝集スコア
+
+強度値は撮影条件や細胞ごとの総量に引きずられるため、PhenoPixel では目的に応じて細胞内正規化や control 由来のしきい値を使います。
+
+## normalized median
+
+選択チャンネルの細胞内強度は、細胞ごとの最大値で正規化します。
+
+$$
+\tilde{I}_i =
+\frac{I_i}{\max_{p \in \Omega_C} I(p)}
+$$
+
+その中央値を normalized median とします。
+
+$$
+m(C) = \mathrm{median}(\tilde{I}_i)
+$$
+
+細胞ごとの最大値が `0` 以下の場合、実装は `0.0` として扱います。
+
+## FITC aggregation ratio
+
+`FITC aggregation ratio` は、normalized median が既定しきい値より低い細胞の割合です。
+
+$$
+R(\tau) =
+\frac{1}{N}\sum_{c=1}^{N}\mathbf{1}[m(C_c) < \tau]
+$$
+
+現在の実装では既定値として $\tau = 0.7414$ を使います。これは `backend/app/bulk_engine/crud.py` の `FITC_AGGREGATION_THRESHOLD` に定義されています。
+
+## HU aggregation ratio
+
+HU-GFP 系の Graph Engine では、CSV の peak vector を細胞ごとに min-max normalize し、平均値を phenotype score とします。
+
+$$
+s(C) =
+\frac{1}{35}\sum_{j=1}^{35}\hat{g}_j
+$$
+
+control CSV がある場合は control score を降順に並べ、`int(len(data) * 0.95)` の位置をしきい値にします。解析対象では、その値を下回る細胞の割合を `nagg_rate` として返します。
+
+## PI permeability
+
+PI permeability など、膜透過性を見る解析では、細胞内 PI 強度の平均を指標にできます。
+
+$$
+\mu(C) =
+\frac{1}{|\Omega_C|}
+\sum_{p \in \Omega_C} I_{\mathrm{PI}}(p)
+$$
+
+対照集団の 95 パーセンタイルなどをしきい値にし、$\mu(C)$ がそれを超える割合を PI positive ratio として扱えます。
+
+## 実装との対応
+
+| 役割 | 実装 |
+| --- | --- |
+| normalized median を計算する | `backend/app/bulk_engine/crud.py` の `_calc_normalized_median_intensity` |
+| FITC aggregation plot を作る | `backend/app/bulk_engine/crud.py` の `create_fitc_aggregation_ratio_plot` |
+| HU CSV を解析する | `backend/app/graphengine/crud.py` の `_analyze_csv` |
+| control しきい値を作る | `backend/app/graphengine/crud.py` の `_parse_ctrl` |
+
+エンドポイント単位では [Normalized median と FITC](/docs/code/normalized-median-fitc/)、[Graph Engine HU aggregation](/docs/code/graph-engine-hu/) を参照してください。

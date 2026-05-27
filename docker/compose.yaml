@@ -1,0 +1,59 @@
+version: "3.8"
+
+services:
+  traefik:
+    image: traefik:latest
+    container_name: phenopixel6-traefik
+    command:
+      - "--api.insecure=false"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=traefik-proxy"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
+      - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.myresolver.acme.email=${TRAEFIK_ACME_EMAIL}"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - traefik-proxy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik-le:/letsencrypt
+
+  phenopixel6-backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: phenopixel6-backend
+    env_file:
+      - ../backend/.env
+    environment:
+      TZ: Asia/Tokyo
+    networks:
+      - traefik-proxy
+      - default
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.phenopixel6-backend.tls=true"
+      - "traefik.http.routers.phenopixel6-backend.tls.certresolver=myresolver"
+      - "traefik.http.routers.phenopixel6-backend.rule=Host(`${SERVER_HOST:-localhost}`) && PathPrefix(`/api/v1/`)"
+      - "traefik.http.routers.phenopixel6-backend.entrypoints=websecure"
+      - "traefik.http.services.phenopixel6-backend.loadbalancer.server.port=3000"
+      - "traefik.http.routers.phenopixel6-backend.service=phenopixel6-backend"
+    volumes:
+      - ../backend/app/databases:/app/app/databases
+      - ../backend/app/extracted_data:/app/app/extracted_data
+      - ../backend/app/nd2files:/app/app/nd2files
+      - ../backend/app/tempdata:/app/app/tempdata
+
+networks:
+  traefik-proxy:
+    name: traefik-proxy
+
+volumes:
+  traefik-le:
+    name: phenopixel6-traefik-le

@@ -1,0 +1,57 @@
+name: Question
+description: Ask how to use PhenoPixel, interpret a result, or set something up.
+title: "[Question] "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Got a usage question? You're in the right place. If your question is
+        open-ended (e.g., "what's the best way to…"), GitHub Discussions may be
+        a better fit — but issues are fine too.
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+      description: As specific as possible. Include screenshots if it helps.
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: What you've tried / context
+      description: |
+        What you read, what commands you ran, what output you got. This helps
+        avoid suggestions you've already ruled out.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Topic
+      multiple: true
+      options:
+        - Installation / setup
+        - ND2 Manager
+        - Cell Extraction
+        - Annotation
+        - Database Manager
+        - Bulk Engine
+        - Methods / math
+        - API usage
+        - Docker / deployment
+        - Citing PhenoPixel
+        - Other
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Sanity checks
+      options:
+        - label: I checked the README and module READMEs.
+          required: true
+        - label: I searched existing issues and Discussions.
+          required: true

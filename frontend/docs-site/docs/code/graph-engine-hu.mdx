@@ -1,0 +1,118 @@
+---
+sidebar_position: 5
+title: Graph Engine HU aggregation
+description: CSV をアップロードして HU aggregation ratio と比較 plot を作る API 解説。
+---
+
+# Graph Engine HU aggregation
+
+Graph Engine は Bulk Engine などから出した heatmap CSV を読み、複数条件の HU aggregation ratio と plot を生成します。
+
+## Endpoint
+
+```http
+POST /api/v1/graph_engine/HU_aggregation_ratio
+```
+
+## Form data
+
+| field | type | required | 説明 |
+| --- | --- | --- | --- |
+| `files` | `file[]` | yes | 解析対象 CSV。複数指定可 |
+| `ctrl_file` | `file` | no | control CSV。指定すると `nagg_rate` を計算 |
+
+```bash
+curl -X POST "http://localhost:3000/api/v1/graph_engine/HU_aggregation_ratio" \
+  -F "ctrl_file=@control.csv" \
+  -F "files=@treated-a.csv" \
+  -F "files=@treated-b.csv"
+```
+
+## Response
+
+```json
+[
+  {
+    "filename": "treated-a.csv",
+    "mean_length": 6.41,
+    "nagg_rate": 0.32
+  },
+  {
+    "filename": "treated-b.csv",
+    "mean_length": 6.18,
+    "nagg_rate": 0.57
+  }
+]
+```
+
+`ctrl_file` がない場合、`nagg_rate` は `null` です。
+
+## CSV format
+
+Graph Engine は 2 行 1 細胞の heatmap CSV を優先して解釈します。
+
+```csv
+u1_1,u1_2,u1_3
+g_1,g_2,g_3
+u1_1,u1_2,u1_3
+g_1,g_2,g_3
+```
+
+`35` 点ではない細胞行は HU aggregation ratio の解析から除外されます。
+
+## 実装の芯
+
+```python title="backend/app/graphengine/router.py"
+@router_graphengine.post(
+    "/graph_engine/{mode}",
+    response_model=list[GraphEngineResultResponse],
+)
+async def analyze_graph_engine(
+    mode: str,
+    files: Annotated[list[UploadFile], File()] = ...,
+    ctrl_file: Annotated[UploadFile | None, File()] = None,
+) -> list[GraphEngineResultResponse]:
+    results = await loop.run_in_executor(
+        None,
+        GraphEngineCrud.analyze_files,
+        mode,
+        payloads,
+        ctrl_bytes,
+    )
+```
+
+control CSV は各行を min-max normalize し、行平均を降順に並べてしきい値を取ります。
+
+```python title="backend/app/graphengine/crud.py"
+data.sort(reverse=True)
+index: int = int(len(data) * 0.95)
+return data[index]
+```
+
+解析対象 CSV では、細胞ごとの peak vector を min-max normalize して平均値を score にします。
+
+```python title="backend/app/graphengine/crud.py"
+if peak_points.max() - peak_points.min() != 0:
+    peak_points = (peak_points - peak_points.min()) / (
+        peak_points.max() - peak_points.min()
+    )
+peak_data: float = float(np.sum(peak_points) / len(peak_points))
+```
+
+control しきい値を下回る細胞の割合が `nagg_rate` です。
+
+```python title="backend/app/graphengine/crud.py"
+count_below: int = sum(1 for _, peak in cells if peak < ctrl)
+nagg_rate: float = count_below / len(cells)
+```
+
+## Plot endpoints
+
+| endpoint | form field | 出力 |
+| --- | --- | --- |
+| `POST /api/v1/graph_engine/heatmap_abs` | `file`, `mode` | raw matrix heatmap PNG |
+| `POST /api/v1/graph_engine/heatmap_rel` | `file`, `mode` | row-normalized heatmap PNG |
+| `POST /api/v1/graph_engine/distribution` | `file`, `mode` | histogram PNG |
+| `POST /api/v1/graph_engine/distribution_box` | `file`, `mode` | row mean boxplot PNG |
+
+アルゴリズムの背景は [正規化と凝集スコア](/docs/algorithms/aggregation-scores/) を参照してください。

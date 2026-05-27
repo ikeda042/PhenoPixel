@@ -1,0 +1,132 @@
+name: Bug report
+description: Report something that is broken or behaves unexpectedly.
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug report. The more concrete the details, the
+        faster this gets fixed. If your issue is data-dependent, a small
+        reproducer ND2 (or instructions to obtain one) is hugely helpful.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: One or two sentences describing the bug.
+      placeholder: "Cell extraction crashes when ND2 has 0 fluorescence channels."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps that get someone else to the same failure.
+      placeholder: |
+        1. Upload `sample.nd2` via ND2 Manager
+        2. Open Cell Extraction, set Canny low=50, high=150
+        3. Click `Extract cells`
+        4. Backend returns 500
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: "Extraction completes and shows contours in the right panel."
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead. Include screenshots if visual.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / stack trace
+      description: |
+        Paste relevant backend (uvicorn) logs and/or browser console output.
+        Wrap with triple backticks.
+      render: shell
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      multiple: true
+      options:
+        - ND2 Manager
+        - Cell Extraction
+        - Annotation
+        - Database Manager
+        - Bulk Engine
+        - Frontend (general UI)
+        - Backend / API
+        - Docker / Deployment
+        - Docs
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: PhenoPixel version / commit
+      description: "git rev-parse HEAD, or release tag if used."
+      placeholder: "e.g. main @ 8568b18"
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      placeholder: "macOS 14.5 / Ubuntu 22.04 / Windows 11 + WSL2"
+    validations:
+      required: true
+
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+      placeholder: "3.14.0"
+
+  - type: input
+    id: node
+    attributes:
+      label: Node version (frontend bugs only)
+      placeholder: "20.11.1"
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser (frontend bugs only)
+      placeholder: "Chrome 124 / Firefox 125 / Safari 17"
+
+  - type: textarea
+    id: data
+    attributes:
+      label: Data characteristics (if relevant)
+      description: |
+        ND2 dimensions, channels, fluorescence layers, approximate file size.
+        If the file is shareable, link to it; otherwise describe it.
+      placeholder: |
+        2048x2048, 1 phase + 2 fluo channels, 30 frames, ~1.2 GB
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Sanity checks
+      options:
+        - label: I searched existing issues and this isn't a duplicate.
+          required: true
+        - label: I'm running against the latest `main` (or noted my version above).
+          required: true

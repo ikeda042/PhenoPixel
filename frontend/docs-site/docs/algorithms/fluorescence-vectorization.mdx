@@ -1,0 +1,61 @@
+---
+sidebar_position: 5
+title: 蛍光ベクトル化
+description: 蛍光 pixel を中心線へ投影し、細胞間比較用のピークベクトルへ変換する。
+---
+
+# 蛍光ベクトル化
+
+蛍光ベクトル化は、細胞ごとの蛍光局在を 1 次元の固定長 signal に近づける処理です。細胞の向きや長さが異なっていても、中心線に沿った座標へ投影することで集団比較しやすくします。
+
+## 中心線への投影
+
+細胞内 pixel $(p_i, q_i)$ と強度 $G(p_i, q_i)$ について、中心線上の最近点を求めます。
+
+$$
+u_{1,i}^* =
+\underset{u_1 \in [u_{1,a}, u_{1,b}]}{\mathrm{arg\,min}}
+\left[(u_1 - p_i)^2 + (\hat{f}(u_1) - q_i)^2\right]
+$$
+
+実装では多項式とその導関数から距離関数の候補点を取り、端点も含めて最短点を選びます。
+
+## 35 点ピークベクトル
+
+中心線方向の範囲を `35` ビンへ分け、各ビンで最大蛍光強度を選びます。
+
+$$
+g_j =
+\max \{G(p_i, q_i) \mid u_{1,i}^* \in I_j\}
+$$
+
+これにより、細胞ごとの peak vector を得ます。
+
+$$
+\mathbf{g} = (g_1, \dots, g_{35})^{\mathsf{T}}
+$$
+
+![Peak-vector heatmap construction](/img/images/method-peak-vectorization.png)
+
+## CSV 形式
+
+Bulk Engine の heatmap CSV は 2 行で 1 細胞を表します。
+
+| 行 | 内容 |
+| --- | --- |
+| 1 行目 | 中心線方向の `u1` 座標 |
+| 2 行目 | 対応する蛍光 peak value |
+
+Graph Engine はこの 2 行 1 細胞の形式を読み、HU aggregation ratio や heatmap plot を生成します。
+
+## 実装との対応
+
+| 役割 | 実装 |
+| --- | --- |
+| 細胞座標へ変換する | `backend/app/bulk_engine/heatmap_bulk_core.py` の `_basis_conversion` |
+| 中心線を fitting する | `backend/app/bulk_engine/heatmap_bulk_core.py` の `_poly_fit` |
+| 最近点を探す | `backend/app/bulk_engine/heatmap_bulk_core.py` の `_find_minimum_distance_point` |
+| peak vector を作る | `backend/app/bulk_engine/heatmap_bulk_core.py` の `calculate_heatmap_path_vector` |
+| CSV にする | `backend/app/bulk_engine/heatmap_bulk_core.py` の `build_heatmap_vectors_csv` |
+
+API とレスポンス例は [Heatmap vector CSV](/docs/code/heatmap-vector-csv/) にあります。

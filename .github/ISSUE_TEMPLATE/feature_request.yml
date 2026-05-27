@@ -1,0 +1,83 @@
+name: Feature request
+description: Suggest a new analysis mode, UI improvement, or capability.
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Feature requests for new analysis modes are especially welcome. The
+        more specific the math/output, the faster we can scope and merge it.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What can't you do today, or what is painful about the current flow?
+      placeholder: |
+        I want to compare cell length distributions across two labels in one
+        plot, but Bulk Engine only renders one label at a time.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: How should it work from the user's perspective?
+      placeholder: |
+        Add a "Compare" toggle in Bulk Engine that overlays results from
+        Label 0 and Label 1 in the same histogram with paired colors.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind of feature
+      options:
+        - New analysis mode (per-cell scalar)
+        - New analysis mode (per-cell vector / heatmap)
+        - New plot / visualization
+        - New export format
+        - UI / UX improvement
+        - API / backend
+        - Performance
+        - Docs
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: math
+    attributes:
+      label: Math / definition (for new analysis modes)
+      description: |
+        If you're proposing a new metric, define it. LaTeX is fine.
+        Example: $L = \int \sqrt{1 + f'(u)^2}\,du$
+      render: markdown
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other tools or hacks you tried, and why they don't fit.
+
+  - type: dropdown
+    id: contribution
+    attributes:
+      label: Are you willing to contribute?
+      options:
+        - "Yes, I plan to open a PR"
+        - "Maybe, with guidance"
+        - "No, just requesting"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Sanity checks
+      options:
+        - label: I searched existing issues and this isn't a duplicate.
+          required: true

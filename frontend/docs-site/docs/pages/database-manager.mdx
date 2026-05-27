@@ -1,0 +1,37 @@
+---
+sidebar_position: 4
+title: Database Console
+description: SQLite database のアップロード、ダウンロード、リネーム、削除、細胞ビューアへの遷移。
+---
+
+# Database Console
+
+Database Console は、Cell Extraction で生成された SQLite database を一覧・管理する画面です。データベースは実験ごとの成果物としてダウンロードでき、別環境からアップロードして再利用できます。
+
+![Database manager](/img/screenshots/database_manager1.png)
+
+## 使い方
+
+1. database 一覧から対象の `.db` を検索する。
+2. `Access` で Cell Viewer に移動し、細胞ごとの画像・輪郭・解析表示を確認する。
+3. `Download` で database をローカルへ保存する。
+4. `Upload` で別の `.db` を取り込む。
+5. 必要に応じて rename/delete で整理する。
+
+![Database access](/img/screenshots/database_manager2.png)
+
+## 裏側の処理
+
+database は `backend/app/databases/` に保存されます。アップロード時には `.db` 拡張子を検証し、SQLite schema の軽い migration を実行します。古い database に `img_fluo` が残っている場合は `img_fluo1` へ rename し、現行の `cells` model に足りないカラムがあれば `ALTER TABLE` で追加します。
+
+rename 時は SQLite の sidecar ファイルも考慮します。`-wal`, `-shm`, `-journal` が存在する場合は同時に rename し、同名の sidecar がある場合は衝突として扱います。
+
+## 関連 API
+
+```bash
+GET    /api/v1/get-databases
+POST   /api/v1/database_files
+GET    /api/v1/database_files/{dbname}
+PATCH  /api/v1/database_files/{dbname}
+DELETE /api/v1/database_files/{dbname}
+```

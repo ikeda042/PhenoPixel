@@ -1,0 +1,43 @@
+---
+sidebar_position: 1
+title: ND2 Manager
+description: ND2 ファイルのアップロード、検索、削除、メタデータ確認、ND2 Parser への受け渡し。
+---
+
+# ND2 Manager
+
+ND2 Manager は、解析の入口になる `.nd2` ファイルを管理する画面です。アップロード、検索、単体削除、複数削除、ダウンロード、メタデータ確認、ND2 Parser への遷移をここで行います。
+
+![ND2 Manager](/img/screenshots/nd2manager1.png)
+
+## 使い方
+
+1. `Upload` から `.nd2` ファイルをアップロードする。
+2. ファイル一覧を検索し、解析対象を選ぶ。
+3. `Metadata` でチャンネル数、フレーム数、撮影開始時刻、タイムステップなどを確認する。
+4. `Parse` を押すと ND2 Parser 用の展開処理が走り、`/nd2parser?nd2file=<filename>` に移動する。
+5. 細胞抽出へ進む場合は対象ファイルから Cell Extraction を開く。
+
+## 裏側の処理
+
+アップロードされた ND2 は `backend/app/nd2files/` に保存されます。ファイル名はパス成分を削除し、拡張子が `.nd2` であることを検証したうえで、ベース名に含まれるドットを `p` に置換します。これにより出力フォルダ名や SQLite ファイル名との衝突を避けます。
+
+メタデータ取得では `nd2reader.ND2Reader` を使い、次の情報を JSON 化します。
+
+- ファイルサイズ、更新時刻、作成時刻。
+- ND2 内の `axes`, `sizes`, `shape`, `dtype`, `frame_rate_fps`。
+- `timesteps_ms` と撮影開始時刻から推定した各フレームの時刻。
+- Nikon ND2 の raw metadata に含まれるテキスト情報、イベント、ROI、キャリブレーション情報。
+
+作成時刻は ND2 メタデータを優先し、読めない場合は text info、最後にファイルシステム時刻へフォールバックします。
+
+## 関連 API
+
+```bash
+GET    /api/v1/nd2_files
+POST   /api/v1/nd2_files
+DELETE /api/v1/nd2_files/{filename}
+POST   /api/v1/nd2_files/bulk-delete
+GET    /api/v1/nd2_files/{filename}/download
+GET    /api/v1/nd2_files/{filename}/metadata
+```

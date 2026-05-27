@@ -1,0 +1,64 @@
+---
+sidebar_position: 7
+title: Bulk Engine
+description: ラベル済み細胞の集団解析、プロット、JSON/CSV export。
+---
+
+# Bulk Engine
+
+Bulk Engine は、Annotation 後の database からラベル別の細胞集団を選び、長さ、面積、蛍光局在、強度分布などをまとめて解析する画面です。
+
+![Bulk engine selection](/img/screenshots/bulk1.png)
+
+![Bulk engine analysis](/img/screenshots/bulk2.png)
+
+## 使い方
+
+1. database を指定して Bulk Engine を開く。
+2. preview channel と label を選び、解析対象の細胞集団を確認する。
+3. `Analysis mode` で指標を選ぶ。
+4. `Cell length`, `Cell area`, `Normalized median`, `FITC aggregation ratio`, `Entropy`, `Heatmap`, `Contours`, `Map256`, `Raw data` を実行する。
+5. plot を確認し、必要に応じて JSON/CSV を export する。
+
+![Bulk engine modes](/img/screenshots/bulk3.png)
+
+![Bulk engine heatmap](/img/screenshots/bulk4.png)
+
+## 主要な解析
+
+`Cell length` は、輪郭内部ピクセルを PCA 主軸へ射影し、最大射影値と最小射影値の差にピクセルサイズ `0.065 um/px` を掛けます。
+
+$$
+L \approx (\max_i \pi_i - \min_i \pi_i) \times 0.065
+$$
+
+`Cell area` は抽出時に保存された輪郭面積を返します。
+
+`Normalized median` は輪郭内の強度値を細胞ごとの最大値で割り、中央値を取ります。
+
+$$
+m(C) = \mathrm{median}\left(\frac{I_i}{\max I}\right)
+$$
+
+`FITC aggregation ratio` は normalized median が既定しきい値 `0.7414` 未満の細胞割合を計算します。
+
+$$
+R = \frac{1}{N}\sum_{c=1}^{N}\mathbf{1}[m(C_c) < 0.7414]
+$$
+
+`Heatmap` は細胞中心線に沿って蛍光ピークベクトルを作り、絶対長または相対位置で並べます。`Contours` は PCA で細胞の向きを揃えた輪郭座標を描画・export します。
+
+## 関連 API
+
+```bash
+GET /api/v1/get-cell-lengths
+GET /api/v1/get-cell-areas
+GET /api/v1/get-normalized-medians
+GET /api/v1/get-raw-intensities
+GET /api/v1/get-heatmap-vectors-csv
+GET /api/v1/get-heatmap-abs-plot
+GET /api/v1/get-heatmap-rel-plot
+GET /api/v1/get-map256-strip
+GET /api/v1/get-contours-grid-plot
+GET /api/v1/get-contours-grid-json
+```

@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question / Discussion
+    url: https://github.com/ikeda042/PhenoPixel6.0/discussions
+    about: For open-ended questions, ideas, or showing off how you use PhenoPixel.

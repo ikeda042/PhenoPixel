@@ -1,0 +1,44 @@
+@import 'katex/dist/katex.min.css';
+
+:root {
+  --ifm-color-primary: #1f7a7a;
+  --ifm-color-primary-dark: #1a6969;
+  --ifm-color-primary-darker: #165d5d;
+  --ifm-color-primary-darkest: #104848;
+  --ifm-color-primary-light: #288f8f;
+  --ifm-color-primary-lighter: #36a3a3;
+  --ifm-color-primary-lightest: #64bcbc;
+  --ifm-background-color: #fbfaf7;
+  --ifm-font-family-base: 'Noto Sans JP', system-ui, -apple-system, BlinkMacSystemFont,
+    'Segoe UI', sans-serif;
+  --ifm-heading-font-weight: 700;
+  --ifm-code-font-size: 92%;
+  --ifm-table-border-color: #d8d2c7;
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #5cc8c8;
+  --ifm-background-color: #121519;
+  --ifm-navbar-background-color: #171b20;
+  --ifm-footer-background-color: #101317;
+}
+
+.hero--primary {
+  --ifm-hero-background-color: #163f44;
+  --ifm-hero-text-color: #fffaf0;
+}
+
+.markdown img {
+  border: 1px solid var(--ifm-table-border-color);
+  border-radius: 8px;
+  box-shadow: 0 8px 28px rgba(17, 24, 39, 0.08);
+}
+
+.markdown table {
+  display: table;
+  width: 100%;
+}
+
+.theme-code-block {
+  border: 1px solid var(--ifm-table-border-color);
+}

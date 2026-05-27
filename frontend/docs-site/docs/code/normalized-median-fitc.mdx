@@ -1,0 +1,89 @@
+---
+sidebar_position: 3
+title: Normalized median と FITC
+description: 細胞内強度の正規化中央値と FITC aggregation ratio の API 解説。
+---
+
+# Normalized median と FITC
+
+細胞内 pixel を最大値で正規化し、その中央値を返す API です。FITC aggregation ratio はこの normalized median をしきい値で集計します。
+
+## Endpoint
+
+```http
+GET /api/v1/get-normalized-medians
+```
+
+## Query parameters
+
+| name | type | default | 説明 |
+| --- | --- | --- | --- |
+| `dbname` | `string` | required | 対象 database |
+| `label` | `string` | `null` | `1`, `N/A`, `all` など |
+| `channel` | `string` | `ph` | `ph`, `fluo1`, `fluo2` |
+
+```bash
+curl "http://localhost:3000/api/v1/get-normalized-medians?dbname=sample.db&label=1&channel=fluo1"
+```
+
+## Response
+
+```json
+[
+  {
+    "cell_id": "F0C12",
+    "normalized_median": 0.6831
+  },
+  {
+    "cell_id": "F0C13",
+    "normalized_median": 0.742
+  }
+]
+```
+
+## 実装の芯
+
+```python title="backend/app/bulk_engine/crud.py"
+def _calc_normalized_median_intensity(
+    image_raw: bytes,
+    contour_raw: bytes,
+) -> float | None:
+    points = _get_points_inside_cell(image_raw, contour_raw)
+    if points.size == 0:
+        return None
+    max_val = float(points.max())
+    if max_val <= 0:
+        return 0.0
+    normalized = points.astype(float) / max_val
+    median_val = float(np.median(normalized))
+    return round(median_val, 4)
+```
+
+## FITC aggregation plot
+
+```http
+GET /api/v1/get-fitc-aggregation-plot
+```
+
+| name | type | default | 説明 |
+| --- | --- | --- | --- |
+| `dbname` | `string` | required | 対象 database |
+| `label` | `string` | `null` | 集計対象 label |
+| `channel` | `string` | `fluo1` | `fluo1`, `fluo2` |
+
+しきい値は `FITC_AGGREGATION_THRESHOLD = 0.7414` です。normalized median がしきい値未満の細胞数を全細胞数で割ります。
+
+```python title="backend/app/bulk_engine/crud.py"
+def _calc_fraction_below_threshold(
+    values: Sequence[float],
+    threshold: float,
+) -> tuple[float, int, int]:
+    arr = np.asarray(values, dtype=float)
+    count_below = int((arr < threshold).sum())
+    ratio = count_below / total if total > 0 else 0.0
+    return ratio, count_below, total
+```
+
+## 関連
+
+数式としきい値の考え方は [正規化と凝集スコア](/docs/algorithms/aggregation-scores/) を参照してください。
