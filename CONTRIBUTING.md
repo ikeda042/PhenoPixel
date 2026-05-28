@@ -86,6 +86,11 @@ Module-specific READMEs:
    *why*, and *how it was tested*. Link any related issue (`Closes #123`).
 6. **Iterate on review.** Push additional commits; we squash-merge on accept.
 
+## Contribution licensing
+
+By submitting a contribution, you agree that your contribution is licensed
+under the same MIT License that covers PhenoPixel.
+
 ## Coding guidelines
 
 ### Python (backend)
