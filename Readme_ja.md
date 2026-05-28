@@ -404,3 +404,8 @@ Traefik は `80/443` を使用する。`SERVER_HOST` に設定したホスト名
 - バルクエンジン API: [backend/app/bulk_engine/README.md](backend/app/bulk_engine/README.md)
 - 細胞抽出 API: [backend/app/cellextraction/README.md](backend/app/cellextraction/README.md)
 - フロントエンド: [frontend/README.md](frontend/README.md)
+
+## ライセンス
+
+PhenoPixel は MIT License の下で公開されています。詳細は [LICENSE](LICENSE) を参照してください。
+サードパーティ依存関係は、それぞれのライセンスに従います。
