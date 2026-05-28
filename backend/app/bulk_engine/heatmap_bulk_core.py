@@ -246,8 +246,8 @@ def calculate_heatmap_path_vector(
     ) = _basis_conversion(
         contour_points,
         X,
-        image_fluo.shape[0] / 2,
-        image_fluo.shape[1] / 2,
+        image_fluo_gray.shape[0] / 2,
+        image_fluo_gray.shape[1] / 2,
         coords_inside_cell,
         as_array=True,
     )
