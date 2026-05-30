@@ -5,11 +5,13 @@ batch analytics. The backend exposes APIs under `/api/v1`, and the frontend
 provides a UI for running workflows.
 
 The montage below shows a population-level fluorescence overview from two
-channels, rendered as a GFP / mCherry-style double-stained overlay. It combines
-the green and magenta fluorescence layers without scale bars, with display
-intensity balanced across cells while avoiding saturation.
+channels, rendered as a GFP / mCherry-style double-stained overlay. It renders
+fluo1 as magenta and fluo2 as green without scale bars, with display intensity
+balanced across cells while avoiding saturation.
 
 ![Manual Label 1 Overlay Fluo montage](docs/images/manual-label1-overlay-fluo-montage.png)
+
+![Manual Label 1 Replot montage](docs/images/manual-label1-replot-montage.png)
 
 ![Cell extraction preview](docs/screen-records/cell-extraction.preview.gif)
 

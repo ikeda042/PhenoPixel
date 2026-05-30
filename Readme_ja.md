@@ -2,9 +2,11 @@
 
 PhenoPixel は、顕微鏡画像からの細胞抽出とバッチ解析のためのバックエンド + フロントエンドアプリである。バックエンドは `/api/v1` 配下に API を公開し、フロントエンドは各種ワークフローを実行するための UI を提供する。
 
-以下のモンタージュは、2 つの蛍光チャンネルを GFP / mCherry 風の二重染色として重ねた、細胞集団のオーバーレイ例である。Green と Magenta の蛍光レイヤーをスケールバーなしで合成し、各細胞タイルの表示輝度はサチュレーションしない範囲で見やすく揃えている。
+以下のモンタージュは、2 つの蛍光チャンネルを GFP / mCherry 風の二重染色として重ねた、細胞集団のオーバーレイ例である。fluo1 を Magenta、fluo2 を Green としてスケールバーなしで合成し、各細胞タイルの表示輝度はサチュレーションしない範囲で見やすく揃えている。
 
 ![Manual Label 1 Overlay Fluo montage](docs/images/manual-label1-overlay-fluo-montage.png)
+
+![Manual Label 1 Replot montage](docs/images/manual-label1-replot-montage.png)
 
 ![細胞抽出プレビュー](docs/screen-records/cell-extraction.preview.gif)
 
