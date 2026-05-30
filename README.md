@@ -447,7 +447,119 @@ coordinates or in relative-position coordinates.
 
 ![Peak-vector heatmap construction](docs/images/method-peak-vectorization.png)
 
-### 5. Normalized Median and Aggregation-Style Scores
+### 5. Map256 Spatial Intensity Mapping
+
+`Map 256` keeps more spatial information than the 35-bin heatmap vector. It uses
+the same cell-aligned coordinate system and polynomial centerline, but instead
+of reducing each longitudinal bin to a single peak value, it remaps every
+intracellular fluorescence pixel onto a two-dimensional long-axis / lateral-axis
+image.
+
+Before mapping, the selected fluorescence image is converted to grayscale and
+background-subtracted with a morphological opening:
+
+$$
+I_{\mathrm{bg}} = I - \mathrm{open}_{21 \times 21}(I).
+$$
+
+For each pixel $\mathbf{u}_i = (u_{1,i}, u_{2,i})$ inside the contour, the
+nearest point on the fitted centerline $\hat{f}$ is found as
+
+$$
+t_i^* =
+\underset{t \in [u_{1,a}, u_{1,b}]}{\mathrm{arg\,min}}
+\left[(t - u_{1,i})^2 + (\hat{f}(t) - u_{2,i})^2\right].
+$$
+
+The projected long-axis coordinate is the centerline arc length,
+
+$$
+p_i =
+\int_{u_{1,a}}^{t_i^*}
+\sqrt{1 + (\hat{f}'(t))^2}\,dt,
+$$
+
+and the signed lateral coordinate is
+
+$$
+d_i =
+\mathrm{sign}(u_{2,i} - \hat{f}(t_i^*))
+\sqrt{(t_i^* - u_{1,i})^2 + (\hat{f}(t_i^*) - u_{2,i})^2}.
+$$
+
+These coordinates define a high-resolution map
+$H \in \mathbb{R}^{h \times w}$, where
+
+$$
+w = \lceil \max_i p_i - \min_i p_i \rceil + 1,
+\qquad
+h = \lceil \max_i d_i - \min_i d_i \rceil + 1.
+$$
+
+Each intracellular pixel is assigned to integer map coordinates
+
+$$
+x_i = \lfloor p_i - \min_j p_j \rfloor,
+\qquad
+y_i = \lfloor d_i - \min_j d_j \rfloor,
+$$
+
+and intensities are max-pooled into the mapped image:
+
+$$
+H(y_i, x_i) =
+\max\left(H(y_i, x_i), I_{\mathrm{bg}}(\mathbf{u}_i)\right).
+$$
+
+The implementation also writes the same value to the four direct neighbors
+$(y_i \pm 1, x_i)$ and $(y_i, x_i \pm 1)$ when they are inside the map. This
+small local expansion reduces holes caused by integer projection.
+
+For `Map 256`, the high-resolution map is resized by nearest-neighbor
+interpolation to a fixed display size:
+
+$$
+M_c \in \mathbb{R}^{256 \times 1024}
+= \mathrm{resize}_{\mathrm{nearest}}(H_c).
+$$
+
+The display image is then converted to 8-bit intensity,
+
+$$
+\tilde{M}_c =
+255 \cdot
+\frac{M_c - \min(M_c)}
+{\max(M_c) - \min(M_c)},
+$$
+
+with a zero image used when the map has no intensity range. `Map Raw` keeps the
+native high-resolution map before the fixed-size resize. The Jet view applies a
+pseudocolor map to the same normalized intensity image.
+
+For population-level Map256 contour plots, the backend first builds one map per
+cell. To make the population summary less sensitive to arbitrary left/right or
+top/bottom orientation, each cell contributes four symmetric variants: the
+original map, left-right flip, top-bottom flip, and both flips. The population
+mean map is
+
+$$
+\bar{M} =
+\frac{1}{4N}
+\sum_{c=1}^{N}
+\left[
+M_c + F_x(M_c) + F_y(M_c) + F_y(F_x(M_c))
+\right],
+$$
+
+where $F_x$ and $F_y$ denote horizontal and vertical flips. In `relative` mode,
+each cell map is normalized before averaging; in `absolute` mode, the
+background-subtracted raw intensities are averaged. This makes Map256 useful for
+summarizing subcellular localization patterns, such as Nucleoid positioning,
+across a labeled cell population.
+
+![Population Map256 nucleoid localization](docs/screenshots/MAP256.png)
+
+### 6. Normalized Median and Aggregation-Style Scores
 
 For any selected channel, intensities inside a cell are normalized by the
 cellwise maximum,
@@ -470,7 +582,7 @@ $\tau = 0.7414$. In the thesis experiments, the same normalized-median idea was
 also used for IbpA-GFP and TorA-GFP abnormal-localization calls, with an example
 threshold of $m \le 0.6$ for those datasets.
 
-### 6. Thesis-Specific Phenotype Calls
+### 7. Thesis-Specific Phenotype Calls
 
 For HU-GFP compaction, a 35-bin peak vector is first computed and summarized as
 
