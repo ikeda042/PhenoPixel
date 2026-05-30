@@ -817,7 +817,7 @@ export default function CellExtractionPage() {
                           color: 'ink.900',
                         }}
                       />
-                      <Checkbox.Label fontSize="sm" color="ink.700">
+                      <Checkbox.Label fontSize="sm" color="ink.700" whiteSpace="nowrap">
                         Auto Annotation
                       </Checkbox.Label>
                     </Checkbox.Root>
