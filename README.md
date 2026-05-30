@@ -136,6 +136,40 @@ The cell viewer function panel provides these modes:
 
 ![Function panel modes](docs/screenshots/database_manager3.png)
 
+`Overlay Raw` places fluorescence-channel signal on top of the PH image, making
+it possible to check fluorescence localization against the original cell
+morphology.
+
+![PH image with fluorescence overlay](docs/screenshots/database_manager4.png)
+
+`Overlay Fluo` shows the fluorescence channels as an overlay without the PH
+background, which is useful for inspecting signal overlap and channel-specific
+patterns.
+
+![Fluorescence channel overlay](docs/screenshots/database_manager5.png)
+
+`Heatmap` projects fluorescence intensity along the selected cell's long axis.
+The target fluorescence channel can be selected before plotting, so the same
+cell can be compared across channels.
+
+![Single-cell fluorescence heatmap](docs/screenshots/database_manager6.png)
+
+`Map 256` renders fluorescence information as a 256-level intensity map. This
+view preserves the spatial pattern inside each cell and is useful for examining
+subcellular localization, such as Nucleoid positioning.
+
+![Single-cell Map256 view](docs/screenshots/database_manager7.png)
+
+The same Map256 representation can also be used at population scale. The
+example below summarizes Nucleoid localization across a selected cell group.
+
+![Population Map256 nucleoid localization](docs/screenshots/MAP256.png)
+
+`Distribution` shows a histogram of intracellular fluorescence intensities for
+the selected cell/channel.
+
+![Single-cell fluorescence intensity distribution](docs/screenshots/database_manager8.png)
+
 ### 4. Annotation
 
 Auto-detected contours may include debris or merged cells. Use Annotation to
