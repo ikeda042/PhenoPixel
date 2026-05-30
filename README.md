@@ -1,13 +1,14 @@
 # PhenoPixel
 
-PhenoPixel is a backend + frontend app for microscopy cell extraction and
-batch analytics. The backend exposes APIs under `/api/v1`, and the frontend
-provides a UI for running workflows.
+PhenoPixel is a FastAPI + React application for microscopy single-cell
+extraction, annotation, visualization, and batch phenotype analysis. It is
+designed around ND2 microscopy workflows: upload an ND2 file, extract cell
+contours, clean labels, inspect individual cells, and export population-level
+shape and fluorescence descriptors.
 
-The montage below shows a population-level fluorescence overview from two
-channels, rendered as a GFP / mCherry-style double-stained overlay. It renders
-fluo1 as magenta and fluo2 as green without scale bars, with display intensity
-balanced across cells while avoiding saturation.
+The montage below shows a label-1 cell population from `microscope_data.db`.
+The overlay renders `fluo1` as magenta and `fluo2` as green without scale bars,
+with display intensity balanced per cell while avoiding saturation.
 
 ![Manual Label 1 Overlay Fluo montage](docs/images/manual-label1-overlay-fluo-montage.png)
 
@@ -15,54 +16,212 @@ balanced across cells while avoiding saturation.
 
 ![Cell extraction preview](docs/screen-records/cell-extraction.preview.gif)
 
-## For Research Use / Citation
+## Key Features
 
-This repository is maintained to support reproducible reporting in research papers.
-If you cite this software in a manuscript, please include:
+| Area | What PhenoPixel provides |
+| --- | --- |
+| ND2 management | Upload, list, inspect metadata, download, delete, and parse `.nd2` files. |
+| Cell extraction | Generate cropped cell images, contours, preview frames, and SQLite databases. |
+| Annotation | Review auto-detected cells and relabel single cells or debris in bulk. |
+| Cell viewer | Inspect phase, fluorescence, overlays, replot views, heatmaps, map views, distributions, and raw images per cell. |
+| Bulk analysis | Export and visualize cell length, area, fluorescence intensity summaries, heatmap vectors, contours, Map256 strips, raw intensities, and JSON/CSV data. |
+| Research reporting | Keep database files, exports, screenshots, and method formulas close to the analysis code for reproducible reporting. |
 
-- **Software name**: PhenoPixel
-- **Author**: Yunosuke Ikeda
-- **Contact**: d263846@hiroshima-u.ac.jp
-- **Repository URL**: (this repository URL)
-- **Version evidence**: Git commit hash used in the analysis
-- **Access date**: date you accessed the repository
+## Requirements
 
-### Recommended citation template
+| Component | Notes |
+| --- | --- |
+| Python | Local launch examples use `python3.14`; the Docker backend image uses Python 3.11. |
+| Node.js / npm | Required for the React frontend, Docusaurus docs build, and Storybook screenshots. Dependency versions are locked in `frontend/package-lock.json`. |
+| SQLite | Used for extracted cell databases through SQLAlchemy. |
+| OpenCV system libraries | Local installs use `opencv-python`; Docker also installs `libgl1` and `libglib2.0-0`. |
 
-```text
-Ikeda, Y. PhenoPixel: microscopy single-cell extraction and batch phenotype analysis software.
-GitHub repository. URL: <repository-url> (accessed <YYYY-MM-DD>), commit <commit-hash>.
+## Quick Start
+
+Run the backend and frontend from the repository root in separate terminals.
+The local quick-start path uses `python3.14`; the Docker backend image uses
+Python 3.11.
+
+### Backend
+
+```sh
+python3.14 -m venv venv
+source ./venv/bin/activate
+cd backend
+pip install -r requirements.txt
+python main.py
 ```
 
-### Reproducibility checklist (for papers)
+### Frontend
 
-When linking this repository in a paper, we strongly recommend reporting:
+```sh
+cd frontend
+npm install
+npm run dev
+```
 
-1. Runtime environment (OS, Python, Node.js versions)
-2. Exact backend/frontend dependency snapshots
-3. Input image format and acquisition conditions (e.g., ND2 metadata)
-4. Analysis parameters (Canny thresholds, ROI size, channel count, Auto Annotation on/off)
-5. Labeling protocol used in Annotation (`Label 1` criteria)
-6. Bulk Engine mode(s), threshold(s), and export settings
-7. Exact PhenoPixel commit hash used for generating results
+If npm reports peer dependency conflicts around Vite and Storybook, use:
 
-## ND2 Manager
+```sh
+npm install --legacy-peer-deps
+```
 
-Manage ND2 files in this page: upload new datasets, delete existing ones, and select a specific ND2 file to proceed to Cell Extraction.
+### Local URLs
+
+| Service | URL |
+| --- | --- |
+| Backend | http://localhost:3000 |
+| Frontend dev server | http://localhost:3001 |
+| API base | http://localhost:3000/api/v1 |
+| Swagger UI | http://localhost:3000/api/v1/docs |
+| OpenAPI JSON | http://localhost:3000/api/v1/openapi.json |
+| Health check | http://localhost:3000/api/v1/health |
+
+## Input Data
+
+| Item | Notes |
+| --- | --- |
+| Primary input | `.nd2` files. Upload through the UI or place them under `backend/app/nd2files/`. |
+| Filename rules | Only `.nd2` is accepted; path components are stripped and dots in stems are normalized during processing. |
+| Channel/layer modes | `single`, `dual`, `dual(reversed)`, `triple`, and `quad` are supported by the extraction UI/API. |
+| Metadata | ND2 metadata can be viewed from the ND2 Manager. Channel count may be inferred when the metadata exposes it. |
+| Time/Z data | The parser can expose ND2 frame metadata, but cell extraction expects the selected layer mode to match the frame/channel organization. Validate previews before running large jobs. |
+
+## Workflow
+
+### 1. ND2 Manager
+
+Manage ND2 files: upload datasets, inspect metadata, delete old files, and open
+a selected ND2 file in Cell Extraction.
 
 ![ND2 manager](docs/screenshots/nd2manager1.png)
 
-## Cell Extraction
+### 2. Cell Extraction
 
-1. Configure extraction. For the selected ND2 file, choose the Canny algorithm parameters, ROI crop size, number of fluorescence layers, and whether Auto Annotation is on or off. Press `Extract cells` to start the extraction run.
+Choose the layer mode, objective scale, Canny threshold (`param1`), crop size,
+and Auto Annotation setting, then start extraction. The backend creates contour
+previews and one or more SQLite databases for downstream analysis.
 
 ![Cell extraction setup](docs/screenshots/cell_extraction1.png)
 
-2. Auto annotation behavior. When Auto Annotation is `On`, an additional post-processing step runs after extraction to automatically separate cells from debris.
+When extraction finishes, review the preview frames. If contours are poor,
+adjust parameters and re-extract.
 
-The current implementation is a contour-only heuristic. After a contour $C = \{(x_i, y_i)\}_{i=1}^N$ is extracted, the backend computes two geometric scores and assigns `Label 1` only when both pass their thresholds.
+![Auto annotation processing](docs/screenshots/cell_extraction2.png)
 
-First, it measures how thick the contour is in the direction orthogonal to the major axis. Let
+![Extraction results and next actions](docs/screenshots/cell_extraction3.png)
+
+### 3. Database Manager
+
+Cell databases generated by extraction can be uploaded, downloaded, renamed,
+deleted, and opened for cell-level review.
+
+![Database manager](docs/screenshots/database_manager1.png)
+
+![Database access](docs/screenshots/database_manager2.png)
+
+The cell viewer function panel provides these modes:
+
+| Mode | Description |
+| --- | --- |
+| `Contour` | Show extracted contour coordinates. |
+| `Replot` | Replot a cell in its aligned coordinate system. |
+| `Overlay` | Overlay the contour on the default cell image. |
+| `Overlay Raw` | Overlay fluorescence without contour masking on the raw view. |
+| `Overlay Fluo` | Compose fluorescence channels with selectable colors. |
+| `Heatmap` | Visualize centerline-projected fluorescence intensity. |
+| `Map 256` | Render a 256-level mapped fluorescence view. |
+| `Map Raw` | Render the mapped view at native pixel scale. |
+| `Distribution` | Plot the intensity distribution for the selected cell/channel. |
+
+![Function panel modes](docs/screenshots/database_manager3.png)
+
+### 4. Annotation
+
+Auto-detected contours may include debris or merged cells. Use Annotation to
+move cells between `N/A` and analysis labels such as `Label 1`. Click cells
+individually or use Shift-drag to select multiple cells before applying a label.
+
+![Annotation cleanup](docs/screenshots/annotation1.png)
+
+![Annotation labeling](docs/screenshots/annotation2.png)
+
+![Annotation labeling multiple](docs/screenshots/annotation3.png)
+
+### 5. Bulk Engine
+
+After annotation, use Bulk Engine to run population-level analysis on a selected
+label. Return to Annotation if non-single cells remain in the selected group.
+
+![Bulk engine selection](docs/screenshots/bulk1.png)
+
+![Bulk engine analysis](docs/screenshots/bulk2.png)
+
+Bulk Engine modes:
+
+| Mode | Description |
+| --- | --- |
+| `Cell length` | Measure cell length in micrometers from contour geometry and stored pixel size. |
+| `Cell area` | Export cell area in pixels squared. |
+| `Normalized median` | Compute cellwise median intensity after max normalization. |
+| `FITC aggregation ratio` | Report the fraction of cells below the configured normalized-median threshold. |
+| `Entropy` | Quantify fluorescence distribution with entropy / sparsity-style metrics. |
+| `Heatmap` | Generate centerline heatmap vectors and absolute/relative heatmap plots. |
+| `Contours` | Visualize aligned contours and export transformed contour coordinates. |
+| `Map256` | Render population-level Map256 strips or contour maps. |
+| `Raw data` | Export raw pixel intensities inside each contour. |
+
+JSON and CSV exports are available for downstream analysis.
+
+![Bulk engine analysis modes](docs/screenshots/bulk3.png)
+
+For example, `Heatmap` aggregates and visualizes fluorescence localization for
+all cells in the selected label.
+
+![Bulk engine heatmap example](docs/screenshots/bulk4.png)
+
+## Output Data
+
+| Output | Location / format |
+| --- | --- |
+| Uploaded ND2 files | `backend/app/nd2files/` |
+| Cell databases | `backend/app/databases/<nd2_stem>.db` |
+| Extracted contour previews | `backend/app/extracted_data/<nd2_stem>/<frame>.png` |
+| Cell table | SQLite table `cells`, including `cell_id`, `manual_label`, `perimeter`, `area`, `img_ph`, `img_fluo1`, `img_fluo2`, `contour`, center coordinates, objective, and pixel size. |
+| Bulk exports | JSON/CSV/PNG responses from Bulk Engine endpoints or browser downloads. |
+| Frontend production build | `frontend/dist/`; the backend serves this folder when it exists. |
+
+## Default Parameters
+
+| Parameter | Default / current behavior |
+| --- | --- |
+| Extraction threshold `param1` | `130` |
+| Cell crop size | `200` px |
+| Default layer mode | `dual` in the UI |
+| Auto Annotation | On by default in the UI |
+| Auto Annotation width screen | second PCA variance `lambda_2 <= 120` |
+| Auto Annotation convexity screen | `hull_perimeter / perimeter > 0.85` |
+| Extraction concurrency | `CELLEXTRACTION_MAX_CONCURRENCY`, default `2` |
+| Objective presets | `100x = 0.065 um/px`, `60x = 0.108 um/px` |
+| Heatmap vector bins | `35` |
+| Centerline polynomial degree | `4` unless a request overrides it |
+| FITC aggregation cutoff | `0.7414` |
+
+## Analysis Methods
+
+PhenoPixel's quantitative routines follow a shared single-cell pipeline:
+detect contours from phase-contrast images, transform each cell into its
+intrinsic coordinate system, then compute shape and fluorescence descriptors
+that are comparable across cells.
+
+<details>
+<summary>Auto Annotation contour screen</summary>
+
+Auto Annotation is a contour-only heuristic. After a contour
+$C = \{(x_i, y_i)\}_{i=1}^N$ is extracted, the backend computes two geometric
+scores and assigns `Label 1` only when both pass.
+
+First, it measures contour thickness orthogonal to the major axis. Let
 
 $$
 \Sigma_C =
@@ -74,107 +233,42 @@ $$
 \mathbf{p}_i = (x_i, y_i)^{\mathsf{T}}.
 $$
 
-If the eigenvalues of $\Sigma_C$ are $\lambda_1 \ge \lambda_2$, Auto Annotation uses the smaller one, $\lambda_2$, as a width / lateral-spread proxy and accepts only contours satisfying
+If the eigenvalues are $\lambda_1 \ge \lambda_2$, the contour is accepted only
+when
 
 $$
 \lambda_2 \le 120.
 $$
 
-Second, it measures contour convexity from perimeter ratios. If $P(C)$ is the contour perimeter and $P(\mathrm{Hull}(C))$ is the perimeter of its convex hull, the code defines
+Second, it measures convexity from perimeter ratios. If $P(C)$ is the contour
+perimeter and $P(\mathrm{Hull}(C))$ is the convex hull perimeter,
 
 $$
 \kappa(C) = \frac{P(\mathrm{Hull}(C))}{P(C)}.
 $$
 
-Because irregular debris or merged objects tend to have a perimeter much longer than their convex hull, they produce smaller $\kappa$. The contour is accepted only when
+The contour is accepted only when
 
 $$
 \kappa(C) > 0.85.
 $$
 
-The final Auto Annotation score can be written as
+The final score is
 
 $$
 s(C) = \mathbf{1}[\lambda_2 \le 120] \, \mathbf{1}[\kappa(C) > 0.85].
 $$
 
-Auto Annotation assigns `Label 1` when $s(C) = 1$ and `N/A` otherwise. In other words, it keeps contours that are both laterally compact and close to convex, and it filters out broad, jagged, or debris-like shapes before manual review.
+Auto Annotation assigns `Label 1` when $s(C) = 1$ and `N/A` otherwise.
 
-![Auto annotation processing](docs/screenshots/cell_extraction2.png)
+</details>
 
-3. Review results and proceed. When extraction finishes, the right panel shows all extracted cell contours across every frame. From here you can open the generated cell database or go to the cell labeling (annotation) page. If contours are not extracted well (for example, due to mismatched Canny parameters), adjust settings in the parameter tuning section and click `Re-extract` to run extraction again.
+<details>
+<summary>Contour extraction, basis transform, and cell length</summary>
 
-![Extraction results and next actions](docs/screenshots/cell_extraction3.png)
-
-## Database Manager
-
-This screen lists the cell databases generated by Cell Extraction. You can upload or download databases here, making it possible to separate an experiment’s database from the system as a single file.
-
-![Database manager](docs/screenshots/database_manager1.png)
-
-When you click `Access` on a specific cell database row, you are taken to a page where you can review information for each individual cell.
-
-![Database access](docs/screenshots/database_manager2.png)
-
-The function panel offers the following view modes:
-- `Contour`: view extracted contours only.
-- `Replot`: refresh the current plot from stored data.
-- `Overlay`: overlay contours on the default image.
-- `Overlay Raw`: overlay contours on the raw image.
-- `Overlay Fluo`: overlay contours on the fluorescence image.
-- `Heatmap`: visualize signal intensity as a heatmap.
-- `Map 256`: render a 256-level mapped view.
-- `Map Raw`: render the mapped view at native pixel resolution.
-- `Distribution`: show the value distribution for the selected cell or region.
-
-![Function panel modes](docs/screenshots/database_manager3.png)
-
-## Annotation
-
-Auto-detected contours can include debris or merged cells (not single cells), so you need to remove these manually.
-
-![Annotation cleanup](docs/screenshots/annotation1.png)
-
-To label `Label 1` (right panel), click a target cell (single cell) or use Shift + drag to select multiple cells, then press `Apply`. The right panel updates the labels in real time. You can also revert `Label 1` back to `N/A` (backwards labeling is supported).
-
-![Annotation labeling](docs/screenshots/annotation2.png)
-
-![Annotation labeling multiple](docs/screenshots/annotation3.png)
-
-## Bulk Engine
-
-For a database after annotation, the left panel shows the cells labeled with the default `Label 1`. If debris or non-single cells are mixed in, return to the Annotation page and relabel. Once only single cells are labeled, you can run batch analytics on this population.
-
-![Bulk engine selection](docs/screenshots/bulk1.png)
-
-![Bulk engine analysis](docs/screenshots/bulk2.png)
-
-Batch analysis modes available in Bulk Engine include:
-- `Cell length`: measure cell length (um) from contours.
-- `Cell area`: compute cell area (px^2).
-- `Normalized median`: calculate normalized median intensity per cell for a selected channel.
-- `FITC aggregation ratio`: compute aggregation ratio for FITC signal.
-- `Entropy`: quantify intensity distribution using entropy (1 - sparsity).
-- `Heatmap`: generate heatmap vectors/plots for the selected channel.
-- `Contours`: visualize aligned contours and export contour coordinates.
-- `Map256`: render a Map256 strip across cells.
-- `Raw data`: export raw intensity values inside each contour.
-
-JSON export is also supported, including raw intensity data.
-
-![Bulk engine analysis modes](docs/screenshots/bulk3.png)
-
-For example, in `Heatmap` mode you can aggregate and visualize GFP localization for all cells of the selected label in a single plot.
-
-![Bulk engine heatmap example](docs/screenshots/bulk4.png)
-
-## Methods
-
-The quantitative routines in PhenoPixel follow a common single-cell analysis pipeline: detect a contour from the phase-contrast image, re-parameterize the cell in its intrinsic coordinate system, and compute shape or fluorescence descriptors that are directly comparable across cells. Let $C = \{(x_i, y_i)\}_{i=1}^n$ be the contour points of one cell and let $\Omega_C$ be the set of pixels inside that contour.
-
-### 1. Contour Extraction, Principal Axis, and Basis Transform
-
-Contours are extracted from phase-contrast images with a Canny-based pipeline. The major elongation axis is estimated from the covariance of contour coordinates,
+Let $C = \{(x_i, y_i)\}_{i=1}^n$ be the contour points of one cell and
+$\Omega_C$ be the pixels inside that contour. The major elongation axis is
+estimated from the covariance of contour coordinates,
 
 $$
 \Sigma =
@@ -184,7 +278,7 @@ $$
 \end{pmatrix},
 $$
 
-and the principal direction is the solution of
+and the principal direction is
 
 $$
 \mathbf{w}^* = \underset{\|\mathbf{w}\| = 1}{\mathrm{arg\,max}} \mathbf{w}^{\mathsf{T}} \Sigma \mathbf{w},
@@ -192,7 +286,8 @@ $$
 \Sigma \mathbf{w} = \lambda \mathbf{w}.
 $$
 
-If $Q = (\mathbf{v}_1\ \mathbf{v}_2)$ is the orthonormal eigenvector basis, coordinates are transformed to the cell-aligned frame by
+If $Q = (\mathbf{v}_1\ \mathbf{v}_2)$ is the orthonormal eigenvector basis,
+coordinates are transformed by
 
 $$
 \mathbf{u} = Q^{\mathsf{T}} \mathbf{x},
@@ -200,9 +295,7 @@ $$
 \mathbf{x} = Q \mathbf{u}.
 $$
 
-This removes arbitrary image rotation and makes bent or filamentous cells easier to model analytically.
-
-Because $Q$ is orthonormal, this basis conversion also preserves Euclidean length. For any vector $\mathbf{x}$ and its transformed coordinate $\mathbf{u} = Q^{\mathsf{T}}\mathbf{x}$,
+Because $Q$ is orthonormal, distances are preserved:
 
 $$
 \|\mathbf{u}\|^2
@@ -210,14 +303,10 @@ $$
 = (Q^{\mathsf{T}}\mathbf{x})^{\mathsf{T}} (Q^{\mathsf{T}}\mathbf{x})
 = \mathbf{x}^{\mathsf{T}} Q Q^{\mathsf{T}} \mathbf{x}
 = \mathbf{x}^{\mathsf{T}} \mathbf{x}
-= \|\mathbf{x}\|^2,
+= \|\mathbf{x}\|^2.
 $$
 
-since $Q^{\mathsf{T}}Q = QQ^{\mathsf{T}} = I$. Therefore distances measured before and after the basis transform are identical.
-
-### 2. Centerline Fitting and Cell Length
-
-In the aligned frame, the cell centerline is approximated by a $k$-th order polynomial
+In the aligned frame, the centerline is approximated by a polynomial,
 
 $$
 \hat{f}(u_1) = \theta^{\mathsf{T}} \phi(u_1),
@@ -225,7 +314,8 @@ $$
 \theta = (W^{\mathsf{T}} W)^{-1} W^{\mathsf{T}} f.
 $$
 
-For a curved cell, the thesis formulation defines cell length as the arc length between the two contour-centerline intersection points:
+For curved cells, the thesis formulation defines cell length as the arc length
+between the two contour-centerline intersections:
 
 $$
 L = \int_{u_{1,a}}^{u_{1,b}}
@@ -234,21 +324,25 @@ $$
 
 ![Centerline fitting](docs/images/method-centerline-fit.png)
 
-In the current backend implementation, `Cell length` is returned as a robust PCA major-axis extent of pixels inside the contour and converted with a fixed pixel size of $0.065\,\mu\mathrm{m}/\mathrm{px}$:
+The current backend `Cell length` value uses a robust PCA major-axis extent and
+the stored pixel size:
 
 $$
-L_{\mathrm{API}} \approx (\max_i \pi_i - \min_i \pi_i) \times 0.065.
+L_{\mathrm{API}} \approx (\max_i \pi_i - \min_i \pi_i) \times \mathrm{pixel\_size\_um}.
 $$
 
-### 3. Cell Area and Raw Pixel Export
+</details>
 
-Cell area is the area enclosed by the contour,
+<details>
+<summary>Area, raw pixels, fluorescence vectors, and phenotype scores</summary>
+
+Cell area is stored as the area enclosed by the contour,
 
 $$
-A(C) = \iint_{\Omega_C} 1\,dA,
+A(C) = \iint_{\Omega_C} 1\,dA.
 $$
 
-which is stored during extraction and reported by `Cell area`. `Raw data` exports the unaggregated intensity set
+`Raw data` exports the unaggregated intensity set
 
 $$
 \{ I(p) \mid p \in \Omega_C \}
@@ -256,9 +350,8 @@ $$
 
 for the selected channel.
 
-### 4. Fluorescence Vectorization Along the Centerline
-
-For each intracellular pixel $(p_i, q_i)$ with intensity $G(p_i, q_i)$, the nearest point on the fitted centerline is found by
+For each intracellular pixel $(p_i, q_i)$ with intensity $G(p_i, q_i)$, the
+nearest point on the fitted centerline is found by
 
 $$
 u_{1,i}^* = \underset{u_1 \in [u_{1,a}, u_{1,b}]}{\mathrm{arg\,min}}
@@ -273,25 +366,22 @@ $$
 \ell_i^* = \ell(u_{1,i}^*).
 $$
 
-To obtain a fixed-dimensional descriptor, the arc-length interval $[0, L]$ is divided into $n$ bins and max-pooled:
+The arc-length interval is divided into $n$ bins and max-pooled:
 
 $$
 g_j = \max \{ G(p_i, q_i) \mid \ell_i^* \in I_j \}.
 $$
 
-If no projected pixel falls into $I_j$, we set $g_j = 0$. The resulting fixed-length localization vector is
+If no projected pixel falls into $I_j$, $g_j = 0$. The fixed-length vector is
 
 $$
 \mathbf{g} = (g_1, \dots, g_n)^{\mathsf{T}}.
 $$
 
-The current implementation uses $n = 35$ and a default polynomial degree of $k = 4$. `Heatmap` visualizes these peak vectors either in absolute-length coordinates or in relative-position coordinates.
-
 ![Peak-vector heatmap construction](docs/images/method-peak-vectorization.png)
 
-### 5. Normalized Median and Aggregation-Style Scores
-
-For any selected channel, intensities inside a cell are normalized by the cellwise maximum,
+For any selected channel, intensities inside a cell are normalized by the
+cellwise maximum,
 
 $$
 \tilde{I}_i = \frac{I_i}{\max_{p \in \Omega_C} I(p)},
@@ -299,23 +389,19 @@ $$
 m(C) = \mathrm{median}(\tilde{I}_i).
 $$
 
-This scalar is reported by `Normalized median`. A population-level aggregation score can then be written as
+A population-level aggregation score can be written as
 
 $$
 R(\tau) = \frac{1}{N} \sum_{c=1}^{N} \mathbf{1}[m(C_c) < \tau].
 $$
 
-The current `FITC aggregation ratio` plot uses this form with a default cutoff $\tau = 0.7414$. In the thesis experiments, the same normalized-median idea was also used for IbpA-GFP and TorA-GFP abnormal-localization calls, with an example threshold of $m \le 0.6$ for those datasets.
-
-### 6. Thesis-Specific Phenotype Calls
-
-For HU-GFP compaction, a 35-bin peak vector is first computed and summarized as
+For HU-GFP compaction, a 35-bin peak vector is summarized as
 
 $$
 s(C) = \sum_{j=1}^{35} g_j.
 $$
 
-Using the control population, the abnormality threshold is defined by the 5th percentile,
+The abnormality threshold can be defined by the control 5th percentile,
 
 $$
 \tau_{\mathrm{HU}} = Q_{0.05}(\{ s(C_c^{\mathrm{ctrl}}) \}),
@@ -323,71 +409,125 @@ $$
 
 and the HU aggregation ratio is the fraction of cells with $s(C) < \tau_{\mathrm{HU}}$.
 
-For PI permeability, the mean intracellular PI intensity is
+For PI permeability,
 
 $$
 \mu(C) = \frac{1}{|\Omega_C|} \sum_{p \in \Omega_C} I_{\mathrm{PI}}(p),
 $$
 
-with a control-derived positivity threshold
+with a control-derived positivity threshold,
 
 $$
 \tau_{\mathrm{PI}} = Q_{0.95}(\{ \mu(C_c^{\mathrm{ctrl}}) \}).
 $$
 
-The PI-positive fraction is then the proportion of cells satisfying $\mu(C) > \tau_{\mathrm{PI}}$.
+</details>
 
-## Requirements
+## Research Use / Citation
 
-- Python 3.x (Launch uses `python3.14`)
-- Node.js with npm (frontend dev/build)
-- SQLite (used by the backend; databases generated by Cell Extraction)
+This repository is maintained to support reproducible reporting in research
+papers. If you cite this software in a manuscript, include:
 
-## Quick Start
+- **Software name**: PhenoPixel
+- **Author**: Yunosuke Ikeda
+- **Contact**: d263846@hiroshima-u.ac.jp
+- **Repository URL**: this repository URL
+- **Version evidence**: Git commit hash used in the analysis
+- **Access date**: date you accessed the repository
 
-Backend:
+Recommended citation:
 
-```sh
-python3.14 -m venv venv
-source ./venv/bin/activate
-cd backend
-pip install -r requirements.txt
-python main.py
+```text
+Ikeda, Y. PhenoPixel: microscopy single-cell extraction and batch phenotype analysis software.
+GitHub repository. URL: <repository-url> (accessed <YYYY-MM-DD>), commit <commit-hash>.
 ```
 
-Frontend:
+For reproducibility, report OS/Python/Node versions, dependency snapshots, ND2
+metadata or acquisition conditions, extraction parameters, labeling criteria,
+Bulk Engine modes, thresholds, export settings, and the exact commit hash.
+
+## Development And Quality Checks
+
+Backend checks:
+
+```sh
+source ./venv/bin/activate
+PYTHONPATH=backend python -m unittest discover backend/tests
+```
+
+Frontend checks:
 
 ```sh
 cd frontend
-npm install
-npm run dev
+npm run build
+npm run lint
 ```
 
-- Backend: http://localhost:3000
-- Frontend dev server: http://localhost:3001
+Screenshot/storybook assets:
 
-## Local URLs
+```sh
+./docs/make_screenshots.sh
+```
 
-- API base: http://localhost:3000/api/v1
-- Swagger UI (OpenAPI): http://localhost:3000/api/v1/docs
-- OpenAPI JSON: http://localhost:3000/api/v1/openapi.json
-- Health check: http://localhost:3000/api/v1/health
+## Production Build
+
+Build the frontend before serving the app from the backend:
+
+```sh
+cd frontend
+npm install --legacy-peer-deps
+npm run build
+cd ../backend
+source ../venv/bin/activate
+python main.py
+```
+
+When `frontend/dist/index.html` exists, `backend/main.py` serves the SPA and
+static assets alongside the `/api/v1` API.
 
 ## Docker Deploy (Traefik)
 
-Use `docker/compose.yaml` to start Traefik + backend.
+`docker/compose.yaml` starts Traefik and the backend container. The current
+compose file exposes the backend under `/api/v1/` and mounts persistent backend
+data directories.
 
-1) Create `backend/.env` (use `backend/.env.template` as a reference)
-2) Set `SERVER_HOST` and `TRAEFIK_ACME_EMAIL`
-3) Start:
+Create `backend/.env` first:
+
+```sh
+cp backend/.env.template backend/.env
+```
+
+Environment variables used by local/Docker deployment:
+
+| Variable | Used by | Meaning |
+| --- | --- | --- |
+| `SLACK_WEHBOOK_URL` | Backend | Optional Slack webhook URL for job notifications. The variable name intentionally matches the current code/template spelling. |
+| `BASE_PATH` | Backend | Optional frontend base URL used in Slack notification links. |
+| `CELLEXTRACTION_MAX_CONCURRENCY` | Backend | Optional extraction job concurrency limit; defaults to `2`. |
+| `SERVER_HOST` | Docker compose / Traefik | Hostname routed to the backend; compose defaults to `localhost` when unset. |
+| `TRAEFIK_ACME_EMAIL` | Docker compose / Traefik | Email address for Let's Encrypt certificate registration. |
+
+Start the stack:
 
 ```sh
 cd docker
 docker compose -f compose.yaml up -d --build
 ```
 
-Traefik uses `80/443`. Access the hostname set in `SERVER_HOST`, and the API
-is exposed under `/api/v1`.
+Traefik uses ports `80` and `443`. Access the hostname set in `SERVER_HOST`;
+the API is exposed under `/api/v1`.
+
+## Troubleshooting
+
+| Symptom | What to try |
+| --- | --- |
+| Port already in use | Backend defaults to `3000`, frontend to `3001`, docs dev server to `3002`; stop the existing process or change the port. |
+| `eslint: command not found` | Install frontend dependencies with `npm install` or `npm install --legacy-peer-deps`. |
+| npm peer dependency conflict | Use `npm install --legacy-peer-deps`, matching `docs/make_screenshots.sh`. |
+| ND2 upload is rejected | Confirm the file extension is `.nd2` and the filename does not rely on path components. |
+| No contours or poor contours | Check layer mode, `param1`, crop size, and preview frames before annotating. |
+| OpenCV import/runtime errors | Use the project venv and install `backend/requirements.txt`; Docker also installs `libgl1` and `libglib2.0-0`. |
+| SQLite permission errors | Ensure `backend/app/databases/`, `backend/app/extracted_data/`, `backend/app/nd2files/`, and `backend/app/tempdata/` are writable. |
 
 ## Tech Stack
 
@@ -411,9 +551,10 @@ Backend:
   </a>
 </p>
 
-- FastAPI, Uvicorn, Pydantic for the API layer
-- SQLAlchemy for SQLite access
-- NumPy, OpenCV, Matplotlib for image processing and plotting
+- FastAPI, Uvicorn, and Pydantic for the API layer
+- SQLAlchemy and SQLite for database access
+- NumPy, OpenCV, Pillow, and Matplotlib for image processing and plotting
+- FastMCP for repository/context tooling
 
 Frontend:
 
@@ -435,14 +576,17 @@ Frontend:
 - React + React Router for the UI
 - Vite for dev/build tooling
 - Chakra UI and Framer Motion for styling and motion
+- Docusaurus docs build under `frontend/docs-site`
 
 ## Docs
 
-- Bulk Engine API: [backend/app/bulk_engine/README.md](backend/app/bulk_engine/README.md)
-- Cell Extraction API: [backend/app/cellextraction/README.md](backend/app/cellextraction/README.md)
-- Frontend: [frontend/README.md](frontend/README.md)
+- [Cell Extraction API](backend/app/cellextraction/README.md)
+- [Database Manager API](backend/app/database_manager/README.md)
+- [Bulk Engine API](backend/app/bulk_engine/README.md)
+- [Frontend](frontend/README.md)
+- [Contributing](CONTRIBUTING.md)
 
 ## License
 
-PhenoPixel is released under the MIT License. See [LICENSE](LICENSE) for details.
-Third-party dependencies remain under their respective licenses.
+PhenoPixel is released under the MIT License. See [LICENSE](LICENSE) for
+details. Third-party dependencies remain under their respective licenses.
