@@ -466,7 +466,7 @@ For each pixel $\mathbf{u}_i = (u_{1,i}, u_{2,i})$ inside the contour, the
 nearest point on the fitted centerline $\hat{f}$ is found as
 
 $$
-t_i^* =
+t_i^{\star} =
 \underset{t \in [u_{1,a}, u_{1,b}]}{\mathrm{arg\,min}}
 \left[(t - u_{1,i})^2 + (\hat{f}(t) - u_{2,i})^2\right].
 $$
@@ -475,7 +475,7 @@ The projected long-axis coordinate is the centerline arc length,
 
 $$
 p_i =
-\int_{u_{1,a}}^{t_i^*}
+\int_{u_{1,a}}^{t_i^{\star}}
 \sqrt{1 + (\hat{f}'(t))^2}\,dt,
 $$
 
@@ -483,8 +483,8 @@ and the signed lateral coordinate is
 
 $$
 d_i =
-\mathrm{sign}(u_{2,i} - \hat{f}(t_i^*))
-\sqrt{(t_i^* - u_{1,i})^2 + (\hat{f}(t_i^*) - u_{2,i})^2}.
+\mathrm{sign}(u_{2,i} - \hat{f}(t_i^{\star}))
+\sqrt{(t_i^{\star} - u_{1,i})^2 + (\hat{f}(t_i^{\star}) - u_{2,i})^2}.
 $$
 
 These coordinates define a high-resolution map
