@@ -180,6 +180,13 @@ all cells in the selected label.
 
 ![Bulk engine heatmap example](docs/screenshots/bulk4.png)
 
+`Contours` mode focuses on contour geometry only. It exports aligned contour
+coordinates as JSON or CSV, making it easier to prototype and validate
+algorithms that use cell outline information without carrying fluorescence
+images or raw intensity data through the analysis pipeline.
+
+![Bulk engine contour export](docs/screenshots/bulk5.png)
+
 ## Output Data
 
 | Output | Location / format |
