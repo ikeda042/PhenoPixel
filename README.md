@@ -161,9 +161,11 @@ subcellular localization, such as Nucleoid positioning.
 ![Single-cell Map256 view](docs/screenshots/database_manager7.png)
 
 The same Map256 representation can also be used at population scale. The
-example below summarizes Nucleoid localization across a selected cell group.
+example below arranges Map256 views from the `Label 1` population in
+`microscope_data.db`, summarizing Nucleoid localization across the selected cell
+group.
 
-![Population Map256 nucleoid localization](docs/screenshots/MAP256.png)
+![Population Map256 nucleoid localization](docs/screenshots/Map256.png)
 
 `Distribution` shows a histogram of intracellular fluorescence intensities for
 the selected cell/channel.
@@ -555,9 +557,10 @@ where $F_x$ and $F_y$ denote horizontal and vertical flips. In `relative` mode,
 each cell map is normalized before averaging; in `absolute` mode, the
 background-subtracted raw intensities are averaged. This makes Map256 useful for
 summarizing subcellular localization patterns, such as Nucleoid positioning,
-across a labeled cell population.
+across a labeled cell population. The square montage below was generated from
+all `Label 1` cells in the current `microscope_data.db`.
 
-![Population Map256 nucleoid localization](docs/screenshots/MAP256.png)
+![Population Map256 nucleoid localization](docs/screenshots/Map256.png)
 
 ### 6. Normalized Median and Aggregation-Style Scores
 
