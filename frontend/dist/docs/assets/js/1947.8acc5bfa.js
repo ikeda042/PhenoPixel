@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkfrontend=self.webpackChunkfrontend||[]).push([[1947],{1947:(e,r,n)=>{n.d(r,{createWardleyServices:()=>s.J});var s=n(2295);n(2519)}}]);

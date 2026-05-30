@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkfrontend=self.webpackChunkfrontend||[]).push([[7196],{7196:(e,r,n)=>{n.d(r,{createTreeViewServices:()=>s.I});var s=n(9314);n(2519)}}]);
