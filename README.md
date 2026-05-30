@@ -248,21 +248,26 @@ images or raw intensity data through the analysis pipeline.
 | Centerline polynomial degree | `4` unless a request overrides it |
 | FITC aggregation cutoff | `0.7414` |
 
-## Analysis Methods
+## Methods
 
-PhenoPixel's quantitative routines follow a shared single-cell pipeline:
-detect contours from phase-contrast images, transform each cell into its
-intrinsic coordinate system, then compute shape and fluorescence descriptors
-that are comparable across cells.
+The quantitative routines in PhenoPixel follow a common single-cell analysis
+pipeline: detect a contour from the phase-contrast image, re-parameterize the
+cell in its intrinsic coordinate system, and compute shape or fluorescence
+descriptors that are directly comparable across cells. Let
+$C = \{(x_i, y_i)\}_{i=1}^n$ be the contour points of one cell and let
+$\Omega_C$ be the set of pixels inside that contour.
 
-<details>
-<summary>Auto Annotation contour screen</summary>
+### Auto Annotation Contour Screen
 
-Auto Annotation is a contour-only heuristic. After a contour
+When Auto Annotation is `On`, an additional post-processing step runs after
+extraction to automatically separate cells from debris.
+
+The current implementation is a contour-only heuristic. After a contour
 $C = \{(x_i, y_i)\}_{i=1}^N$ is extracted, the backend computes two geometric
-scores and assigns `Label 1` only when both pass.
+scores and assigns `Label 1` only when both pass their thresholds.
 
-First, it measures contour thickness orthogonal to the major axis. Let
+First, it measures how thick the contour is in the direction orthogonal to the
+major axis. Let
 
 $$
 \Sigma_C =
@@ -274,42 +279,45 @@ $$
 \mathbf{p}_i = (x_i, y_i)^{\mathsf{T}}.
 $$
 
-If the eigenvalues are $\lambda_1 \ge \lambda_2$, the contour is accepted only
-when
+If the eigenvalues of $\Sigma_C$ are $\lambda_1 \ge \lambda_2$, Auto Annotation
+uses the smaller one, $\lambda_2$, as a width / lateral-spread proxy and accepts
+only contours satisfying
 
 $$
 \lambda_2 \le 120.
 $$
 
-Second, it measures convexity from perimeter ratios. If $P(C)$ is the contour
-perimeter and $P(\mathrm{Hull}(C))$ is the convex hull perimeter,
+Second, it measures contour convexity from perimeter ratios. If $P(C)$ is the
+contour perimeter and $P(\mathrm{Hull}(C))$ is the perimeter of its convex hull,
+the code defines
 
 $$
 \kappa(C) = \frac{P(\mathrm{Hull}(C))}{P(C)}.
 $$
 
-The contour is accepted only when
+Because irregular debris or merged objects tend to have a perimeter much longer
+than their convex hull, they produce smaller $\kappa$. The contour is accepted
+only when
 
 $$
 \kappa(C) > 0.85.
 $$
 
-The final score is
+The final Auto Annotation score can be written as
 
 $$
 s(C) = \mathbf{1}[\lambda_2 \le 120] \, \mathbf{1}[\kappa(C) > 0.85].
 $$
 
-Auto Annotation assigns `Label 1` when $s(C) = 1$ and `N/A` otherwise.
+Auto Annotation assigns `Label 1` when $s(C) = 1$ and `N/A` otherwise. In other
+words, it keeps contours that are both laterally compact and close to convex,
+and it filters out broad, jagged, or debris-like shapes before manual review.
 
-</details>
+### 1. Contour Extraction, Principal Axis, and Basis Transform
 
-<details>
-<summary>Contour extraction, basis transform, and cell length</summary>
-
-Let $C = \{(x_i, y_i)\}_{i=1}^n$ be the contour points of one cell and
-$\Omega_C$ be the pixels inside that contour. The major elongation axis is
-estimated from the covariance of contour coordinates,
+Contours are extracted from phase-contrast images with a Canny-based pipeline.
+The major elongation axis is estimated from the covariance of contour
+coordinates,
 
 $$
 \Sigma =
@@ -319,7 +327,7 @@ $$
 \end{pmatrix},
 $$
 
-and the principal direction is
+and the principal direction is the solution of
 
 $$
 \mathbf{w}^* = \underset{\|\mathbf{w}\| = 1}{\mathrm{arg\,max}} \mathbf{w}^{\mathsf{T}} \Sigma \mathbf{w},
@@ -328,7 +336,7 @@ $$
 $$
 
 If $Q = (\mathbf{v}_1\ \mathbf{v}_2)$ is the orthonormal eigenvector basis,
-coordinates are transformed by
+coordinates are transformed to the cell-aligned frame by
 
 $$
 \mathbf{u} = Q^{\mathsf{T}} \mathbf{x},
@@ -336,7 +344,12 @@ $$
 \mathbf{x} = Q \mathbf{u}.
 $$
 
-Because $Q$ is orthonormal, distances are preserved:
+This removes arbitrary image rotation and makes bent or filamentous cells easier
+to model analytically.
+
+Because $Q$ is orthonormal, this basis conversion also preserves Euclidean
+length. For any vector $\mathbf{x}$ and its transformed coordinate
+$\mathbf{u} = Q^{\mathsf{T}}\mathbf{x}$,
 
 $$
 \|\mathbf{u}\|^2
@@ -344,10 +357,16 @@ $$
 = (Q^{\mathsf{T}}\mathbf{x})^{\mathsf{T}} (Q^{\mathsf{T}}\mathbf{x})
 = \mathbf{x}^{\mathsf{T}} Q Q^{\mathsf{T}} \mathbf{x}
 = \mathbf{x}^{\mathsf{T}} \mathbf{x}
-= \|\mathbf{x}\|^2.
+= \|\mathbf{x}\|^2,
 $$
 
-In the aligned frame, the centerline is approximated by a polynomial,
+since $Q^{\mathsf{T}}Q = QQ^{\mathsf{T}} = I$. Therefore distances measured
+before and after the basis transform are identical.
+
+### 2. Centerline Fitting and Cell Length
+
+In the aligned frame, the cell centerline is approximated by a $k$-th order
+polynomial
 
 $$
 \hat{f}(u_1) = \theta^{\mathsf{T}} \phi(u_1),
@@ -355,8 +374,8 @@ $$
 \theta = (W^{\mathsf{T}} W)^{-1} W^{\mathsf{T}} f.
 $$
 
-For curved cells, the thesis formulation defines cell length as the arc length
-between the two contour-centerline intersections:
+For a curved cell, the thesis formulation defines cell length as the arc length
+between the two contour-centerline intersection points:
 
 $$
 L = \int_{u_{1,a}}^{u_{1,b}}
@@ -365,31 +384,32 @@ $$
 
 ![Centerline fitting](docs/images/method-centerline-fit.png)
 
-The current backend `Cell length` value uses a robust PCA major-axis extent and
-the stored pixel size:
+In the current backend implementation, `Cell length` is returned as a robust PCA
+major-axis extent of pixels inside the contour and converted with the stored
+pixel size. For the 100x preset, this is:
 
 $$
-L_{\mathrm{API}} \approx (\max_i \pi_i - \min_i \pi_i) \times \mathrm{pixel\_size\_um}.
+L_{\mathrm{API}} \approx (\max_i \pi_i - \min_i \pi_i) \times 0.065.
 $$
 
-</details>
+### 3. Cell Area and Raw Pixel Export
 
-<details>
-<summary>Area, raw pixels, fluorescence vectors, and phenotype scores</summary>
-
-Cell area is stored as the area enclosed by the contour,
+Cell area is the area enclosed by the contour,
 
 $$
-A(C) = \iint_{\Omega_C} 1\,dA.
+A(C) = \iint_{\Omega_C} 1\,dA,
 $$
 
-`Raw data` exports the unaggregated intensity set
+which is stored during extraction and reported by `Cell area`. `Raw data`
+exports the unaggregated intensity set
 
 $$
 \{ I(p) \mid p \in \Omega_C \}
 $$
 
 for the selected channel.
+
+### 4. Fluorescence Vectorization Along the Centerline
 
 For each intracellular pixel $(p_i, q_i)$ with intensity $G(p_i, q_i)$, the
 nearest point on the fitted centerline is found by
@@ -407,19 +427,27 @@ $$
 \ell_i^* = \ell(u_{1,i}^*).
 $$
 
-The arc-length interval is divided into $n$ bins and max-pooled:
+To obtain a fixed-dimensional descriptor, the arc-length interval $[0, L]$ is
+divided into $n$ bins and max-pooled:
 
 $$
 g_j = \max \{ G(p_i, q_i) \mid \ell_i^* \in I_j \}.
 $$
 
-If no projected pixel falls into $I_j$, $g_j = 0$. The fixed-length vector is
+If no projected pixel falls into $I_j$, we set $g_j = 0$. The resulting
+fixed-length localization vector is
 
 $$
 \mathbf{g} = (g_1, \dots, g_n)^{\mathsf{T}}.
 $$
 
+The current implementation uses $n = 35$ and a default polynomial degree of
+$k = 4$. `Heatmap` visualizes these peak vectors either in absolute-length
+coordinates or in relative-position coordinates.
+
 ![Peak-vector heatmap construction](docs/images/method-peak-vectorization.png)
+
+### 5. Normalized Median and Aggregation-Style Scores
 
 For any selected channel, intensities inside a cell are normalized by the
 cellwise maximum,
@@ -430,39 +458,50 @@ $$
 m(C) = \mathrm{median}(\tilde{I}_i).
 $$
 
-A population-level aggregation score can be written as
+This scalar is reported by `Normalized median`. A population-level aggregation
+score can then be written as
 
 $$
 R(\tau) = \frac{1}{N} \sum_{c=1}^{N} \mathbf{1}[m(C_c) < \tau].
 $$
 
-For HU-GFP compaction, a 35-bin peak vector is summarized as
+The current `FITC aggregation ratio` plot uses this form with a default cutoff
+$\tau = 0.7414$. In the thesis experiments, the same normalized-median idea was
+also used for IbpA-GFP and TorA-GFP abnormal-localization calls, with an example
+threshold of $m \le 0.6$ for those datasets.
+
+### 6. Thesis-Specific Phenotype Calls
+
+For HU-GFP compaction, a 35-bin peak vector is first computed and summarized as
 
 $$
 s(C) = \sum_{j=1}^{35} g_j.
 $$
 
-The abnormality threshold can be defined by the control 5th percentile,
+Using the control population, the abnormality threshold is defined by the 5th
+percentile,
 
 $$
 \tau_{\mathrm{HU}} = Q_{0.05}(\{ s(C_c^{\mathrm{ctrl}}) \}),
 $$
 
-and the HU aggregation ratio is the fraction of cells with $s(C) < \tau_{\mathrm{HU}}$.
+and the HU aggregation ratio is the fraction of cells with
+$s(C) < \tau_{\mathrm{HU}}$.
 
-For PI permeability,
+For PI permeability, the mean intracellular PI intensity is
 
 $$
 \mu(C) = \frac{1}{|\Omega_C|} \sum_{p \in \Omega_C} I_{\mathrm{PI}}(p),
 $$
 
-with a control-derived positivity threshold,
+with a control-derived positivity threshold
 
 $$
 \tau_{\mathrm{PI}} = Q_{0.95}(\{ \mu(C_c^{\mathrm{ctrl}}) \}).
 $$
 
-</details>
+The PI-positive fraction is then the proportion of cells satisfying
+$\mu(C) > \tau_{\mathrm{PI}}$.
 
 ## Research Use / Citation
 
