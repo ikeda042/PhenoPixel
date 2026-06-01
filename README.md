@@ -16,6 +16,9 @@ with display intensity balanced per cell while avoiding saturation.
 
 ![Cell extraction preview](docs/screen-records/cell-extraction.preview.gif)
 
+![Cell database preview](docs/screen-records/cells.gif)
+
+
 ## Key Features
 
 | Area | What PhenoPixel provides |
