@@ -4,14 +4,21 @@ import sqlite3
 import tempfile
 import unittest
 import pickle
+import shutil
 from pathlib import Path
 from uuid import uuid4
 
+import cv2
 import numpy as np
 
 from app.bulk_engine.crud import _calc_cell_length_um
 from app.bulk_engine.heatmap_bulk_core import build_heatmap_vectors_csv
-from app.cellextraction.crud import create_database
+from app.cellextraction.crud import (
+    ExtractionCrudBase,
+    SyncChores,
+    _get_temp_dir,
+    create_database,
+)
 from app.database_manager.crud import (
     DATABASES_DIR,
     _scale_bar_length_px,
@@ -42,13 +49,18 @@ class ObjectiveScaleSupportTest(unittest.TestCase):
                 for row in conn.execute("PRAGMA table_info(cells)").fetchall()
             }
             row = conn.execute(
-                "SELECT objective_magnification, pixel_size_um FROM cells"
+                "SELECT objective_magnification, pixel_size_um, position_x, position_y "
+                "FROM cells"
             ).fetchone()
 
         self.assertIn("objective_magnification", columns)
         self.assertIn("pixel_size_um", columns)
+        self.assertIn("position_x", columns)
+        self.assertIn("position_y", columns)
         self.assertEqual(row[0], "100x")
         self.assertAlmostEqual(float(row[1]), 0.065)
+        self.assertIsNone(row[2])
+        self.assertIsNone(row[3])
 
     def test_new_database_schema_includes_objective_columns(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -64,6 +76,49 @@ class ObjectiveScaleSupportTest(unittest.TestCase):
 
         self.assertIn("objective_magnification", columns)
         self.assertIn("pixel_size_um", columns)
+        self.assertIn("position_x", columns)
+        self.assertIn("position_y", columns)
+
+    def test_extracted_cell_records_original_nd2_position(self):
+        ulid = f"position-test-{uuid4().hex}"
+        temp_dir = Path(_get_temp_dir(ulid))
+        with tempfile.TemporaryDirectory() as contour_tmp:
+            try:
+                ph_dir = temp_dir / "PH"
+                ph_dir.mkdir(parents=True, exist_ok=True)
+                image = np.zeros((2048, 2048), dtype=np.uint8)
+                cv2.rectangle(image, (670, 770), (731, 831), 255, -1)
+                self.assertTrue(cv2.imwrite(str(ph_dir / "0.tif"), image))
+
+                SyncChores.init(
+                    "position-test.nd2",
+                    1,
+                    ulid,
+                    param1=130,
+                    image_size=200,
+                    mode="single_layer",
+                    contour_dir=str(Path(contour_tmp) / "contours"),
+                )
+
+                extractor = ExtractionCrudBase(
+                    nd2_path="position-test.nd2",
+                    mode="single_layer",
+                    param1=130,
+                    image_size=200,
+                )
+                extractor.ulid = ulid
+                extractor.temp_dir = str(temp_dir)
+
+                cell = extractor.process_cell(0, 0)
+            finally:
+                shutil.rmtree(temp_dir, ignore_errors=True)
+
+        self.assertIsNotNone(cell)
+        assert cell is not None
+        self.assertAlmostEqual(float(cell.position_x), 700.0)
+        self.assertAlmostEqual(float(cell.position_y), 800.0)
+        self.assertAlmostEqual(float(cell.center_x), 100.0, delta=2.0)
+        self.assertAlmostEqual(float(cell.center_y), 100.0, delta=2.0)
 
     def test_cell_length_uses_supplied_pixel_size_um(self):
         contour = np.array([[[0, 0]], [[10, 0]]], dtype=np.int32)

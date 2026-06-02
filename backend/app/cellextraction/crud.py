@@ -3,6 +3,7 @@ import shutil
 import pickle
 import random
 import re
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Generator, Literal, Optional
@@ -30,6 +31,7 @@ APP_DIR: Path = Path(__file__).resolve().parents[1]
 DATABASES_DIR: Path = APP_DIR / "databases"
 EXTRACTED_DATA_DIR: Path = APP_DIR / "extracted_data"
 TEMPDATA_DIR: Path = APP_DIR / "tempdata"
+CELL_POSITIONS_FILENAME: str = "cell_positions.json"
 
 
 def _get_temp_dir(ulid: str) -> str:
@@ -239,6 +241,8 @@ class Cell(Base):
     contour = Column(BLOB)
     center_x = Column(FLOAT)
     center_y = Column(FLOAT)
+    position_x = Column(FLOAT, nullable=True)
+    position_y = Column(FLOAT, nullable=True)
     user_id = Column(String, nullable=True)
     objective_magnification = Column(String, nullable=True)
     pixel_size_um = Column(FLOAT, nullable=True)
@@ -677,9 +681,10 @@ class SyncChores:
             cv2.drawContours(image_ph_copy, contours, -1, (0, 255, 0), 3)
             cv2.imwrite(f"{contour_dir}/{k}.png", image_ph_copy)
             n = 0
+            saved_positions: dict[str, dict[str, float]] = {}
             if mode in ("triple_layer", "quad_layer"):
-                for ph, fluo1, fluo2 in zip(
-                    cropped_images_ph, cropped_images_fluo_1, cropped_images_fluo_2
+                for candidate_index, (ph, fluo1, fluo2) in enumerate(
+                    zip(cropped_images_ph, cropped_images_fluo_1, cropped_images_fluo_2)
                 ):
                     if (
                         len(ph) == output_size[0]
@@ -696,21 +701,41 @@ class SyncChores:
                         cv2.imwrite(
                             f"{temp_dir}/frames/tiff_{k}/Cells/fluo2/{n}.png", fluo2
                         )
+                        cx, cy = contour_centers[candidate_index]
+                        saved_positions[str(n)] = {
+                            "position_x": float(cx),
+                            "position_y": float(cy),
+                        }
                         n += 1
 
             elif mode == "single_layer":
-                for ph in cropped_images_ph:
+                for candidate_index, ph in enumerate(cropped_images_ph):
                     if len(ph) == output_size[0] and len(ph[0]) == output_size[1]:
                         cv2.imwrite(f"{temp_dir}/frames/tiff_{k}/Cells/ph/{n}.png", ph)
+                        cx, cy = contour_centers[candidate_index]
+                        saved_positions[str(n)] = {
+                            "position_x": float(cx),
+                            "position_y": float(cy),
+                        }
                         n += 1
             elif mode == "dual_layer":
-                for ph, fluo1 in zip(cropped_images_ph, cropped_images_fluo_1):
+                for candidate_index, (ph, fluo1) in enumerate(
+                    zip(cropped_images_ph, cropped_images_fluo_1)
+                ):
                     if len(ph) == output_size[0] and len(ph[0]) == output_size[1]:
                         cv2.imwrite(f"{temp_dir}/frames/tiff_{k}/Cells/ph/{n}.png", ph)
                         cv2.imwrite(
                             f"{temp_dir}/frames/tiff_{k}/Cells/fluo1/{n}.png", fluo1
                         )
+                        cx, cy = contour_centers[candidate_index]
+                        saved_positions[str(n)] = {
+                            "position_x": float(cx),
+                            "position_y": float(cy),
+                        }
                         n += 1
+            positions_path = Path(frame_dir) / "Cells" / CELL_POSITIONS_FILENAME
+            with positions_path.open("w", encoding="utf-8") as handle:
+                json.dump(saved_positions, handle, ensure_ascii=True, indent=2)
         return num_tiff
 
 
@@ -785,6 +810,33 @@ class ExtractionCrudBase:
         contour = contours[0] if contours else None
         return contour, img_ph_gray, img_fluo1_gray, img_fluo2_gray
 
+    def get_cell_original_position(
+        self,
+        i: int,
+        j: int,
+    ) -> tuple[float | None, float | None]:
+        positions_path = (
+            Path(self.temp_dir)
+            / "frames"
+            / f"tiff_{i}"
+            / "Cells"
+            / CELL_POSITIONS_FILENAME
+        )
+        try:
+            with positions_path.open("r", encoding="utf-8") as handle:
+                positions = json.load(handle)
+        except (FileNotFoundError, json.JSONDecodeError, TypeError):
+            return None, None
+
+        entry = positions.get(str(j)) if isinstance(positions, dict) else None
+        if not isinstance(entry, dict):
+            return None, None
+
+        try:
+            return float(entry["position_x"]), float(entry["position_y"])
+        except (KeyError, TypeError, ValueError):
+            return None, None
+
     def process_cell(
         self,
         i: int,
@@ -813,6 +865,7 @@ class ExtractionCrudBase:
             or abs(center_y - img_ph.shape[0] // 2) >= 3
         ):
             return None
+        position_x, position_y = self.get_cell_original_position(i, j)
 
         img_ph_data = cv2.imencode(".png", img_ph_gray)[1].tobytes()
         img_fluo1_data = img_fluo2_data = None
@@ -844,6 +897,8 @@ class ExtractionCrudBase:
             contour=contour_blob,
             center_x=center_x,
             center_y=center_y,
+            position_x=position_x,
+            position_y=position_y,
             user_id=user_id,
             objective_magnification=self.objective_magnification,
             pixel_size_um=self.pixel_size_um,
