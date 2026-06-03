@@ -15,6 +15,7 @@ import FilesPage from './pages/FilesPage'
 import GraphEnginePage from './pages/GraphEnginePage'
 import Nd2ParserPage from './pages/Nd2ParserPage'
 import Nd2FilesPage from './pages/Nd2FilesPage'
+import RawPositionPage from './pages/RawPositionPage'
 import TopPage from './pages/TopPage'
 import system from './theme'
 
@@ -42,6 +43,7 @@ createRoot(document.getElementById('root')!).render(
           <Route path="/graph-engine" element={<GraphEnginePage />} />
           <Route path="/nd2files" element={<Nd2FilesPage />} />
           <Route path="/nd2parser" element={<Nd2ParserPage />} />
+          <Route path="/raw-position" element={<RawPositionPage />} />
         </Routes>
       </BrowserRouter>
     </ChakraProvider>

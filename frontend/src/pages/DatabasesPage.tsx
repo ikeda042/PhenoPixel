@@ -19,7 +19,7 @@ import {
   Text,
   Button,
 } from '@chakra-ui/react'
-import { Download, Pencil, Search, Trash2 } from 'lucide-react'
+import { Download, MapPinned, Pencil, Search, Trash2 } from 'lucide-react'
 import PageBreadcrumb from '../components/PageBreadcrumb'
 import PageHeader from '../components/PageHeader'
 import ReloadButton from '../components/ReloadButton'
@@ -414,7 +414,7 @@ export default function DatabasesPage() {
             maxH={{ base: '60vh', md: 'calc(100vh - 260px)' }}
           >
             <Grid
-              templateColumns={{ base: 'minmax(0, 1fr)', md: 'minmax(0, 1fr) 26rem' }}
+              templateColumns={{ base: 'minmax(0, 1fr)', md: 'minmax(0, 1fr) 32rem' }}
               px="4"
               py="3"
               bg="sand.200"
@@ -474,17 +474,18 @@ export default function DatabasesPage() {
               !error &&
               pagedDatabases.map((name, index) => {
                 const isEditing = renamingDatabase === name
-                const disableActions =
+                const disableActions = Boolean(
                   isRenaming ||
-                  downloadingDatabase ||
-                  deletingDatabase ||
-                  (renamingDatabase !== null && !isEditing)
+                    downloadingDatabase ||
+                    deletingDatabase ||
+                    (renamingDatabase !== null && !isEditing),
+                )
                 return (
                   <Grid
                     key={name}
                     templateColumns={{
                       base: 'minmax(0, 1fr)',
-                      md: 'minmax(0, 1fr) 26rem',
+                      md: 'minmax(0, 1fr) 32rem',
                     }}
                     px="4"
                     py="3"
@@ -524,7 +525,7 @@ export default function DatabasesPage() {
                       </Text>
                     )}
                     <HStack
-                      spacing="2"
+                      gap="2"
                       justify={{ base: 'flex-start', md: 'flex-end' }}
                       flexWrap={{ base: 'wrap', md: 'nowrap' }}
                     >
@@ -594,6 +595,21 @@ export default function DatabasesPage() {
                             disabled={disableActions}
                           >
                             Bulk-engine
+                          </Button>
+                          <Button
+                            size="xs"
+                            bg="tide.500"
+                            color="white"
+                            _hover={{ bg: 'tide.400' }}
+                            onClick={() =>
+                              navigate(
+                                `/raw-position?dbname=${encodeURIComponent(name)}`,
+                              )
+                            }
+                            disabled={disableActions}
+                          >
+                            <Icon as={MapPinned} boxSize={3.5} />
+                            Raw position
                           </Button>
                           <Button
                             size="xs"

@@ -622,6 +622,7 @@ class SyncChores:
                 _ensure_dir(path)
         loop_num = num_tiff // set_num if mode != "single_layer" else num_tiff
         for k in range(loop_num):
+            frame_dir = f"{temp_dir}/frames/tiff_{k}"
             image_ph_raw = SyncChores.load_image_unchanged(f"{temp_dir}/PH/{k}.tif")
             if image_ph_raw is None:
                 continue

@@ -171,6 +171,42 @@ def get_manual_labels_endpoint(
         raise HTTPException(status_code=500, detail=str(exc))
 
 
+@router_database_manager.get("/get-cell-position-frames")
+def get_cell_position_frames_endpoint(
+    dbname: Annotated[str, Query()] = ...,
+) -> dict:
+    try:
+        return DatabaseManagerCrud.get_cell_position_frames(dbname)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Database not found")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router_database_manager.get("/get-cell-position-frame")
+def get_cell_position_frame_endpoint(
+    dbname: Annotated[str, Query()] = ...,
+    frame: Annotated[int, Query(ge=0)] = ...,
+    fluorescence_channel: Annotated[Literal["fluo1", "fluo2"], Query()] = "fluo1",
+    include_fluorescence: Annotated[bool, Query()] = True,
+) -> dict:
+    try:
+        return DatabaseManagerCrud.get_cell_position_frame(
+            dbname,
+            frame,
+            fluorescence_channel=fluorescence_channel,
+            include_fluorescence=include_fluorescence,
+        )
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Database not found")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
 @router_database_manager.get("/get-cell-contour")
 def get_cell_contour_endpoint(
     dbname: Annotated[str, Query()] = ...,
