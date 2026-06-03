@@ -20,7 +20,6 @@ import {
   Text,
 } from '@chakra-ui/react'
 import { ArrowLeft, ArrowRight, RefreshCw } from 'lucide-react'
-import PageBreadcrumb from '../components/PageBreadcrumb'
 import PageHeader from '../components/PageHeader'
 import ReloadButton from '../components/ReloadButton'
 import ThemeToggleButton from '../components/ThemeToggleButton'
@@ -250,29 +249,36 @@ export default function RawPositionPage() {
   return (
     <Box
       minH="100dvh"
-      h="auto"
+      h="100dvh"
       bg="sand.50"
       color="ink.900"
       display="flex"
       flexDirection="column"
+      overflow="hidden"
     >
       <PageHeader
         actions={
           <>
-            <ReloadButton />
-            <ThemeToggleButton />
+            <ReloadButton compact />
+            <ThemeToggleButton compact />
           </>
         }
       />
 
       <Container
         maxW="72.5rem"
-        py={{ base: 4, md: 6 }}
+        py={{ base: 3, md: 4 }}
         flex="1"
         display="flex"
         flexDirection="column"
+        minH="0"
       >
-        <PageBreadcrumb>
+        <Box
+          display={{ base: 'none', md: 'flex' }}
+          justifyContent="flex-start"
+          mb={{ base: 2, md: 3 }}
+          flexShrink={0}
+        >
           <BreadcrumbRoot fontSize="sm" color="ink.700">
             <BreadcrumbList>
               <BreadcrumbItem>
@@ -294,16 +300,17 @@ export default function RawPositionPage() {
               </BreadcrumbItem>
             </BreadcrumbList>
           </BreadcrumbRoot>
-        </PageBreadcrumb>
+        </Box>
 
-        <Stack gap="4" flex="1" minH="0">
+        <Stack gap={{ base: 3, md: 4 }} flex="1" minH="0">
           <Box
             display="grid"
             gridTemplateColumns={{
               base: '1fr',
               lg: 'minmax(0, 0.9fr) minmax(0, 1.1fr)',
             }}
-            gap="6"
+            gridTemplateRows={{ base: 'auto minmax(0, 1fr)', lg: '1fr' }}
+            gap={{ base: 3, lg: 5 }}
             alignItems="stretch"
             flex="1"
             minH="0"
@@ -313,21 +320,21 @@ export default function RawPositionPage() {
               border="1px solid"
               borderColor="sand.200"
               borderRadius="xl"
-              p={{ base: 4, md: 5 }}
-              h="full"
+              p={{ base: 3, md: 4 }}
+              h={{ base: 'auto', lg: 'full' }}
               display="flex"
               flexDirection="column"
               minH="0"
             >
-              <Stack gap="3" flex="1" minH="0">
-                <Stack gap="1">
+              <Stack gap={{ base: 2, md: 3 }} flex="1" minH="0">
+                <Stack gap="1" display={{ base: 'none', md: 'flex' }}>
                   <Text fontWeight="600">Raw Position Settings</Text>
                   <Text fontSize="sm" color="ink.700">
                     {dbName || 'Database'}
                   </Text>
                 </Stack>
 
-                <Separator borderColor="sand.200" />
+                <Separator borderColor="sand.200" display={{ base: 'none', md: 'block' }} />
 
                 <Stack gap="2">
                   <Text fontSize="sm" color="ink.700">
@@ -342,6 +349,7 @@ export default function RawPositionPage() {
                       _hover={{ bg: 'sand.50' }}
                       onClick={() => goToFrameOffset(-1)}
                       disabled={!canGoPrev || isLoadingFrame}
+                      h={{ base: '2.25rem', md: '2.5rem' }}
                       minW="2.25rem"
                       px="2"
                       aria-label="Previous frame"
@@ -357,6 +365,7 @@ export default function RawPositionPage() {
                         border="1px solid"
                         borderColor="sand.200"
                         color="ink.900"
+                        h={{ base: '2.25rem', md: '2.5rem' }}
                         _focusVisible={{
                           borderColor: 'tide.400',
                           boxShadow: '0 0 0 1px var(--app-accent-ring)',
@@ -378,6 +387,7 @@ export default function RawPositionPage() {
                       _hover={{ bg: 'sand.50' }}
                       onClick={() => goToFrameOffset(1)}
                       disabled={!canGoNext || isLoadingFrame}
+                      h={{ base: '2.25rem', md: '2.5rem' }}
                       minW="2.25rem"
                       px="2"
                       aria-label="Next frame"
@@ -389,7 +399,7 @@ export default function RawPositionPage() {
 
                 <Box
                   display="grid"
-                  gridTemplateColumns={{ base: '1fr', md: 'repeat(2, minmax(0, 1fr))' }}
+                  gridTemplateColumns="repeat(2, minmax(0, 1fr))"
                   gap="3"
                 >
                   <Stack gap="2">
@@ -407,6 +417,7 @@ export default function RawPositionPage() {
                         border="1px solid"
                         borderColor="sand.200"
                         color="ink.900"
+                        h={{ base: '2.25rem', md: '2.5rem' }}
                         _focusVisible={{
                           borderColor: 'tide.400',
                           boxShadow: '0 0 0 1px var(--app-accent-ring)',
@@ -434,6 +445,7 @@ export default function RawPositionPage() {
                         border="1px solid"
                         borderColor="sand.200"
                         color="ink.900"
+                        h={{ base: '2.25rem', md: '2.5rem' }}
                         _focusVisible={{
                           borderColor: 'tide.400',
                           boxShadow: '0 0 0 1px var(--app-accent-ring)',
@@ -452,9 +464,10 @@ export default function RawPositionPage() {
                   border="1px solid"
                   borderColor="sand.200"
                   borderRadius="md"
-                  p="3"
+                  p={{ base: 2.5, md: 3 }}
+                  display={{ base: 'none', md: 'block' }}
                 >
-                  <Stack gap="3">
+                  <Stack gap={{ base: 2, md: 3 }}>
                     <HStack justify="space-between">
                       <Text fontSize="xs" color="ink.700">
                         X range
@@ -474,7 +487,11 @@ export default function RawPositionPage() {
                   </Stack>
                 </Box>
 
-                <HStack justify="flex-end" mt="auto">
+                <HStack
+                  justify="flex-end"
+                  mt={{ base: 1, lg: 'auto' }}
+                  display={{ base: 'none', md: 'flex' }}
+                >
                   <Button
                     size="sm"
                     bg="tide.500"
@@ -495,13 +512,13 @@ export default function RawPositionPage() {
               border="1px solid"
               borderColor="sand.200"
               borderRadius="xl"
-              p={{ base: 4, md: 5 }}
+              p={{ base: 3, md: 4 }}
               h="full"
               display="flex"
               flexDirection="column"
               minH="0"
             >
-              <Stack gap="3" flex="1" minH="0">
+              <Stack gap={{ base: 2, md: 3 }} flex="1" minH="0">
                 <Stack gap="1">
                   <Text fontWeight="600">Cell Position Preview</Text>
                 </Stack>
@@ -514,7 +531,7 @@ export default function RawPositionPage() {
                   justifyContent="center"
                   overflow="hidden"
                   flex="1"
-                  minH={{ base: '20rem', lg: '0' }}
+                  minH="0"
                 >
                   {isLoadingFrames || isLoadingFrame ? (
                     <Flex align="center" justify="center" color="ink.700" fontSize="sm">
