@@ -18,10 +18,62 @@ class GraphEngineResultResponse(BaseModel):
     nagg_rate: float | None
 
 
+async def _render_graph_engine_image(
+    render_fn: Callable[[str | None, bytes], bytes],
+    mode: str | None,
+    file: UploadFile,
+) -> StreamingResponse:
+    try:
+        content: bytes = await file.read()
+        if not content:
+            raise ValueError("Uploaded file is empty")
+        loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
+        image_bytes: bytes = await loop.run_in_executor(None, render_fn, mode, content)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    finally:
+        await file.close()
+    return StreamingResponse(io.BytesIO(image_bytes), media_type="image/png")
+
+
+@router_graphengine.post("/graph_engine/heatmap_abs")
+async def graph_engine_heatmap_abs(
+    file: Annotated[UploadFile, File()],
+    mode: Annotated[str | None, Form()] = None,
+) -> StreamingResponse:
+    return await _render_graph_engine_image(GraphEngineCrud.create_heatmap_abs_plot, mode, file)
+
+
+@router_graphengine.post("/graph_engine/heatmap_rel")
+async def graph_engine_heatmap_rel(
+    file: Annotated[UploadFile, File()],
+    mode: Annotated[str | None, Form()] = None,
+) -> StreamingResponse:
+    return await _render_graph_engine_image(GraphEngineCrud.create_heatmap_rel_plot, mode, file)
+
+
+@router_graphengine.post("/graph_engine/distribution")
+async def graph_engine_distribution(
+    file: Annotated[UploadFile, File()],
+    mode: Annotated[str | None, Form()] = None,
+) -> StreamingResponse:
+    return await _render_graph_engine_image(GraphEngineCrud.create_distribution_plot, mode, file)
+
+
+@router_graphengine.post("/graph_engine/distribution_box")
+async def graph_engine_distribution_box(
+    file: Annotated[UploadFile, File()],
+    mode: Annotated[str | None, Form()] = None,
+) -> StreamingResponse:
+    return await _render_graph_engine_image(GraphEngineCrud.create_distribution_box_plot, mode, file)
+
+
 @router_graphengine.post("/graph_engine/{mode}", response_model=list[GraphEngineResultResponse])
 async def analyze_graph_engine(
     mode: str,
-    files: Annotated[list[UploadFile], File()] = ...,
+    files: Annotated[list[UploadFile], File()],
     ctrl_file: Annotated[UploadFile | None, File()] = None,
 ) -> list[GraphEngineResultResponse]:
     if not files:
@@ -57,55 +109,3 @@ async def analyze_graph_engine(
         )
         for result in results
     ]
-
-
-async def _render_graph_engine_image(
-    render_fn: Callable[[str | None, bytes], bytes],
-    mode: str | None,
-    file: UploadFile,
-) -> StreamingResponse:
-    try:
-        content: bytes = await file.read()
-        if not content:
-            raise ValueError("Uploaded file is empty")
-        loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
-        image_bytes: bytes = await loop.run_in_executor(None, render_fn, mode, content)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-    finally:
-        await file.close()
-    return StreamingResponse(io.BytesIO(image_bytes), media_type="image/png")
-
-
-@router_graphengine.post("/graph_engine/heatmap_abs")
-async def graph_engine_heatmap_abs(
-    file: Annotated[UploadFile, File()] = ...,
-    mode: Annotated[str | None, Form()] = None,
-) -> StreamingResponse:
-    return await _render_graph_engine_image(GraphEngineCrud.create_heatmap_abs_plot, mode, file)
-
-
-@router_graphengine.post("/graph_engine/heatmap_rel")
-async def graph_engine_heatmap_rel(
-    file: Annotated[UploadFile, File()] = ...,
-    mode: Annotated[str | None, Form()] = None,
-) -> StreamingResponse:
-    return await _render_graph_engine_image(GraphEngineCrud.create_heatmap_rel_plot, mode, file)
-
-
-@router_graphengine.post("/graph_engine/distribution")
-async def graph_engine_distribution(
-    file: Annotated[UploadFile, File()] = ...,
-    mode: Annotated[str | None, Form()] = None,
-) -> StreamingResponse:
-    return await _render_graph_engine_image(GraphEngineCrud.create_distribution_plot, mode, file)
-
-
-@router_graphengine.post("/graph_engine/distribution_box")
-async def graph_engine_distribution_box(
-    file: Annotated[UploadFile, File()] = ...,
-    mode: Annotated[str | None, Form()] = None,
-) -> StreamingResponse:
-    return await _render_graph_engine_image(GraphEngineCrud.create_distribution_box_plot, mode, file)

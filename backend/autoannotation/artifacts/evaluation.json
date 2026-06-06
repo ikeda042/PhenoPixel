@@ -1,0 +1,376 @@
+{
+  "training": {
+    "source_databases": [
+      "backend/autoannotation/testdata/autoannotation_testdata.db"
+    ],
+    "training_rows": 520,
+    "positive_rows": 300,
+    "negative_rows": 220,
+    "selected_config": {
+      "name": "ensemble_k15_l2_003_w55",
+      "k": 15,
+      "l2": 0.03,
+      "knn_weight": 0.55
+    },
+    "selected_threshold": 0.44500000000000006,
+    "reference_dataset": "backend/autoannotation/testdata/autoannotation_testdata.db"
+  },
+  "label_counts": {
+    "1": 300,
+    "N/A": 220
+  },
+  "feature_count": 96,
+  "selected_model": {
+    "config": {
+      "name": "ensemble_k15_l2_003_w55",
+      "k": 15,
+      "l2": 0.03,
+      "knn_weight": 0.55
+    },
+    "threshold": 0.44500000000000006
+  },
+  "cross_validation": [
+    {
+      "config": {
+        "name": "ensemble_k15_l2_003_w55",
+        "k": 15,
+        "l2": 0.03,
+        "knn_weight": 0.55
+      },
+      "threshold": 0.44500000000000006,
+      "metrics": {
+        "accuracy": 0.9538461538461539,
+        "precision": 0.9423076923076923,
+        "recall": 0.98,
+        "specificity": 0.9181818181818182,
+        "f1": 0.9607843137254902,
+        "balanced_accuracy": 0.9490909090909091,
+        "tp": 294,
+        "tn": 202,
+        "fp": 18,
+        "fn": 6,
+        "n": 520
+      },
+      "metrics_at_0_5": {
+        "accuracy": 0.95,
+        "precision": 0.9477124183006536,
+        "recall": 0.9666666666666667,
+        "specificity": 0.9272727272727272,
+        "f1": 0.9570957095709571,
+        "balanced_accuracy": 0.946969696969697,
+        "tp": 290,
+        "tn": 204,
+        "fp": 16,
+        "fn": 10,
+        "n": 520
+      }
+    },
+    {
+      "config": {
+        "name": "ensemble_k15_l2_010_w55",
+        "k": 15,
+        "l2": 0.1,
+        "knn_weight": 0.55
+      },
+      "threshold": 0.4600000000000001,
+      "metrics": {
+        "accuracy": 0.9519230769230769,
+        "precision": 0.939297124600639,
+        "recall": 0.98,
+        "specificity": 0.9136363636363637,
+        "f1": 0.9592169657422512,
+        "balanced_accuracy": 0.9468181818181818,
+        "tp": 294,
+        "tn": 201,
+        "fp": 19,
+        "fn": 6,
+        "n": 520
+      },
+      "metrics_at_0_5": {
+        "accuracy": 0.95,
+        "precision": 0.9448051948051948,
+        "recall": 0.97,
+        "specificity": 0.9227272727272727,
+        "f1": 0.9572368421052632,
+        "balanced_accuracy": 0.9463636363636363,
+        "tp": 291,
+        "tn": 203,
+        "fp": 17,
+        "fn": 9,
+        "n": 520
+      }
+    },
+    {
+      "config": {
+        "name": "ensemble_k21_l2_003_w60",
+        "k": 21,
+        "l2": 0.03,
+        "knn_weight": 0.6
+      },
+      "threshold": 0.5050000000000001,
+      "metrics": {
+        "accuracy": 0.9519230769230769,
+        "precision": 0.9478827361563518,
+        "recall": 0.97,
+        "specificity": 0.9272727272727272,
+        "f1": 0.958813838550247,
+        "balanced_accuracy": 0.9486363636363636,
+        "tp": 291,
+        "tn": 204,
+        "fp": 16,
+        "fn": 9,
+        "n": 520
+      },
+      "metrics_at_0_5": {
+        "accuracy": 0.95,
+        "precision": 0.9448051948051948,
+        "recall": 0.97,
+        "specificity": 0.9227272727272727,
+        "f1": 0.9572368421052632,
+        "balanced_accuracy": 0.9463636363636363,
+        "tp": 291,
+        "tn": 203,
+        "fp": 17,
+        "fn": 9,
+        "n": 520
+      }
+    },
+    {
+      "config": {
+        "name": "ensemble_k7_l2_003_w50",
+        "k": 7,
+        "l2": 0.03,
+        "knn_weight": 0.5
+      },
+      "threshold": 0.49000000000000005,
+      "metrics": {
+        "accuracy": 0.9519230769230769,
+        "precision": 0.9537953795379538,
+        "recall": 0.9633333333333334,
+        "specificity": 0.9363636363636364,
+        "f1": 0.9585406301824212,
+        "balanced_accuracy": 0.9498484848484849,
+        "tp": 289,
+        "tn": 206,
+        "fp": 14,
+        "fn": 11,
+        "n": 520
+      },
+      "metrics_at_0_5": {
+        "accuracy": 0.948076923076923,
+        "precision": 0.9534883720930233,
+        "recall": 0.9566666666666667,
+        "specificity": 0.9363636363636364,
+        "f1": 0.9550748752079866,
+        "balanced_accuracy": 0.9465151515151515,
+        "tp": 287,
+        "tn": 206,
+        "fp": 14,
+        "fn": 13,
+        "n": 520
+      }
+    },
+    {
+      "config": {
+        "name": "logistic_l2_003",
+        "k": 15,
+        "l2": 0.03,
+        "knn_weight": 0.0
+      },
+      "threshold": 0.405,
+      "metrics": {
+        "accuracy": 0.948076923076923,
+        "precision": 0.9361022364217252,
+        "recall": 0.9766666666666667,
+        "specificity": 0.9090909090909091,
+        "f1": 0.9559543230016313,
+        "balanced_accuracy": 0.9428787878787879,
+        "tp": 293,
+        "tn": 200,
+        "fp": 20,
+        "fn": 7,
+        "n": 520
+      },
+      "metrics_at_0_5": {
+        "accuracy": 0.9346153846153846,
+        "precision": 0.9463087248322147,
+        "recall": 0.94,
+        "specificity": 0.9272727272727272,
+        "f1": 0.94314381270903,
+        "balanced_accuracy": 0.9336363636363636,
+        "tp": 282,
+        "tn": 204,
+        "fp": 16,
+        "fn": 18,
+        "n": 520
+      }
+    },
+    {
+      "config": {
+        "name": "knn_k15",
+        "k": 15,
+        "l2": 0.03,
+        "knn_weight": 1.0
+      },
+      "threshold": 0.5700000000000001,
+      "metrics": {
+        "accuracy": 0.948076923076923,
+        "precision": 0.9475409836065574,
+        "recall": 0.9633333333333334,
+        "specificity": 0.9272727272727272,
+        "f1": 0.9553719008264463,
+        "balanced_accuracy": 0.9453030303030303,
+        "tp": 289,
+        "tn": 204,
+        "fp": 16,
+        "fn": 11,
+        "n": 520
+      },
+      "metrics_at_0_5": {
+        "accuracy": 0.9403846153846154,
+        "precision": 0.9297124600638977,
+        "recall": 0.97,
+        "specificity": 0.9,
+        "f1": 0.9494290375203914,
+        "balanced_accuracy": 0.935,
+        "tp": 291,
+        "tn": 198,
+        "fp": 22,
+        "fn": 9,
+        "n": 520
+      }
+    },
+    {
+      "config": {
+        "name": "knn_k7",
+        "k": 7,
+        "l2": 0.03,
+        "knn_weight": 1.0
+      },
+      "threshold": 0.5700000000000001,
+      "metrics": {
+        "accuracy": 0.9461538461538461,
+        "precision": 0.9563758389261745,
+        "recall": 0.95,
+        "specificity": 0.9409090909090909,
+        "f1": 0.9531772575250835,
+        "balanced_accuracy": 0.9454545454545454,
+        "tp": 285,
+        "tn": 207,
+        "fp": 13,
+        "fn": 15,
+        "n": 520
+      },
+      "metrics_at_0_5": {
+        "accuracy": 0.9384615384615385,
+        "precision": 0.9407894736842105,
+        "recall": 0.9533333333333334,
+        "specificity": 0.9181818181818182,
+        "f1": 0.9470198675496689,
+        "balanced_accuracy": 0.9357575757575758,
+        "tp": 286,
+        "tn": 202,
+        "fp": 18,
+        "fn": 14,
+        "n": 520
+      }
+    },
+    {
+      "config": {
+        "name": "knn_k21",
+        "k": 21,
+        "l2": 0.03,
+        "knn_weight": 1.0
+      },
+      "threshold": 0.5150000000000001,
+      "metrics": {
+        "accuracy": 0.9442307692307692,
+        "precision": 0.9329073482428115,
+        "recall": 0.9733333333333334,
+        "specificity": 0.9045454545454545,
+        "f1": 0.9526916802610115,
+        "balanced_accuracy": 0.938939393939394,
+        "tp": 292,
+        "tn": 199,
+        "fp": 21,
+        "fn": 8,
+        "n": 520
+      },
+      "metrics_at_0_5": {
+        "accuracy": 0.9403846153846154,
+        "precision": 0.926984126984127,
+        "recall": 0.9733333333333334,
+        "specificity": 0.8954545454545455,
+        "f1": 0.9495934959349593,
+        "balanced_accuracy": 0.9343939393939394,
+        "tp": 292,
+        "tn": 197,
+        "fp": 23,
+        "fn": 8,
+        "n": 520
+      }
+    },
+    {
+      "config": {
+        "name": "logistic_l2_010",
+        "k": 15,
+        "l2": 0.1,
+        "knn_weight": 0.0
+      },
+      "threshold": 0.45500000000000007,
+      "metrics": {
+        "accuracy": 0.9442307692307692,
+        "precision": 0.9385113268608414,
+        "recall": 0.9666666666666667,
+        "specificity": 0.9136363636363637,
+        "f1": 0.9523809523809523,
+        "balanced_accuracy": 0.9401515151515152,
+        "tp": 290,
+        "tn": 201,
+        "fp": 19,
+        "fn": 10,
+        "n": 520
+      },
+      "metrics_at_0_5": {
+        "accuracy": 0.9403846153846154,
+        "precision": 0.946843853820598,
+        "recall": 0.95,
+        "specificity": 0.9272727272727272,
+        "f1": 0.9484193011647255,
+        "balanced_accuracy": 0.9386363636363636,
+        "tp": 285,
+        "tn": 204,
+        "fp": 16,
+        "fn": 15,
+        "n": 520
+      }
+    }
+  ],
+  "fit_on_all_training_data": {
+    "accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "specificity": 1.0,
+    "f1": 1.0,
+    "balanced_accuracy": 1.0,
+    "tp": 300,
+    "tn": 220,
+    "fp": 0,
+    "fn": 0,
+    "n": 520
+  },
+  "current_phenopixel_heuristic_on_training_data": {
+    "accuracy": 0.7076923076923077,
+    "precision": 0.6637168141592921,
+    "recall": 1.0,
+    "specificity": 0.3090909090909091,
+    "f1": 0.797872340425532,
+    "balanced_accuracy": 0.6545454545454545,
+    "tp": 300,
+    "tn": 68,
+    "fp": 152,
+    "fn": 0,
+    "n": 520
+  },
+  "reference_dataset": "backend/autoannotation/testdata/autoannotation_testdata.db"
+}

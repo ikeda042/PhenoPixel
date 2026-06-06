@@ -262,17 +262,41 @@ descriptors that are directly comparable across cells. Let
 $C = \{(x_i, y_i)\}_{i=1}^n$ be the contour points of one cell and let
 $\Omega_C$ be the set of pixels inside that contour.
 
-### Auto Annotation Contour Screen
+### Auto Annotation Model
 
 When Auto Annotation is `On`, an additional post-processing step runs after
-extraction to automatically separate cells from debris.
+extraction to automatically separate single-cell candidates from debris and
+merged cells. The default backend path loads a bundled supervised model from
+`backend/autoannotation/artifacts/autoannotator.pkl` and assigns `Label 1` when
+the predicted probability is above the trained threshold; otherwise it assigns
+`N/A`.
 
-The current implementation is a contour-only heuristic. After a contour
-$C = \{(x_i, y_i)\}_{i=1}^N$ is extracted, the backend computes two geometric
-scores and assigns `Label 1` only when both pass their thresholds.
+The model was trained from the bundled reference SQLite dataset
+`backend/autoannotation/testdata/autoannotation_testdata.db` (520 labeled cells:
+300 label `1`, 220 `N/A`). The dataset is a single merged DB built from
+`microscope_data.db` and `test_database (1).db`, with `source_db` and
+`source_cell_id` provenance columns. Training compares a small set of
+dependency-light classifiers and selects the best 5-fold stratified
+cross-validation result. The bundled model is an ensemble of weighted
+k-nearest neighbors and L2-regularized logistic regression using 96 features
+from:
 
-First, it measures how thick the contour is in the direction orthogonal to the
-major axis. Let
+- contour geometry: area, perimeter, circularity, convexity, solidity,
+  bounding box extent, PCA axis variances, eccentricity, and Hu moments.
+- cropped images: PH/Fluo contour-inside and outside-ring intensity
+  quantiles, contrast, gradient, and edge-density descriptors.
+
+The selected model achieved F1 `0.9608`, accuracy `0.9538`, precision `0.9423`,
+and recall `0.9800` in 5-fold CV. The previous contour-only rule remains as a
+safe fallback when the model file cannot be loaded or feature extraction fails.
+Set `PHENOPIXEL_AUTOANNOTATION_MODEL=/path/to/autoannotator.pkl` to use a
+different trained model.
+
+The fallback contour screen computes two geometric scores. After a contour
+$C = \{(x_i, y_i)\}_{i=1}^N$ is extracted, the backend computes the smaller PCA
+axis variance and convexity, and assigns `Label 1` only when both pass their
+thresholds. First, it measures how thick the contour is in the direction
+orthogonal to the major axis. Let
 
 $$
 \Sigma_C =
@@ -314,9 +338,8 @@ $$
 s(C) = \mathbf{1}[\lambda_2 \le 120] \, \mathbf{1}[\kappa(C) > 0.85].
 $$
 
-Auto Annotation assigns `Label 1` when $s(C) = 1$ and `N/A` otherwise. In other
-words, it keeps contours that are both laterally compact and close to convex,
-and it filters out broad, jagged, or debris-like shapes before manual review.
+The fallback assigns `Label 1` when $s(C) = 1$ and `N/A` otherwise. In other
+words, it keeps contours that are both laterally compact and close to convex.
 
 ### 1. Contour Extraction, Principal Axis, and Basis Transform
 
