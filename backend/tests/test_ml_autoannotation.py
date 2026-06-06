@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import os
 import pickle
+import sqlite3
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 import cv2
@@ -38,6 +40,41 @@ class MLAutoAnnotationTest(unittest.TestCase):
         self.assertIsNotNone(model)
         self.assertIn("training_rows", model.metadata)
         self.assertGreater(model.metadata["training_rows"], 0)
+        self.assertEqual(
+            model.metadata.get("reference_dataset"),
+            "backend/autoannotation/testdata/autoannotation_testdata.db",
+        )
+
+    def test_bundled_training_dataset_is_available(self):
+        dataset_path = (
+            Path(__file__).resolve().parents[1]
+            / "autoannotation"
+            / "testdata"
+            / "autoannotation_testdata.db"
+        )
+
+        with sqlite3.connect(dataset_path) as connection:
+            total = connection.execute("SELECT COUNT(*) FROM cells").fetchone()[0]
+            labels = dict(
+                connection.execute(
+                    "SELECT manual_label, COUNT(*) FROM cells GROUP BY manual_label"
+                ).fetchall()
+            )
+            sources = dict(
+                connection.execute(
+                    "SELECT source_db, COUNT(*) FROM cells GROUP BY source_db"
+                ).fetchall()
+            )
+
+        self.assertEqual(total, 520)
+        self.assertEqual(labels, {1: 300, "N/A": 220})
+        self.assertEqual(
+            sources,
+            {
+                "microscope_data.db": 289,
+                "test_database (1).db": 231,
+            },
+        )
 
     def test_missing_model_falls_back_to_contour_heuristic(self):
         contour = _rectangle_contour()
