@@ -35,7 +35,8 @@ Request body (JSON):
   "filename": "example.nd2",
   "layer_mode": "dual_layer",
   "param1": 130,
-  "image_size": 200
+  "image_size": 200,
+  "auto_annotation": true
 }
 ```
 
@@ -47,6 +48,9 @@ Parameters:
     `triple`, `quad` (case-insensitive)
 - `param1` (optional): threshold for binarization, integer >= 0 (default: 130)
 - `image_size` (optional): crop size in pixels, integer >= 1 (default: 200)
+- `auto_annotation` (optional): when true, assigns `manual_label` with the
+  bundled supervised annotator; falls back to the contour heuristic if the model
+  cannot be loaded.
 
 Response (202):
 
@@ -95,8 +99,12 @@ Failure response:
   - Default name: `<nd2_stem>.db` with dots in the filename replaced by `p`.
   - Table: `cells` (stores `cell_id`, `perimeter`, `area`, `img_ph`, `img_fluo1`,
     `img_fluo2`, `contour`, `center_x`, `center_y`, and labels).
+  - With `auto_annotation=true`, `manual_label` is initialized to `1` or `N/A`.
 - Contour overlays: PNGs written to `backend/app/extracted_data/<nd2_stem>/`.
   - Files are named by frame index, e.g. `0.png`, `1.png`, `2.png`.
+
+The bundled supervised Auto Annotation reference dataset is available at
+`backend/autoannotation/testdata/autoannotation_testdata.db`.
 
 ## Related Endpoints (Extracted Data)
 

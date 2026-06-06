@@ -41,7 +41,13 @@ Cell Extraction は、ND2 の位相差画像から細胞輪郭を検出し、各
 
 ![Auto annotation processing](/img/screenshots/cell_extraction2.png)
 
-Auto Annotation は、輪郭形状だけを使った軽量なヒューリスティックです。輪郭点を
+Auto Annotation は、抽出された cell crop と輪郭から `Label 1` / `N/A` を自動で付ける後処理です。通常は `backend/autoannotation/artifacts/autoannotator.pkl` に同梱された教師ありモデルを使います。
+
+このモデルは単一の参照用 SQLite DB `backend/autoannotation/testdata/autoannotation_testdata.db`（合計 520 cells、`1` が 300、`N/A` が 220）から学習されています。この DB は `microscope_data.db` と `test_database (1).db` を統合したもので、`source_db` と `source_cell_id` で由来を確認できます。特徴量は contour geometry（area、perimeter、convexity、solidity、PCA、Hu moments など）と、PH/Fluo 画像の輪郭内外の輝度・contrast・edge density です。weighted kNN と L2 logistic regression の ensemble を 5-fold CV で選び、F1 `0.9608`、accuracy `0.9538`、precision `0.9423`、recall `0.9800` でした。
+
+モデルファイルを読み込めない場合や特徴抽出に失敗した場合は、旧来の輪郭形状ヒューリスティックに fallback します。別モデルを使う場合は `PHENOPIXEL_AUTOANNOTATION_MODEL=/path/to/autoannotator.pkl` を指定できます。
+
+fallback のヒューリスティックでは、輪郭点を
 
 $$
 C = \{(x_i, y_i)\}_{i=1}^{N}

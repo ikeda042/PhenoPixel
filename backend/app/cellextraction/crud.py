@@ -3,6 +3,8 @@ import shutil
 import pickle
 import random
 import re
+import logging
+from functools import lru_cache
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Generator, Literal, Optional
@@ -19,6 +21,9 @@ from sqlalchemy.orm import DeclarativeMeta, Session, declarative_base, sessionma
 
 from pydantic import BaseModel, Field, ValidationInfo, field_validator
 
+from autoannotation.features import extract_feature_dict
+from autoannotation.models import AutoAnnotator, load_model
+
 from app.shared.objective_scale import (
     DEFAULT_OBJECTIVE_MAGNIFICATION,
     ObjectiveMagnification,
@@ -30,6 +35,10 @@ APP_DIR: Path = Path(__file__).resolve().parents[1]
 DATABASES_DIR: Path = APP_DIR / "databases"
 EXTRACTED_DATA_DIR: Path = APP_DIR / "extracted_data"
 TEMPDATA_DIR: Path = APP_DIR / "tempdata"
+AUTOANNOTATION_MODEL_PATH: Path = (
+    APP_DIR.parent / "autoannotation" / "artifacts" / "autoannotator.pkl"
+)
+LOGGER: logging.Logger = logging.getLogger("uvicorn.error")
 
 
 def _get_temp_dir(ulid: str) -> str:
@@ -178,6 +187,60 @@ def screen_contour(contour_blob: bytes) -> bool:
         and convexity is not None
         and convexity > 0.85
     )
+
+
+@lru_cache(maxsize=1)
+def _load_autoannotation_model() -> AutoAnnotator | None:
+    configured_path = os.getenv("PHENOPIXEL_AUTOANNOTATION_MODEL")
+    model_path = Path(configured_path) if configured_path else AUTOANNOTATION_MODEL_PATH
+    if not model_path.is_file():
+        LOGGER.warning(
+            "Auto annotation model not found at %s; using contour heuristic.",
+            model_path,
+        )
+        return None
+    try:
+        return load_model(model_path)
+    except Exception as exc:
+        LOGGER.warning(
+            "Failed to load auto annotation model from %s; using contour heuristic: %s",
+            model_path,
+            exc,
+        )
+        return None
+
+
+def auto_annotate_cell(
+    *,
+    perimeter: float,
+    area: float,
+    img_ph: bytes | None,
+    img_fluo1: bytes | None,
+    img_fluo2: bytes | None,
+    contour_blob: bytes,
+) -> int | str:
+    model = _load_autoannotation_model()
+    if model is None:
+        return 1 if screen_contour(contour_blob) else "N/A"
+
+    try:
+        features = extract_feature_dict(
+            perimeter=perimeter,
+            area=area,
+            img_ph=img_ph,
+            img_fluo1=img_fluo1,
+            img_fluo2=img_fluo2,
+            contour=contour_blob,
+        )
+        _, predictions = model.predict_feature_dicts([features])
+    except Exception as exc:
+        LOGGER.warning(
+            "ML auto annotation failed; using contour heuristic: %s",
+            exc,
+        )
+        return 1 if screen_contour(contour_blob) else "N/A"
+
+    return 1 if int(predictions[0]) == 1 else "N/A"
 
 
 class FrameSplitConfig(BaseModel):
@@ -831,7 +894,14 @@ class ExtractionCrudBase:
         contour_blob = pickle.dumps(contour)
         manual_label: int | str = "N/A"
         if self.auto_annotation:
-            manual_label = 1 if screen_contour(contour_blob) else "N/A"
+            manual_label = auto_annotate_cell(
+                perimeter=perimeter,
+                area=area,
+                img_ph=img_ph_data,
+                img_fluo1=img_fluo1_data,
+                img_fluo2=img_fluo2_data,
+                contour_blob=contour_blob,
+            )
         cell = Cell(
             cell_id=cell_id,
             label_experiment="",

@@ -22,9 +22,11 @@ PhenoPixel は、顕微鏡画像からの細胞抽出とバッチ解析のため
 
 ![細胞抽出設定](docs/screenshots/cell_extraction1.png)
 
-2. 自動アノテーションの挙動。`Auto Annotation` が `On` のとき、抽出後に追加の後処理ステップが実行され、細胞とデブリを自動的に分離する。
+2. 自動アノテーションの挙動。`Auto Annotation` が `On` のとき、抽出後に追加の後処理ステップが実行され、単一細胞候補とデブリ / 結合細胞を自動的に分離する。
 
-現在の実装は輪郭のみに基づくヒューリスティックである。輪郭 `C = {(x_i, y_i)}_{i=1}^N` が抽出されると、バックエンドは 2 つの幾何学的スコアを計算し、その両方がしきい値を満たした場合にのみ `Label 1` を付与する。
+通常は `backend/autoannotation/artifacts/autoannotator.pkl` に同梱された教師ありモデルを使う。このモデルは、単一の参照用 SQLite DB `backend/autoannotation/testdata/autoannotation_testdata.db`（合計 520 cells、`1` が 300、`N/A` が 220）から学習されている。特徴量には輪郭の area、perimeter、convexity、solidity、PCA、Hu moments と、PH / Fluo 画像の輪郭内外の輝度、contrast、edge density を使う。weighted kNN と L2 logistic regression の ensemble を 5-fold CV で選び、F1 `0.9608`、accuracy `0.9538`、precision `0.9423`、recall `0.9800` だった。
+
+モデルファイルを読み込めない場合や特徴抽出に失敗した場合は、輪郭のみに基づく従来のヒューリスティックへ fallback する。別モデルを使う場合は `PHENOPIXEL_AUTOANNOTATION_MODEL=/path/to/autoannotator.pkl` を指定できる。fallback では、輪郭 `C = {(x_i, y_i)}_{i=1}^N` が抽出されると、バックエンドは 2 つの幾何学的スコアを計算し、その両方がしきい値を満たした場合にのみ `Label 1` を付与する。
 
 まず、主軸に直交する方向における輪郭の太さを測定する。以下を定義する。
 
@@ -62,7 +64,7 @@ $$
 s(C) = \mathbf{1}[\lambda_2 \le 120] \, \mathbf{1}[\kappa(C) > 0.85].
 $$
 
-`s(C) = 1` のときに自動アノテーションは `Label 1` を付与し、それ以外では `N/A` を付与する。つまり、横方向にコンパクトで、かつ凸形状に近い輪郭を保持し、幅が広い・ギザギザしている・デブリらしい形状を手動レビュー前に除外する。
+fallback では `s(C) = 1` のときに `Label 1` を付与し、それ以外では `N/A` を付与する。つまり、横方向にコンパクトで、かつ凸形状に近い輪郭を保持し、幅が広い・ギザギザしている・デブリらしい形状を手動レビュー前に除外する。
 
 ![自動アノテーション処理](docs/screenshots/cell_extraction2.png)
 
