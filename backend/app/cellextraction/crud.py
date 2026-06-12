@@ -284,6 +284,15 @@ class FrameSplitRange:
     db_path: str
 
 
+@dataclass(frozen=True)
+class LargeImageTileLayout:
+    x_fields: int
+    y_fields: int
+    tile_width: int
+    tile_height: int
+    source: str
+
+
 class Cell(Base):
     __tablename__ = "cells"
     __table_args__ = (
@@ -341,6 +350,221 @@ def create_database(dbname: str) -> Engine:
 
 
 class SyncChores:
+    @staticmethod
+    def _metadata_key(value: object) -> str:
+        if isinstance(value, bytes):
+            return value.decode("utf-8", errors="ignore")
+        return str(value)
+
+    @staticmethod
+    def _metadata_lookup(mapping: object, key: str) -> object | None:
+        if not isinstance(mapping, dict):
+            return None
+        candidates: tuple[object, ...] = (key, key.encode("utf-8"))
+        for candidate in candidates:
+            if candidate in mapping:
+                return mapping[candidate]
+        for existing_key, value in mapping.items():
+            if SyncChores._metadata_key(existing_key) == key:
+                return value
+        return None
+
+    @staticmethod
+    def _metadata_scalar(value: object) -> object:
+        while isinstance(value, dict):
+            unwrapped = SyncChores._metadata_lookup(value, "@value")
+            if unwrapped is None:
+                break
+            value = unwrapped
+        if isinstance(value, bytes):
+            return value.decode("utf-8", errors="ignore")
+        if isinstance(value, np.generic):
+            return value.item()
+        return value
+
+    @staticmethod
+    def _metadata_int(value: object) -> int | None:
+        value = SyncChores._metadata_scalar(value)
+        try:
+            return int(float(value))
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _iter_named_metadata_entries(
+        value: object, names: set[str]
+    ) -> Generator[tuple[str, dict], None, None]:
+        if isinstance(value, dict):
+            for key, child in value.items():
+                key_name = SyncChores._metadata_key(key)
+                if key_name in names and isinstance(child, dict):
+                    yield key_name, child
+                yield from SyncChores._iter_named_metadata_entries(child, names)
+        elif isinstance(value, (list, tuple)):
+            for child in value:
+                yield from SyncChores._iter_named_metadata_entries(child, names)
+
+    @staticmethod
+    def _large_image_field_candidates(raw_metadata: object) -> list[tuple[str, int, int, int]]:
+        image_metadata = getattr(raw_metadata, "image_metadata", None)
+        candidates: list[tuple[str, int, int, int]] = []
+        for source, entry in SyncChores._iter_named_metadata_entries(
+            image_metadata, {"pLargeImage", "pLargeImageEx"}
+        ):
+            x_fields = SyncChores._metadata_int(
+                SyncChores._metadata_lookup(entry, "iXFields")
+            )
+            y_fields = SyncChores._metadata_int(
+                SyncChores._metadata_lookup(entry, "iYFields")
+            )
+            if not x_fields or not y_fields:
+                continue
+            if x_fields < 1 or y_fields < 1 or x_fields * y_fields <= 1:
+                continue
+            valid = SyncChores._metadata_int(SyncChores._metadata_lookup(entry, "bValid"))
+            candidates.append((source, x_fields, y_fields, valid or 0))
+        return candidates
+
+    @staticmethod
+    def _camera_tile_shapes(raw_metadata: object) -> set[tuple[int, int]]:
+        shapes: set[tuple[int, int]] = set()
+        for attr in ("image_metadata_sequence", "grabber_settings"):
+            metadata = getattr(raw_metadata, attr, None)
+            for _source, entry in SyncChores._iter_named_metadata_entries(
+                metadata, {"sizeObjFullChip", "sizeSensorPixels"}
+            ):
+                width = SyncChores._metadata_int(SyncChores._metadata_lookup(entry, "cx"))
+                height = SyncChores._metadata_int(SyncChores._metadata_lookup(entry, "cy"))
+                if width and height and width > 1 and height > 1:
+                    shapes.add((width, height))
+        return shapes
+
+    @staticmethod
+    def _detect_large_image_tile_layout(images) -> LargeImageTileLayout | None:
+        raw_metadata = getattr(getattr(images, "parser", None), "_raw_metadata", None)
+        if raw_metadata is None:
+            return None
+        sizes = getattr(images, "sizes", {}) or {}
+        width = SyncChores._metadata_int(sizes.get("x"))
+        height = SyncChores._metadata_int(sizes.get("y"))
+        if not width or not height:
+            return None
+
+        candidates = SyncChores._large_image_field_candidates(raw_metadata)
+        if not candidates:
+            return None
+
+        camera_shapes = SyncChores._camera_tile_shapes(raw_metadata)
+        scored: list[tuple[int, LargeImageTileLayout]] = []
+        has_camera_shape_match = False
+        divisible_candidates: list[tuple[str, int, int, int, int, int]] = []
+        for source, x_fields, y_fields, valid in candidates:
+            if width % x_fields != 0 or height % y_fields != 0:
+                continue
+            tile_width = width // x_fields
+            tile_height = height // y_fields
+            if (tile_width, tile_height) in camera_shapes:
+                has_camera_shape_match = True
+            divisible_candidates.append(
+                (source, x_fields, y_fields, valid, tile_width, tile_height)
+            )
+
+        if camera_shapes and not has_camera_shape_match:
+            return None
+
+        for source, x_fields, y_fields, valid, tile_width, tile_height in divisible_candidates:
+            if camera_shapes and (tile_width, tile_height) not in camera_shapes:
+                continue
+            score = x_fields * y_fields
+            if (tile_width, tile_height) in camera_shapes:
+                score += 1000
+            if source == "pLargeImage":
+                score += 100
+            if valid:
+                score += 10
+            scored.append(
+                (
+                    score,
+                    LargeImageTileLayout(
+                        x_fields=x_fields,
+                        y_fields=y_fields,
+                        tile_width=tile_width,
+                        tile_height=tile_height,
+                        source=source,
+                    ),
+                )
+            )
+
+        if not scored:
+            return None
+        scored.sort(key=lambda item: item[0], reverse=True)
+        return scored[0][1]
+
+    @staticmethod
+    def _layer_array_from_frame(
+        frame: object, source_idx: int, num_channels: int
+    ) -> np.ndarray | None:
+        if num_channels > 1:
+            if source_idx >= num_channels:
+                return None
+            return np.squeeze(np.asarray(frame[source_idx]))
+        if source_idx != 0:
+            return None
+        return np.squeeze(np.asarray(frame))
+
+    @staticmethod
+    def _write_large_image_tiles(
+        images,
+        specs: list[tuple[int, str | None]],
+        temp_dir: str,
+        layout: LargeImageTileLayout,
+    ) -> int:
+        num_channels = int(images.sizes.get("c", 1) or 1)
+        frame_index = 0
+        expected_height = layout.tile_height * layout.y_fields
+        expected_width = layout.tile_width * layout.x_fields
+
+        for image_index in range(len(images)):
+            try:
+                frame = images[image_index]
+            except KeyError as exc:
+                print(f"KeyError while reading frame {image_index}: {exc}. Stopping extraction.")
+                break
+            layer_arrays: dict[int, np.ndarray] = {}
+            for source_idx, layer in specs:
+                if layer is None:
+                    continue
+                array = SyncChores._layer_array_from_frame(frame, source_idx, num_channels)
+                if array is None:
+                    continue
+                if array.ndim < 2:
+                    raise ValueError("Large Image frame must have at least two dimensions")
+                if array.shape[0] != expected_height or array.shape[1] != expected_width:
+                    raise ValueError(
+                        "Large Image tile layout does not match frame dimensions "
+                        f"({array.shape[1]}x{array.shape[0]} vs "
+                        f"{expected_width}x{expected_height})"
+                    )
+                layer_arrays[source_idx] = array
+
+            for tile_y in range(layout.y_fields):
+                y0 = tile_y * layout.tile_height
+                y1 = y0 + layout.tile_height
+                for tile_x in range(layout.x_fields):
+                    x0 = tile_x * layout.tile_width
+                    x1 = x0 + layout.tile_width
+                    for source_idx, layer in specs:
+                        if layer is None:
+                            continue
+                        array = layer_arrays.get(source_idx)
+                        if array is None:
+                            continue
+                        tile = array[y0:y1, x0:x1, ...]
+                        tile = SyncChores.prepare_extracted_layer(tile, layer)
+                        Image.fromarray(tile).save(f"{temp_dir}/{layer}/{frame_index}.tif")
+                    frame_index += 1
+        return frame_index
+
     @staticmethod
     def to_grayscale_preserve_depth(image) -> np.ndarray:
         array = np.squeeze(np.asarray(image))
@@ -467,11 +691,28 @@ class SyncChores:
             print(f"Sizes: {images.sizes}")
 
             images.bundle_axes = "cyx" if "c" in images.axes else "yx"
-            images.iter_axes = "v"
+            iter_axes = (
+                "v"
+                if "v" in images.axes
+                else "".join(axis for axis in images.axes if axis not in images.bundle_axes)
+            )
+            images.iter_axes = iter_axes
+            tile_layout = SyncChores._detect_large_image_tile_layout(images)
 
             num_channels = images.sizes.get("c", 1)
             print(f"Total images: {len(images)}")
             print(f"Channels: {num_channels}")
+            if tile_layout is not None:
+                print(
+                    "Detected Large Image tile layout: "
+                    f"{tile_layout.x_fields}x{tile_layout.y_fields} "
+                    f"({tile_layout.tile_width}x{tile_layout.tile_height}px, "
+                    f"{tile_layout.source})"
+                )
+                frames_processed = SyncChores._write_large_image_tiles(
+                    images, specs, temp_dir, tile_layout
+                )
+                return frames_processed * len(specs)
             print("##############################################")
 
             frames_processed = 0
@@ -484,15 +725,11 @@ class SyncChores:
                 for source_idx, layer in specs:
                     if layer is None:
                         continue
-                    if num_channels > 1:
-                        if source_idx >= num_channels:
-                            continue
-                        array = np.asarray(frame[source_idx])
-                    else:
-                        if source_idx != 0:
-                            continue
-                        array = np.asarray(frame)
-                    array = np.squeeze(array)
+                    array = SyncChores._layer_array_from_frame(
+                        frame, source_idx, int(num_channels or 1)
+                    )
+                    if array is None:
+                        continue
                     array = SyncChores.prepare_extracted_layer(array, layer)
                     Image.fromarray(array).save(f"{temp_dir}/{layer}/{n}.tif")
                 frames_processed += 1

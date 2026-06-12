@@ -16,6 +16,9 @@ http://<host>:<port>/api/v1
 - Use the filename only (no paths); only `.nd2` is accepted.
 - Dots in filenames are replaced with `p` during processing; use the returned
   `nd2_stem` for output folder names.
+- NIS-Elements Large Image ND2 files are auto-detected from metadata. When the
+  recorded field grid and camera frame size match the final image dimensions,
+  the combined image is split into per-field frames before contour extraction.
 
 ## Concurrency
 
