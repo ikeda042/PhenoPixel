@@ -19,6 +19,8 @@ http://<host>:<port>/api/v1
 - NIS-Elements Large Image ND2 files are auto-detected from metadata. When the
   recorded field grid and camera frame size match the final image dimensions,
   the combined image is split into per-field frames before contour extraction.
+- When ND2 pixel calibration is available, `pixel_microns` is used for the
+  database `pixel_size_um` value instead of the UI objective default.
 
 ## Concurrency
 

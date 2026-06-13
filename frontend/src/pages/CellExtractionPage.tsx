@@ -222,7 +222,7 @@ export default function CellExtractionPage() {
         if (!hasManualLayerModeRef.current) {
           setLayerMode(inferred)
         }
-      } catch (err) {
+      } catch {
         if (controller.signal.aborted) return
         if (layerModeRequestRef.current !== requestId) return
         if (!hasManualLayerModeRef.current) {
@@ -901,9 +901,10 @@ export default function CellExtractionPage() {
                       as="img"
                       src={imageUrl}
                       alt="Extracted cell preview"
-                      w="100%"
-                      h="auto"
+                      maxW="100%"
                       maxH="100%"
+                      w="auto"
+                      h="auto"
                       objectFit="contain"
                     />
                   ) : (

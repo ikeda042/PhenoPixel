@@ -26,6 +26,7 @@ from autoannotation.models import AutoAnnotator, load_model
 
 from app.shared.objective_scale import (
     DEFAULT_OBJECTIVE_MAGNIFICATION,
+    OBJECTIVE_PIXEL_SIZE_UM,
     ObjectiveMagnification,
     pixel_size_for_objective,
 )
@@ -391,6 +392,28 @@ class SyncChores:
             return None
 
     @staticmethod
+    def _metadata_float(value: object) -> float | None:
+        value = SyncChores._metadata_scalar(value)
+        try:
+            parsed = float(value)
+        except (TypeError, ValueError):
+            return None
+        return parsed if parsed > 0 else None
+
+    @staticmethod
+    def _iter_metadata_values(
+        value: object, target_key: str
+    ) -> Generator[object, None, None]:
+        if isinstance(value, dict):
+            for key, child in value.items():
+                if SyncChores._metadata_key(key) == target_key:
+                    yield child
+                yield from SyncChores._iter_metadata_values(child, target_key)
+        elif isinstance(value, (list, tuple)):
+            for child in value:
+                yield from SyncChores._iter_metadata_values(child, target_key)
+
+    @staticmethod
     def _iter_named_metadata_entries(
         value: object, names: set[str]
     ) -> Generator[tuple[str, dict], None, None]:
@@ -499,6 +522,46 @@ class SyncChores:
             return None
         scored.sort(key=lambda item: item[0], reverse=True)
         return scored[0][1]
+
+    @staticmethod
+    def _detect_pixel_size_um_from_images(images) -> float | None:
+        metadata = getattr(images, "metadata", None)
+        if isinstance(metadata, dict):
+            pixel_size = SyncChores._metadata_float(metadata.get("pixel_microns"))
+            if pixel_size is not None:
+                return pixel_size
+
+        raw_metadata = getattr(getattr(images, "parser", None), "_raw_metadata", None)
+        image_calibration = getattr(raw_metadata, "image_calibration", None)
+        for value in SyncChores._iter_metadata_values(image_calibration, "dCalibration"):
+            pixel_size = SyncChores._metadata_float(value)
+            if pixel_size is not None:
+                return pixel_size
+        return None
+
+    @staticmethod
+    def detect_nd2_pixel_size_um(file_name: str) -> float | None:
+        try:
+            with nd2reader.ND2Reader(file_name) as images:
+                return SyncChores._detect_pixel_size_um_from_images(images)
+        except Exception as exc:
+            LOGGER.warning("Failed to read ND2 pixel size from %s: %s", file_name, exc)
+            return None
+
+    @staticmethod
+    def _objective_for_pixel_size(
+        pixel_size_um: float,
+        fallback: ObjectiveMagnification,
+    ) -> ObjectiveMagnification:
+        closest = min(
+            OBJECTIVE_PIXEL_SIZE_UM.items(),
+            key=lambda item: abs(item[1] - pixel_size_um),
+        )
+        objective, objective_pixel_size = closest
+        relative_delta = abs(objective_pixel_size - pixel_size_um) / objective_pixel_size
+        if relative_delta <= 0.10:
+            return objective
+        return fallback
 
     @staticmethod
     def _layer_array_from_frame(
@@ -1046,7 +1109,16 @@ class ExtractionCrudBase:
         self.frame_splits = list(frame_splits or [])
         self.contour_dir = str(EXTRACTED_DATA_DIR / self.nd2_stem)
         self.objective_magnification = objective_magnification
+        self.pixel_size_source = "objective"
         self.pixel_size_um = pixel_size_for_objective(objective_magnification)
+        nd2_pixel_size_um = SyncChores.detect_nd2_pixel_size_um(self.nd2_path)
+        if nd2_pixel_size_um is not None:
+            self.pixel_size_um = nd2_pixel_size_um
+            self.pixel_size_source = "nd2_metadata"
+            self.objective_magnification = SyncChores._objective_for_pixel_size(
+                nd2_pixel_size_um,
+                objective_magnification,
+            )
 
     def load_image(self, path) -> np.ndarray:
         with open(path, "rb") as f:
