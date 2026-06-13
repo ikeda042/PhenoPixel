@@ -16,7 +16,6 @@ from app.cellextraction.crud import ExtractionCrudBase
 from app.shared.objective_scale import (
     DEFAULT_OBJECTIVE_MAGNIFICATION,
     ObjectiveMagnification,
-    pixel_size_for_objective,
 )
 from app.slack.notifier import build_database_created_message, notify_slack_sync
 
@@ -113,8 +112,9 @@ def _run_extraction(
                     "nd2_stem": extractor.nd2_stem,
                     "param1": param1,
                     "image_size": image_size,
-                    "objective_magnification": objective_magnification,
-                    "pixel_size_um": pixel_size_for_objective(objective_magnification),
+                    "objective_magnification": extractor.objective_magnification,
+                    "pixel_size_um": extractor.pixel_size_um,
+                    "pixel_size_source": extractor.pixel_size_source,
                 },
             }
         )

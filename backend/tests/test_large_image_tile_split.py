@@ -7,6 +7,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
+from app.shared.objective_scale import DEFAULT_OBJECTIVE_MAGNIFICATION
 from app.cellextraction.crud import LargeImageTileLayout, SyncChores
 
 
@@ -58,9 +59,11 @@ class _Images:
         frames: list[np.ndarray],
         raw_metadata: _RawMetadata,
         sizes: dict[str, int] | None = None,
+        metadata: dict[str, object] | None = None,
     ) -> None:
         self._frames = frames
         self.sizes = sizes or {"x": 8192, "y": 8176}
+        self.metadata = metadata or {}
         self.parser = _Parser(raw_metadata)
 
     def __len__(self) -> int:
@@ -92,6 +95,22 @@ class LargeImageTileSplitTest(unittest.TestCase):
         )
 
         self.assertIsNone(SyncChores._detect_large_image_tile_layout(images))
+
+    def test_detect_pixel_size_prefers_nd2_metadata(self):
+        images = _Images(
+            [np.zeros((8176, 8192), dtype=np.uint16)],
+            _RawMetadata(),
+            metadata={"pixel_microns": 0.107291556674444},
+        )
+
+        pixel_size = SyncChores._detect_pixel_size_um_from_images(images)
+        objective = SyncChores._objective_for_pixel_size(
+            pixel_size or 0,
+            DEFAULT_OBJECTIVE_MAGNIFICATION,
+        )
+
+        self.assertAlmostEqual(pixel_size or 0, 0.107291556674444)
+        self.assertEqual(objective, "60x")
 
     def test_write_large_image_tiles_saves_each_tile_as_a_frame(self):
         raw = _RawMetadata()
