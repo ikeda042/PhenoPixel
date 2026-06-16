@@ -103,8 +103,8 @@ Failure response:
 - Databases: SQLite files written to `backend/app/databases/`.
   - Default name: `<nd2_stem>.db` with dots in the filename replaced by `p`.
   - Table: `cells` (stores `cell_id`, `perimeter`, `area`, `img_ph`, `img_fluo1`,
-    `img_fluo2`, `contour`, `center_x`, `center_y`, and labels).
-  - With `auto_annotation=true`, `manual_label` is initialized to `1` or `N/A`.
+    `img_fluo2`, `contour`, crop-local `center_x`/`center_y`, original ND2
+    frame `position_x`/`position_y`, and labels).
 - Contour overlays: PNGs written to `backend/app/extracted_data/<nd2_stem>/`.
   - Files are named by frame index, e.g. `0.png`, `1.png`, `2.png`.
 

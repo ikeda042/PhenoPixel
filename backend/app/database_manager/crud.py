@@ -1,3 +1,4 @@
+import base64
 import io
 import json
 from pathlib import Path
@@ -87,6 +88,8 @@ class Cell(Base):
     contour = Column(BLOB)
     center_x = Column(FLOAT)
     center_y = Column(FLOAT)
+    position_x = Column(FLOAT, nullable=True)
+    position_y = Column(FLOAT, nullable=True)
     user_id = Column(String, nullable=True)
     objective_magnification = Column(String, nullable=True)
     pixel_size_um = Column(FLOAT, nullable=True)
@@ -554,6 +557,243 @@ def get_manual_labels(db_name: str) -> list[str]:
                 continue
             labels.append(label)
         return sorted(set(labels), key=str.lower)
+    finally:
+        session.close()
+
+
+def _parse_frame_index(cell_id: object) -> int | None:
+    value = str(cell_id or "").strip()
+    upper = value.upper()
+    if not upper.startswith("F"):
+        return None
+    cell_marker = upper.find("C", 1)
+    if cell_marker <= 1:
+        return None
+    frame_part = upper[1:cell_marker]
+    if not frame_part.isdigit():
+        return None
+    return int(frame_part)
+
+
+def _contour_points_from_blob(contour_raw: bytes) -> np.ndarray | None:
+    try:
+        contour = pickle.loads(contour_raw)
+    except Exception:
+        return None
+    contour_array = np.asarray(contour)
+    if contour_array.ndim == 3 and contour_array.shape[1] == 1:
+        contour_array = contour_array[:, 0, :]
+    if contour_array.ndim != 2 or contour_array.shape[1] != 2:
+        return None
+    return contour_array.astype(float)
+
+
+def _image_size_from_blob(image_raw: bytes | None) -> tuple[float, float] | None:
+    if image_raw is None:
+        return None
+    image = cv2.imdecode(np.frombuffer(bytes(image_raw), np.uint8), cv2.IMREAD_UNCHANGED)
+    if image is None or image.ndim < 2:
+        return None
+    return float(image.shape[1]), float(image.shape[0])
+
+
+def _empty_position_bounds() -> dict[str, float | None]:
+    return {"min_x": None, "min_y": None, "max_x": None, "max_y": None}
+
+
+def _bounds_payload(bounds: list[float] | None) -> dict[str, float | None]:
+    if bounds is None:
+        return _empty_position_bounds()
+    return {
+        "min_x": float(bounds[0]),
+        "min_y": float(bounds[1]),
+        "max_x": float(bounds[2]),
+        "max_y": float(bounds[3]),
+    }
+
+
+def _expand_bounds(bounds: list[float] | None, points: np.ndarray) -> list[float]:
+    min_x = float(np.min(points[:, 0]))
+    min_y = float(np.min(points[:, 1]))
+    max_x = float(np.max(points[:, 0]))
+    max_y = float(np.max(points[:, 1]))
+    if bounds is None:
+        return [min_x, min_y, max_x, max_y]
+    bounds[0] = min(bounds[0], min_x)
+    bounds[1] = min(bounds[1], min_y)
+    bounds[2] = max(bounds[2], max_x)
+    bounds[3] = max(bounds[3], max_y)
+    return bounds
+
+
+def _masked_jet_data_url(
+    image_raw: bytes | None,
+    contour_points: np.ndarray,
+) -> str | None:
+    if image_raw is None:
+        return None
+    image = cv2.imdecode(np.frombuffer(bytes(image_raw), np.uint8), cv2.IMREAD_UNCHANGED)
+    if image is None or image.ndim < 2:
+        return None
+
+    gray = _as_grayscale(image)
+    mask = np.zeros(gray.shape[:2], dtype=np.uint8)
+    contour_int = np.rint(contour_points).astype(np.int32)
+    if contour_int.size == 0:
+        return None
+    cv2.fillPoly(mask, [contour_int], 255)
+    inside = mask > 0
+    if not np.any(inside):
+        return None
+
+    values = gray.astype(np.float32, copy=False)
+    inside_values = values[inside]
+    min_val = float(np.min(inside_values))
+    max_val = float(np.max(inside_values))
+    if max_val <= min_val:
+        normalized = np.zeros(gray.shape[:2], dtype=np.uint8)
+    else:
+        normalized = np.zeros(gray.shape[:2], dtype=np.uint8)
+        normalized_values = (inside_values - min_val) / (max_val - min_val) * 255.0
+        normalized[inside] = np.clip(normalized_values, 0, 255).astype(np.uint8)
+
+    jet_bgr = cv2.applyColorMap(normalized, cv2.COLORMAP_JET)
+    alpha = np.where(inside, 255, 0).astype(np.uint8)
+    bgra = np.dstack((jet_bgr, alpha))
+    success, buffer = cv2.imencode(".png", bgra)
+    if not success:
+        return None
+    encoded = base64.b64encode(buffer.tobytes()).decode("ascii")
+    return f"data:image/png;base64,{encoded}"
+
+
+def get_cell_position_frames(db_name: str) -> dict:
+    session = get_database_session(db_name)
+    try:
+        cells = get_cells_table(session)
+        stmt = (
+            select(cells.c.cell_id, cells.c.position_x, cells.c.position_y)
+            .where(cells.c.cell_id.is_not(None))
+            .order_by(cells.c.cell_id)
+        )
+        frame_map: dict[int, dict[str, int]] = {}
+        for cell_id, position_x, position_y in session.execute(stmt).fetchall():
+            frame = _parse_frame_index(cell_id)
+            if frame is None:
+                continue
+            entry = frame_map.setdefault(
+                frame,
+                {"frame": frame, "cell_count": 0, "positioned_count": 0},
+            )
+            entry["cell_count"] += 1
+            if position_x is not None and position_y is not None:
+                entry["positioned_count"] += 1
+        return {
+            "dbname": db_name,
+            "frames": [frame_map[key] for key in sorted(frame_map)],
+        }
+    finally:
+        session.close()
+
+
+def get_cell_position_frame(
+    db_name: str,
+    frame: int,
+    fluorescence_channel: Literal["fluo1", "fluo2"] = "fluo1",
+    include_fluorescence: bool = True,
+) -> dict:
+    session = get_database_session(db_name)
+    try:
+        cells = get_cells_table(session)
+        fluo_column = (
+            cells.c.img_fluo2
+            if fluorescence_channel == "fluo2"
+            else cells.c.img_fluo1
+        )
+        stmt = (
+            select(
+                cells.c.cell_id,
+                cells.c.position_x,
+                cells.c.position_y,
+                cells.c.contour,
+                cells.c.img_ph,
+                fluo_column,
+                cells.c.manual_label,
+            )
+            .where(cells.c.cell_id.is_not(None))
+            .order_by(cells.c.cell_id)
+        )
+        plotted_cells: list[dict] = []
+        total_cells = 0
+        missing_position_count = 0
+        invalid_contour_count = 0
+        bounds: list[float] | None = None
+
+        for (
+            cell_id,
+            position_x,
+            position_y,
+            contour_raw,
+            image_raw,
+            fluorescence_raw,
+            manual_label,
+        ) in session.execute(stmt).fetchall():
+            parsed_frame = _parse_frame_index(cell_id)
+            if parsed_frame != frame:
+                continue
+            total_cells += 1
+            if position_x is None or position_y is None:
+                missing_position_count += 1
+                continue
+            if contour_raw is None:
+                invalid_contour_count += 1
+                continue
+            contour_points = _contour_points_from_blob(bytes(contour_raw))
+            if contour_points is None or contour_points.size == 0:
+                invalid_contour_count += 1
+                continue
+            crop_size = _image_size_from_blob(bytes(image_raw) if image_raw else None)
+            if crop_size is None:
+                crop_width = float(np.max(contour_points[:, 0]) + 1)
+                crop_height = float(np.max(contour_points[:, 1]) + 1)
+            else:
+                crop_width, crop_height = crop_size
+
+            original_x = float(position_x)
+            original_y = float(position_y)
+            translated = contour_points.copy()
+            translated[:, 0] += original_x - crop_width / 2
+            translated[:, 1] += original_y - crop_height / 2
+            bounds = _expand_bounds(bounds, translated)
+            payload = {
+                "cell_id": str(cell_id),
+                "position_x": original_x,
+                "position_y": original_y,
+                "manual_label": None if manual_label is None else str(manual_label),
+                "contour": translated.round(3).tolist(),
+                "image_x": original_x - crop_width / 2,
+                "image_y": original_y - crop_height / 2,
+                "image_width": crop_width,
+                "image_height": crop_height,
+            }
+            if include_fluorescence:
+                payload["jet_image"] = _masked_jet_data_url(
+                    bytes(fluorescence_raw) if fluorescence_raw else None,
+                    contour_points,
+                )
+            plotted_cells.append(payload)
+
+        return {
+            "dbname": db_name,
+            "frame": frame,
+            "cell_count": total_cells,
+            "positioned_count": len(plotted_cells),
+            "missing_position_count": missing_position_count,
+            "invalid_contour_count": invalid_contour_count,
+            "bounds": _bounds_payload(bounds),
+            "fluorescence_channel": fluorescence_channel,
+            "cells": plotted_cells,
+        }
     finally:
         session.close()
 
@@ -2649,6 +2889,25 @@ class DatabaseManagerCrud(_DatabaseFileCrud):
     @classmethod
     def get_manual_labels(cls, db_name: str) -> list[str]:
         return get_manual_labels(db_name)
+
+    @classmethod
+    def get_cell_position_frames(cls, db_name: str) -> dict:
+        return get_cell_position_frames(db_name)
+
+    @classmethod
+    def get_cell_position_frame(
+        cls,
+        db_name: str,
+        frame: int,
+        fluorescence_channel: Literal["fluo1", "fluo2"] = "fluo1",
+        include_fluorescence: bool = True,
+    ) -> dict:
+        return get_cell_position_frame(
+            db_name,
+            frame,
+            fluorescence_channel=fluorescence_channel,
+            include_fluorescence=include_fluorescence,
+        )
 
     @classmethod
     def build_map256_normalized(

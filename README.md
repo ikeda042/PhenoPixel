@@ -233,7 +233,7 @@ images or raw intensity data through the analysis pipeline.
 | Uploaded ND2 files | `backend/app/nd2files/` |
 | Cell databases | `backend/app/databases/<nd2_stem>.db` |
 | Extracted contour previews | `backend/app/extracted_data/<nd2_stem>/<frame>.png` |
-| Cell table | SQLite table `cells`, including `cell_id`, `manual_label`, `perimeter`, `area`, `img_ph`, `img_fluo1`, `img_fluo2`, `contour`, center coordinates, objective, and pixel size. |
+| Cell table | SQLite table `cells`, including `cell_id`, `manual_label`, `perimeter`, `area`, `img_ph`, `img_fluo1`, `img_fluo2`, `contour`, crop-local center coordinates, original ND2 frame position coordinates, objective, and pixel size. |
 | Bulk exports | JSON/CSV/PNG responses from Bulk Engine endpoints or browser downloads. |
 | Frontend production build | `frontend/dist/`; the backend serves this folder when it exists. |
 
