@@ -51,7 +51,7 @@ http://<host>:<port>/api/v1
 - `channel`:
   - heatmap endpoints: `fluo1 | fluo2`
   - intensity endpoints: `ph | fluo1 | fluo2`
-- `degree` (heatmap endpoints): integer >= 1
+- `degree` (heatmap and cell width endpoints): integer >= 1
 - `center_ratio` (HU separation overlay): float 0.0-1.0
 - `max_to_min_ratio` (HU separation overlay): float >= 0.0
 
@@ -116,6 +116,11 @@ Response: JSON array of `{ "cell_id": string, "area": number }`
 Boxplot for cell areas.  
 Params: `dbname`, `label`  
 Response: `image/png`
+
+**GET** `/get-cell-widths`  
+Mean and median centerline-to-contour distances (px) per cell.  
+Params: `dbname`, `label`, `degree`  
+Response: JSON array of `{ "cell_id": string, "width_mean": number, "width_median": number }`
 
 **GET** `/get-normalized-medians`  
 Normalized median intensities per cell.  

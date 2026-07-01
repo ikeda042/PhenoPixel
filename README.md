@@ -201,6 +201,7 @@ Bulk Engine modes:
 | Mode | Description |
 | --- | --- |
 | `Cell length` | Measure cell length in micrometers from contour geometry and stored pixel size. |
+| `Cell width` | Export mean and median centerline-to-contour distances in pixels. |
 | `Cell area` | Export cell area in pixels squared. |
 | `Normalized median` | Compute cellwise median intensity after max normalization. |
 | `FITC aggregation ratio` | Report the fraction of cells below the configured normalized-median threshold. |

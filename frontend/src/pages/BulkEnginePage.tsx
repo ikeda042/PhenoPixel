@@ -49,6 +49,12 @@ type CellAreaPair = {
   area: number
 }
 
+type CellWidthPair = {
+  cell_id: string
+  width_mean: number
+  width_median: number
+}
+
 type NormalizedMedianPair = {
   cell_id: string
   normalized_median: number
@@ -92,6 +98,26 @@ const parseCellLengthRows = (payload: unknown): CellLengthPair[] => {
     .map((item) => ({
       cell_id: item.cell_id,
       length: item.length,
+    }))
+}
+
+const parseCellWidthRows = (payload: unknown): CellWidthPair[] => {
+  if (!Array.isArray(payload)) return []
+  return payload
+    .filter(
+      (item): item is CellWidthPair =>
+        item &&
+        typeof item === 'object' &&
+        typeof (item as CellWidthPair).cell_id === 'string' &&
+        typeof (item as CellWidthPair).width_mean === 'number' &&
+        Number.isFinite((item as CellWidthPair).width_mean) &&
+        typeof (item as CellWidthPair).width_median === 'number' &&
+        Number.isFinite((item as CellWidthPair).width_median),
+    )
+    .map((item) => ({
+      cell_id: item.cell_id,
+      width_mean: item.width_mean,
+      width_median: item.width_median,
     }))
 }
 
@@ -162,6 +188,8 @@ export default function BulkEnginePage() {
   const [isAreaExporting, setIsAreaExporting] = useState(false)
   const [areaExportError, setAreaExportError] = useState<string | null>(null)
   const [hasCalculatedArea, setHasCalculatedArea] = useState(false)
+  const [isWidthExporting, setIsWidthExporting] = useState(false)
+  const [widthExportError, setWidthExportError] = useState<string | null>(null)
   const [medianPlotUrl, setMedianPlotUrl] = useState<string | null>(null)
   const [medianError, setMedianError] = useState<string | null>(null)
   const [isMedianLoading, setIsMedianLoading] = useState(false)
@@ -665,6 +693,8 @@ export default function BulkEnginePage() {
     setAreaPlotUrl(null)
     setAreaError(null)
     setAreaExportError(null)
+    setWidthExportError(null)
+    setIsWidthExporting(false)
     setHasCalculatedLength(false)
     setHasCalculatedArea(false)
     setMedianPlotUrl(null)
@@ -867,6 +897,79 @@ export default function BulkEnginePage() {
       openJsonModal(`Cell length JSON (${labelDescriptor})`, rows)
     } catch (err) {
       setLengthExportError(err instanceof Error ? err.message : 'Failed to export JSON')
+    } finally {
+      setJsonExportMode(null)
+    }
+  }
+
+  const handleExportWidthCsv = async () => {
+    if (!dbName || isWidthExporting) return
+    setIsWidthExporting(true)
+    setWidthExportError(null)
+    try {
+      const params = new URLSearchParams({ dbname: dbName, label: analysisLabel })
+      const res = await fetch(`${apiBase}/get-cell-widths?${params.toString()}`, {
+        headers: { accept: 'application/json' },
+      })
+      if (!res.ok) {
+        throw new Error(`Request failed (${res.status})`)
+      }
+      const payload = (await res.json()) as unknown
+      const rows = parseCellWidthRows(payload)
+      if (rows.length === 0) {
+        throw new Error('No widths found for this label.')
+      }
+      const csvHeader = 'cell_id,width_mean(px),width_median(px)'
+      const lines = [
+        csvHeader,
+        ...rows.map(
+          (row) =>
+            `${escapeCsvValue(row.cell_id)},${row.width_mean},${row.width_median}`,
+        ),
+      ]
+      const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' })
+      const safeDb = (dbName || 'db').replace(/\.db$/i, '').replace(/[^a-zA-Z0-9_-]/g, '_')
+      const safeLabel =
+        analysisLabel === 'All'
+          ? 'all'
+          : analysisLabel.replace(/[^a-zA-Z0-9_-]/g, '_')
+      const filename = `bulk-${safeDb}-${safeLabel}-cell-width.csv`
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setWidthExportError(err instanceof Error ? err.message : 'Failed to export CSV')
+    } finally {
+      setIsWidthExporting(false)
+    }
+  }
+
+  const handleExportWidthJson = async () => {
+    if (!dbName || isJsonExporting) return
+    setJsonExportMode('cell-width')
+    setWidthExportError(null)
+    try {
+      const params = new URLSearchParams({ dbname: dbName, label: analysisLabel })
+      const res = await fetch(`${apiBase}/get-cell-widths?${params.toString()}`, {
+        headers: { accept: 'application/json' },
+      })
+      if (!res.ok) {
+        throw new Error(`Request failed (${res.status})`)
+      }
+      const payload = (await res.json()) as unknown
+      const rows = parseCellWidthRows(payload)
+      if (rows.length === 0) {
+        throw new Error('No widths found for this label.')
+      }
+      const labelDescriptor = analysisLabel === 'All' ? 'all labels' : `label ${analysisLabel}`
+      openJsonModal(`Cell width JSON (${labelDescriptor})`, rows)
+    } catch (err) {
+      setWidthExportError(err instanceof Error ? err.message : 'Failed to export JSON')
     } finally {
       setJsonExportMode(null)
     }
@@ -2227,6 +2330,7 @@ export default function BulkEnginePage() {
                         }}
                       >
                         <option value="cell-length">Cell length</option>
+                        <option value="cell-width">Cell width</option>
                         <option value="cell-area">Cell area</option>
                         <option value="normalized-median">Normalized median</option>
                         <option value="fitc-aggregation">FITC aggregation ratio</option>
@@ -2476,6 +2580,77 @@ export default function BulkEnginePage() {
                           )}
                         </Stack>
                       )}
+                    </Stack>
+                  )}
+                  {analysisMode === 'cell-width' && (
+                    <Stack spacing="3" mt="2">
+                      <Text fontSize="sm" fontWeight="600" color="ink.900">
+                        Cell width distance (px)
+                      </Text>
+                      <Box maxW="12rem">
+                        <Text fontSize="xs" letterSpacing="0.18em" color="ink.700" mb="1">
+                          Manual label
+                        </Text>
+                        <NativeSelect.Root>
+                          <NativeSelect.Field
+                            value={analysisLabel}
+                            onChange={(event) => setAnalysisLabel(event.target.value)}
+                            bg="sand.50"
+                            border="1px solid"
+                            borderColor="sand.200"
+                            fontSize="sm"
+                            h="2.25rem"
+                            color="ink.900"
+                            _focusVisible={{
+                              borderColor: 'tide.400',
+                              boxShadow: '0 0 0 1px var(--app-accent-ring)',
+                            }}
+                          >
+                            {analysisLabelOptions.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </NativeSelect.Field>
+                          <NativeSelect.Indicator color="ink.700" />
+                        </NativeSelect.Root>
+                      </Box>
+                      <Text fontSize="xs" color="ink.700" mt="3">
+                        Execution
+                      </Text>
+                      <HStack spacing="3" flexWrap="wrap">
+                        <Button
+                          size="sm"
+                          bg="tide.500"
+                          color="white"
+                          _hover={{ bg: 'tide.400' }}
+                          onClick={handleExportWidthCsv}
+                          isDisabled={!dbName || isWidthExporting}
+                        >
+                          {isWidthExporting ? 'Exporting...' : 'Export CSV'}
+                        </Button>
+                        <Button
+                          size="sm"
+                          bg="tide.500"
+                          color="white"
+                          _hover={{ bg: 'tide.400' }}
+                          onClick={handleExportWidthJson}
+                          isDisabled={!dbName || isJsonExporting || isWidthExporting}
+                        >
+                          {jsonExportMode === 'cell-width' ? 'Exporting...' : 'Export JSON'}
+                        </Button>
+                      </HStack>
+                      {widthExportError && (
+                        <Text fontSize="xs" color="violet.300">
+                          {widthExportError}
+                        </Text>
+                      )}
+                      <Text fontSize="xs" color="ink.700" mt="3">
+                        Output
+                      </Text>
+                      <Text fontSize="sm" color="ink.700">
+                        CSV columns: cell_id, mean width distance (px), median width distance (px).
+                      </Text>
                     </Stack>
                   )}
                   {analysisMode === 'cell-area' && (

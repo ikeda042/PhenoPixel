@@ -38,7 +38,10 @@ def _find_minimum_distance_point(
         poly_der = np.polyder(poly)
     g_prime = 2 * np.poly1d([1, -x_q]) + 2 * (poly - y_q) * poly_der
 
-    candidates = [x_q]
+    if np.isfinite(min_x) and np.isfinite(max_x) and max_x >= min_x:
+        candidates = [float(np.clip(x_q, min_x, max_x))]
+    else:
+        candidates = [x_q]
     if np.isfinite(min_x):
         candidates.append(min_x)
     if np.isfinite(max_x):
@@ -135,6 +138,46 @@ def _poly_fit(values: Sequence[Sequence[float]], degree: int = 1) -> np.ndarray:
     return coefficients
 
 
+def _parse_contour_points(contour_raw: bytes) -> tuple[np.ndarray, np.ndarray]:
+    contour = pickle.loads(contour_raw)
+    contour_array = np.asarray(contour)
+    if contour_array.ndim == 3 and contour_array.shape[1] == 1:
+        contour_points = contour_array[:, 0, :]
+        contour_for_mask = contour_array.astype(np.int32)
+    elif contour_array.ndim == 2 and contour_array.shape[1] == 2:
+        contour_points = contour_array
+        contour_for_mask = contour_array.reshape(-1, 1, 2).astype(np.int32)
+    else:
+        raise ValueError("Invalid contour format")
+    return contour_points.astype(float), contour_for_mask
+
+
+def _rasterize_contour_local(
+    contour_points: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, tuple[int, int]]:
+    if contour_points.shape[0] < 3:
+        raise ValueError("Contour must have at least 3 points")
+
+    min_xy = np.floor(contour_points.min(axis=0)).astype(int)
+    max_xy = np.ceil(contour_points.max(axis=0)).astype(int)
+    min_x, min_y = int(min_xy[0]), int(min_xy[1])
+    max_x, max_y = int(max_xy[0]), int(max_xy[1])
+    width = max(1, max_x - min_x + 1)
+    height = max(1, max_y - min_y + 1)
+    padding = 1
+
+    contour_shifted = contour_points - np.array([min_x, min_y], dtype=float) + padding
+    contour_int = np.round(contour_shifted).astype(np.int32).reshape(-1, 1, 2)
+
+    mask_shape = (height + padding * 2, width + padding * 2)
+    mask = np.zeros(mask_shape, dtype=np.uint8)
+    cv2.fillPoly(mask, [contour_int], 255)
+    coords_inside_cell = np.column_stack(np.where(mask))
+    if coords_inside_cell.size == 0:
+        raise ValueError("No points inside contour")
+    return coords_inside_cell, contour_shifted, mask_shape
+
+
 def _basis_conversion(
     contour: Sequence[Sequence[int]],
     X: np.ndarray,
@@ -206,21 +249,82 @@ def _basis_conversion(
     )
 
 
+def calculate_cell_width_metrics(
+    contour_raw: bytes,
+    degree: int = 4,
+) -> tuple[float, float]:
+    if degree < 1:
+        raise ValueError("degree must be >= 1")
+
+    contour_points, _contour_for_mask = _parse_contour_points(contour_raw)
+    if not np.all(np.isfinite(contour_points)):
+        raise ValueError("Contour contains non-finite coordinates")
+
+    with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
+        coords_inside_cell, contour_shifted, mask_shape = _rasterize_contour_local(
+            contour_points
+        )
+        X = np.vstack((coords_inside_cell[:, 1], coords_inside_cell[:, 0]))
+
+        (
+            _u1,
+            _u2,
+            u1_contour,
+            u2_contour,
+            min_u1,
+            max_u1,
+            _u1_c,
+            _u2_c,
+            U,
+            _contour_U,
+        ) = _basis_conversion(
+            contour_shifted,
+            X,
+            mask_shape[0] / 2,
+            mask_shape[1] / 2,
+            coords_inside_cell,
+            as_array=True,
+        )
+
+        if not np.all(np.isfinite(U)):
+            raise ValueError("Centerline coordinates contain non-finite values")
+
+        theta = _poly_fit(U, degree=degree)
+        if theta.size == 0 or not np.all(np.isfinite(theta)):
+            raise ValueError("Failed to fit centerline")
+
+        poly = np.poly1d(theta)
+        poly_der = np.polyder(poly)
+        distances: list[float] = []
+        for x_q, y_q in zip(u1_contour, u2_contour):
+            distance, _point = _find_minimum_distance_point(
+                theta,
+                float(x_q),
+                float(y_q),
+                float(min_u1),
+                float(max_u1),
+                poly=poly,
+                poly_der=poly_der,
+            )
+            if np.isfinite(distance):
+                distances.append(distance)
+
+        if not distances:
+            raise ValueError("No contour distances found")
+
+        distances_arr = np.asarray(distances, dtype=float)
+    return (
+        round(float(np.mean(distances_arr)), 4),
+        round(float(np.median(distances_arr)), 4),
+    )
+
+
 def calculate_heatmap_path_vector(
     image_fluo_raw: bytes, contour_raw: bytes, degree: int = 4
 ) -> list[tuple[float, float]]:
     image_fluo_gray = _decode_grayscale_preserve_depth(image_fluo_raw)
 
-    contour = pickle.loads(contour_raw)
-    contour_array = np.asarray(contour)
-    if contour_array.ndim == 3 and contour_array.shape[1] == 1:
-        contour_points = contour_array[:, 0, :]
-        contour_for_mask = contour_array.astype(np.int32)
-    elif contour_array.ndim == 2 and contour_array.shape[1] == 2:
-        contour_points = contour_array
-        contour_for_mask = contour_array.reshape(-1, 1, 2).astype(np.int32)
-    else:
-        raise ValueError("Invalid contour format")
+    contour_points, contour_for_mask = _parse_contour_points(contour_raw)
 
     mask = np.zeros_like(image_fluo_gray)
     cv2.fillPoly(mask, [contour_for_mask], 255)

@@ -13,6 +13,7 @@ from sqlalchemy import String, cast, or_, select
 from app.database_manager.crud import DatabaseManagerCrud, get_cells_table
 from app.bulk_engine.heatmap_bulk_core import (
     build_heatmap_vectors_csv,
+    calculate_cell_width_metrics,
     calculate_heatmap_path_vector,
 )
 from app.bulk_engine.hu_separation_detector import build_hu_separation_overlay
@@ -242,6 +243,58 @@ def get_cell_areas_by_label(
             if area_val > 0:
                 areas.append((str(cell_id), area_val))
         return areas
+    finally:
+        session.close()
+
+
+def get_cell_widths_by_label(
+    db_name: str, label: str | None = None, degree: int = 4
+) -> list[tuple[str, float, float]]:
+    """
+    Return centerline-to-contour width distance summaries (px) per cell.
+    """
+    if degree < 1:
+        raise ValueError("degree must be >= 1")
+
+    label_str = str(label).strip() if label is not None else ""
+    apply_filter = bool(label_str) and label_str.lower() != "all"
+
+    session = DatabaseManagerCrud.get_database_session(db_name)
+    try:
+        cells = get_cells_table(session)
+
+        stmt = (
+            select(cells.c.cell_id, cells.c.contour, cells.c.manual_label)
+            .where(cells.c.contour.is_not(None))
+            .where(cells.c.cell_id.is_not(None))
+            .order_by(cells.c.cell_id)
+        )
+
+        if apply_filter:
+            filters = [cast(cells.c.manual_label, String) == label_str]
+            if label_str.isdigit():
+                filters.append(cells.c.manual_label == int(label_str))
+            if label_str.upper() == "N/A":
+                filters.append(cells.c.manual_label == "N/A")
+                filters.append(cells.c.manual_label == 1000)
+            stmt = stmt.where(or_(*filters))
+
+        result = session.execute(stmt)
+        widths: list[tuple[str, float, float]] = []
+        for cell_id, contour_raw, _ in result.fetchall():
+            if cell_id is None or contour_raw is None:
+                continue
+            try:
+                mean_width, median_width = calculate_cell_width_metrics(
+                    bytes(contour_raw),
+                    degree=degree,
+                )
+            except Exception:
+                continue
+            if mean_width < 0 or median_width < 0:
+                continue
+            widths.append((str(cell_id), mean_width, median_width))
+        return widths
     finally:
         session.close()
 
@@ -1159,6 +1212,12 @@ class BulkEngineCrud:
         cls, db_name: str, label: str | None = None
     ) -> list[tuple[str, float]]:
         return get_cell_areas_by_label(db_name, label)
+
+    @classmethod
+    def get_cell_widths_by_label(
+        cls, db_name: str, label: str | None = None, degree: int = 4
+    ) -> list[tuple[str, float, float]]:
+        return get_cell_widths_by_label(db_name, label, degree)
 
     @classmethod
     def get_normalized_medians_by_label(

@@ -117,6 +117,7 @@ fallback では `s(C) = 1` のときに `Label 1` を付与し、それ以外で
 
 バルクエンジンで利用できるバッチ解析モードは次のとおりである。
 - `Cell length`: 輪郭から細胞長（um）を測定する。
+- `Cell width`: 中心線から輪郭座標までの距離の平均値・中央値（px）を出力する。
 - `Cell area`: 細胞面積（px^2）を計算する。
 - `Normalized median`: 選択したチャネルについて、細胞ごとの正規化中央値強度を計算する。
 - `FITC aggregation ratio`: FITC シグナルの凝集比を計算する。
