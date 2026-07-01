@@ -17,7 +17,7 @@ Bulk Engine は、Annotation 後の database からラベル別の細胞集団�
 1. database を指定して Bulk Engine を開く。
 2. preview channel と label を選び、解析対象の細胞集団を確認する。
 3. `Analysis mode` で指標を選ぶ。
-4. `Cell length`, `Cell area`, `Normalized median`, `FITC aggregation ratio`, `Entropy`, `Heatmap`, `Contours`, `Map256`, `Raw data` を実行する。
+4. `Cell length`, `Cell width`, `Cell area`, `Normalized median`, `FITC aggregation ratio`, `Entropy`, `Heatmap`, `Contours`, `Map256`, `Raw data` を実行する。
 5. plot を確認し、必要に応じて JSON/CSV を export する。
 
 ![Bulk engine modes](/img/screenshots/bulk3.png)
@@ -33,6 +33,8 @@ L \approx (\max_i \pi_i - \min_i \pi_i) \times 0.065
 $$
 
 `Cell area` は抽出時に保存された輪郭面積を返します。
+
+`Cell width` は、細胞中心線の多項式に対する各輪郭座標の最短距離を求め、細胞ごとに平均値と中央値を px 単位で返します。
 
 `Normalized median` は輪郭内の強度値を細胞ごとの最大値で割り、中央値を取ります。
 
@@ -52,6 +54,7 @@ $$
 
 ```bash
 GET /api/v1/get-cell-lengths
+GET /api/v1/get-cell-widths
 GET /api/v1/get-cell-areas
 GET /api/v1/get-normalized-medians
 GET /api/v1/get-raw-intensities

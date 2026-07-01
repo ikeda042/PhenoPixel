@@ -69,6 +69,12 @@ class CellArea(BaseModel):
     area: float
 
 
+class CellWidth(BaseModel):
+    cell_id: str
+    width_mean: float
+    width_median: float
+
+
 class NormalizedMedian(BaseModel):
     cell_id: str
     normalized_median: float
@@ -447,6 +453,37 @@ async def get_cell_areas_plot(
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
     return StreamingResponse(io.BytesIO(plot_bytes), media_type="image/png")
+
+
+@router_bulk_engine.get("/get-cell-widths", response_model=list[CellWidth])
+async def get_cell_widths(
+    dbname: Annotated[str, Query()] = ...,
+    label: Annotated[str | None, Query()] = None,
+    degree: Annotated[int, Query(ge=1)] = 4,
+) -> list[CellWidth]:
+    try:
+        loop = asyncio.get_running_loop()
+        widths = await loop.run_in_executor(
+            bulk_executor,
+            BulkEngineCrud.get_cell_widths_by_label,
+            dbname,
+            label,
+            degree,
+        )
+        return [
+            CellWidth(
+                cell_id=cell_id,
+                width_mean=width_mean,
+                width_median=width_median,
+            )
+            for cell_id, width_mean, width_median in widths
+        ]
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Database not found")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 @router_bulk_engine.get("/get-normalized-medians", response_model=list[NormalizedMedian])

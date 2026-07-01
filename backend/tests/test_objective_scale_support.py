@@ -10,7 +10,10 @@ from uuid import uuid4
 import numpy as np
 
 from app.bulk_engine.crud import _calc_cell_length_um
-from app.bulk_engine.heatmap_bulk_core import build_heatmap_vectors_csv
+from app.bulk_engine.heatmap_bulk_core import (
+    build_heatmap_vectors_csv,
+    calculate_cell_width_metrics,
+)
 from app.cellextraction.crud import create_database
 from app.database_manager.crud import (
     DATABASES_DIR,
@@ -98,6 +101,18 @@ class ObjectiveScaleSupportTest(unittest.TestCase):
 
         self.assertAlmostEqual(mean_length, 3.67)
         self.assertAlmostEqual(old_mean_length, 2.21)
+
+    def test_cell_width_metrics_use_contour_to_centerline_distances(self):
+        contour = np.array(
+            [[[0, 0]], [[10, 0]], [[10, 4]], [[0, 4]]],
+            dtype=np.int32,
+        )
+        contour_blob = pickle.dumps(contour)
+
+        mean_width, median_width = calculate_cell_width_metrics(contour_blob, degree=1)
+
+        self.assertAlmostEqual(mean_width, 2.0)
+        self.assertAlmostEqual(median_width, 2.0)
 
 
 if __name__ == "__main__":
