@@ -87,14 +87,58 @@ class LargeImageTileSplitTest(unittest.TestCase):
         self.assertEqual(layout.tile_height, 2044)
         self.assertEqual(layout.source, "pLargeImage")
 
-    def test_detect_large_image_rejects_camera_tile_mismatch(self):
+    def test_detect_large_image_falls_back_to_metadata_grid_on_camera_mismatch(self):
         images = _Images(
             [np.zeros((8176, 8200), dtype=np.uint16)],
             _RawMetadata(),
             sizes={"x": 8200, "y": 8176},
         )
 
-        self.assertIsNone(SyncChores._detect_large_image_tile_layout(images))
+        layout = SyncChores._detect_large_image_tile_layout(images)
+
+        self.assertIsNotNone(layout)
+        assert layout is not None
+        self.assertEqual(layout.x_fields, 4)
+        self.assertEqual(layout.y_fields, 4)
+        self.assertEqual(layout.tile_width, 2050)
+        self.assertEqual(layout.tile_height, 2044)
+        self.assertEqual(layout.strategy, "metadata_grid")
+
+    def test_write_large_image_tiles_preserves_non_divisible_grid_coverage(self):
+        frame = np.arange(20, dtype=np.uint16).reshape(4, 5)
+        images = _Images([frame], _RawMetadata(), sizes={"x": 5, "y": 4})
+        layout = LargeImageTileLayout(
+            x_fields=4,
+            y_fields=2,
+            tile_width=1,
+            tile_height=2,
+            source="test",
+            image_width=5,
+            image_height=4,
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            ph_dir = Path(tmpdir) / "PH"
+            ph_dir.mkdir()
+
+            frames = SyncChores._write_large_image_tiles(
+                images,
+                [(0, "PH")],
+                tmpdir,
+                layout,
+            )
+
+            self.assertEqual(frames, 8)
+            shapes = []
+            for index in range(8):
+                tile = cv2.imread(str(ph_dir / f"{index}.tif"), cv2.IMREAD_UNCHANGED)
+                self.assertIsNotNone(tile)
+                assert tile is not None
+                shapes.append(tile.shape[:2])
+            self.assertEqual(
+                shapes,
+                [(2, 1), (2, 1), (2, 1), (2, 2)] * 2,
+            )
 
     def test_detect_pixel_size_prefers_nd2_metadata(self):
         images = _Images(
@@ -121,7 +165,6 @@ class LargeImageTileSplitTest(unittest.TestCase):
         frame[2:4, 2:4] = 40
         images = _Images([frame], raw, sizes={"x": 4, "y": 4})
         layout = SyncChores._detect_large_image_tile_layout(images)
-        self.assertIsNone(layout)
 
         # Use a hand-built layout here so this test focuses on write ordering.
         layout = LargeImageTileLayout(
