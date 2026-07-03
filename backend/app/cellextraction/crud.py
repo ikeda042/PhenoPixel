@@ -292,6 +292,9 @@ class LargeImageTileLayout:
     tile_width: int
     tile_height: int
     source: str
+    strategy: str = "metadata_grid"
+    image_width: int | None = None
+    image_height: int | None = None
 
 
 class Cell(Base):
@@ -479,28 +482,23 @@ class SyncChores:
 
         camera_shapes = SyncChores._camera_tile_shapes(raw_metadata)
         scored: list[tuple[int, LargeImageTileLayout]] = []
-        has_camera_shape_match = False
-        divisible_candidates: list[tuple[str, int, int, int, int, int]] = []
         for source, x_fields, y_fields, valid in candidates:
-            if width % x_fields != 0 or height % y_fields != 0:
-                continue
             tile_width = width // x_fields
             tile_height = height // y_fields
-            if (tile_width, tile_height) in camera_shapes:
-                has_camera_shape_match = True
-            divisible_candidates.append(
-                (source, x_fields, y_fields, valid, tile_width, tile_height)
+            if tile_width < 1 or tile_height < 1:
+                continue
+
+            is_even_grid = width % x_fields == 0 and height % y_fields == 0
+            matches_camera_shape = (
+                is_even_grid and (tile_width, tile_height) in camera_shapes
             )
-
-        if camera_shapes and not has_camera_shape_match:
-            return None
-
-        for source, x_fields, y_fields, valid, tile_width, tile_height in divisible_candidates:
-            if camera_shapes and (tile_width, tile_height) not in camera_shapes:
+            if not matches_camera_shape and not valid:
                 continue
             score = x_fields * y_fields
-            if (tile_width, tile_height) in camera_shapes:
+            if matches_camera_shape:
                 score += 1000
+            elif is_even_grid:
+                score += 50
             if source == "pLargeImage":
                 score += 100
             if valid:
@@ -514,6 +512,13 @@ class SyncChores:
                         tile_width=tile_width,
                         tile_height=tile_height,
                         source=source,
+                        strategy=(
+                            "camera_shape"
+                            if matches_camera_shape
+                            else "metadata_grid"
+                        ),
+                        image_width=width,
+                        image_height=height,
                     ),
                 )
             )
@@ -522,6 +527,13 @@ class SyncChores:
             return None
         scored.sort(key=lambda item: item[0], reverse=True)
         return scored[0][1]
+
+    @staticmethod
+    def _tile_axis_bounds(total_size: int, fields: int) -> list[tuple[int, int]]:
+        return [
+            (index * total_size // fields, (index + 1) * total_size // fields)
+            for index in range(fields)
+        ]
 
     @staticmethod
     def _detect_pixel_size_um_from_images(images) -> float | None:
@@ -584,8 +596,10 @@ class SyncChores:
     ) -> int:
         num_channels = int(images.sizes.get("c", 1) or 1)
         frame_index = 0
-        expected_height = layout.tile_height * layout.y_fields
-        expected_width = layout.tile_width * layout.x_fields
+        expected_height = layout.image_height or layout.tile_height * layout.y_fields
+        expected_width = layout.image_width or layout.tile_width * layout.x_fields
+        x_bounds = SyncChores._tile_axis_bounds(expected_width, layout.x_fields)
+        y_bounds = SyncChores._tile_axis_bounds(expected_height, layout.y_fields)
 
         for image_index in range(len(images)):
             try:
@@ -610,12 +624,8 @@ class SyncChores:
                     )
                 layer_arrays[source_idx] = array
 
-            for tile_y in range(layout.y_fields):
-                y0 = tile_y * layout.tile_height
-                y1 = y0 + layout.tile_height
-                for tile_x in range(layout.x_fields):
-                    x0 = tile_x * layout.tile_width
-                    x1 = x0 + layout.tile_width
+            for y0, y1 in y_bounds:
+                for x0, x1 in x_bounds:
                     for source_idx, layer in specs:
                         if layer is None:
                             continue
@@ -630,7 +640,10 @@ class SyncChores:
 
     @staticmethod
     def to_grayscale_preserve_depth(image) -> np.ndarray:
-        array = np.squeeze(np.asarray(image))
+        array = np.asarray(image)
+        if array.ndim == 2:
+            return array
+        array = np.squeeze(array)
         if array.ndim == 2:
             return array
         if array.ndim == 3:
@@ -770,7 +783,7 @@ class SyncChores:
                     "Detected Large Image tile layout: "
                     f"{tile_layout.x_fields}x{tile_layout.y_fields} "
                     f"({tile_layout.tile_width}x{tile_layout.tile_height}px, "
-                    f"{tile_layout.source})"
+                    f"{tile_layout.source}, {tile_layout.strategy})"
                 )
                 frames_processed = SyncChores._write_large_image_tiles(
                     images, specs, temp_dir, tile_layout
