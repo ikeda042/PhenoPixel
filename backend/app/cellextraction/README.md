@@ -19,6 +19,10 @@ http://<host>:<port>/api/v1
 - NIS-Elements Large Image ND2 files are auto-detected from metadata. When the
   recorded field grid and camera frame size match the final image dimensions,
   the combined image is split into per-field frames before contour extraction.
+- Large Image splitting can also be set to `manual` with explicit column and
+  row counts. Manual mode divides every ND2 frame into an equal grid even when
+  Large Image metadata is missing. Set the mode to `none` to keep each frame
+  intact.
 - When ND2 pixel calibration is available, `pixel_microns` is used for the
   database `pixel_size_um` value instead of the UI objective default.
 
@@ -41,7 +45,10 @@ Request body (JSON):
   "layer_mode": "dual_layer",
   "param1": 130,
   "image_size": 200,
-  "auto_annotation": true
+  "auto_annotation": true,
+  "large_image_split_mode": "manual",
+  "large_image_columns": 4,
+  "large_image_rows": 4
 }
 ```
 
@@ -56,6 +63,13 @@ Parameters:
 - `auto_annotation` (optional): when true, assigns `manual_label` with the
   bundled supervised annotator; falls back to the contour heuristic if the model
   cannot be loaded.
+- `large_image_split_mode` (optional): `auto | manual | none` (default: `auto`)
+  - `auto`: detect the grid from NIS-Elements Large Image metadata.
+  - `manual`: ignore Large Image detection and use the requested grid.
+  - `none`: disable Large Image splitting.
+- `large_image_columns` / `large_image_rows` (optional): grid dimensions used
+  in `manual` mode (default: `4` each). Values must be positive, create at least
+  two tiles, and create no more than 4096 tiles in total.
 
 Response (202):
 

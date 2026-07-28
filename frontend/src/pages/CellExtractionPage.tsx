@@ -70,8 +70,11 @@ type OverlayManifestEntry = {
   file?: string
 }
 
+type LargeImageSplitMode = 'auto' | 'manual' | 'none'
+
 const DEFAULT_PARAM1 = 130
 const DEFAULT_IMAGE_SIZE = 200
+const DEFAULT_LARGE_IMAGE_GRID_SIZE = 4
 const OVERLAY_FRAME_INTERVAL_MS = 15
 const OVERLAY_PREVIEW_SIZE = 'min(72vw, 60vh)'
 const OVERLAY_PREVIEW_SCALE = 1
@@ -109,6 +112,12 @@ const objectiveOptions = [
 ]
 
 const defaultObjectiveMagnification = objectiveOptions[0].value
+
+const largeImageSplitOptions: { value: LargeImageSplitMode; label: string }[] = [
+  { value: 'auto', label: 'Auto (metadata)' },
+  { value: 'manual', label: 'Manual' },
+  { value: 'none', label: 'No split' },
+]
 
 const parseChannelCount = (value: unknown): number | null => {
   const parsed = Number(value)
@@ -159,6 +168,14 @@ export default function CellExtractionPage() {
   const [layerMode, setLayerMode] = useState(defaultLayerMode)
   const [objectiveMagnification, setObjectiveMagnification] = useState(
     defaultObjectiveMagnification,
+  )
+  const [largeImageSplitMode, setLargeImageSplitMode] =
+    useState<LargeImageSplitMode>('auto')
+  const [largeImageColumnsInput, setLargeImageColumnsInput] = useState(
+    String(DEFAULT_LARGE_IMAGE_GRID_SIZE),
+  )
+  const [largeImageRowsInput, setLargeImageRowsInput] = useState(
+    String(DEFAULT_LARGE_IMAGE_GRID_SIZE),
   )
   const [param1Input, setParam1Input] = useState(String(DEFAULT_PARAM1))
   const [imageSizeInput, setImageSizeInput] = useState(String(DEFAULT_IMAGE_SIZE))
@@ -384,9 +401,35 @@ export default function CellExtractionPage() {
       setError('Filename is required')
       return
     }
-    closeOverlay()
     const param1Value = coerceInt(param1Input, DEFAULT_PARAM1, 0)
     const imageSizeValue = coerceInt(imageSizeInput, DEFAULT_IMAGE_SIZE, 1)
+    const largeImageColumns = coerceInt(
+      largeImageColumnsInput,
+      DEFAULT_LARGE_IMAGE_GRID_SIZE,
+      1,
+    )
+    const largeImageRows = coerceInt(
+      largeImageRowsInput,
+      DEFAULT_LARGE_IMAGE_GRID_SIZE,
+      1,
+    )
+    if (
+      largeImageSplitMode === 'manual' &&
+      largeImageColumns * largeImageRows <= 1
+    ) {
+      setError('Manual Large Image split must create at least two tiles.')
+      return
+    }
+    if (
+      largeImageSplitMode === 'manual' &&
+      (largeImageColumns > 256 ||
+        largeImageRows > 256 ||
+        largeImageColumns * largeImageRows > 4096)
+    ) {
+      setError('Manual Large Image split supports up to 4096 tiles.')
+      return
+    }
+    closeOverlay()
     setIsSubmitting(true)
     setError(null)
     setJobId(null)
@@ -404,6 +447,9 @@ export default function CellExtractionPage() {
         image_size: imageSizeValue,
         auto_annotation: autoAnnotation,
         objective_magnification: objectiveMagnification,
+        large_image_split_mode: largeImageSplitMode,
+        large_image_columns: largeImageColumns,
+        large_image_rows: largeImageRows,
       }
       const res = await fetch(`${apiBase}/extract-cells`, {
         method: 'POST',
@@ -433,6 +479,9 @@ export default function CellExtractionPage() {
     closeOverlay,
     filename,
     imageSizeInput,
+    largeImageColumnsInput,
+    largeImageRowsInput,
+    largeImageSplitMode,
     layerMode,
     objectiveMagnification,
     param1Input,
@@ -680,6 +729,112 @@ export default function CellExtractionPage() {
                       }}
                     />
                   </Stack>
+
+                  <Stack spacing="2">
+                    <Text fontSize="sm" color="ink.700">
+                      Large Image Split
+                    </Text>
+                    <NativeSelect.Root>
+                      <NativeSelect.Field
+                        value={largeImageSplitMode}
+                        onChange={(event) =>
+                          setLargeImageSplitMode(
+                            event.target.value as LargeImageSplitMode,
+                          )
+                        }
+                        bg="sand.50"
+                        border="1px solid"
+                        borderColor="sand.200"
+                        color="ink.900"
+                        _focusVisible={{
+                          borderColor: 'tide.400',
+                          boxShadow: '0 0 0 1px var(--app-accent-ring)',
+                        }}
+                      >
+                        {largeImageSplitOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </NativeSelect.Field>
+                      <NativeSelect.Indicator color="ink.700" />
+                    </NativeSelect.Root>
+                  </Stack>
+
+                  {largeImageSplitMode === 'manual' && (
+                    <>
+                      <Stack spacing="2">
+                        <Text fontSize="sm" color="ink.700">
+                          Columns (X)
+                        </Text>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={256}
+                          value={largeImageColumnsInput}
+                          onChange={(event) =>
+                            setLargeImageColumnsInput(normalizeIntInput(event.target.value))
+                          }
+                          onBlur={() =>
+                            setLargeImageColumnsInput((current) =>
+                              current === ''
+                                ? String(DEFAULT_LARGE_IMAGE_GRID_SIZE)
+                                : current,
+                            )
+                          }
+                          border="1px solid"
+                          borderColor="sand.200"
+                          bg="sand.50"
+                          color="ink.900"
+                          _focusVisible={{
+                            borderColor: 'tide.400',
+                            boxShadow: '0 0 0 1px var(--app-accent-ring)',
+                          }}
+                        />
+                      </Stack>
+
+                      <Stack spacing="2">
+                        <Text fontSize="sm" color="ink.700">
+                          Rows (Y)
+                        </Text>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={256}
+                          value={largeImageRowsInput}
+                          onChange={(event) =>
+                            setLargeImageRowsInput(normalizeIntInput(event.target.value))
+                          }
+                          onBlur={() =>
+                            setLargeImageRowsInput((current) =>
+                              current === ''
+                                ? String(DEFAULT_LARGE_IMAGE_GRID_SIZE)
+                                : current,
+                            )
+                          }
+                          border="1px solid"
+                          borderColor="sand.200"
+                          bg="sand.50"
+                          color="ink.900"
+                          _focusVisible={{
+                            borderColor: 'tide.400',
+                            boxShadow: '0 0 0 1px var(--app-accent-ring)',
+                          }}
+                        />
+                      </Stack>
+
+                      <Text
+                        gridColumn={{ base: 'auto', md: '1 / -1' }}
+                        fontSize="xs"
+                        color="ink.700"
+                      >
+                        Every ND2 frame will be divided into{' '}
+                        {largeImageColumnsInput || DEFAULT_LARGE_IMAGE_GRID_SIZE} ×{' '}
+                        {largeImageRowsInput || DEFAULT_LARGE_IMAGE_GRID_SIZE} equal tiles,
+                        even when Large Image metadata is missing.
+                      </Text>
+                    </>
+                  )}
 
                   <Stack spacing="2">
                     <Text fontSize="sm" color="ink.700">
