@@ -5,11 +5,11 @@ from multiprocessing import get_context
 from pathlib import Path
 from threading import Lock, Thread
 from time import time
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Path as ApiPath
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.activity_tracker.crud import ACTION_CELL_EXTRACTION, record_activity_sync
 from app.cellextraction.crud import ExtractionCrudBase
@@ -46,6 +46,22 @@ class ExtractCellsRequest(BaseModel):
     image_size: int = Field(200, ge=1)
     auto_annotation: bool = False
     objective_magnification: ObjectiveMagnification = DEFAULT_OBJECTIVE_MAGNIFICATION
+    large_image_split_mode: Literal["auto", "manual", "none"] = "auto"
+    large_image_columns: int = Field(4, ge=1, le=256)
+    large_image_rows: int = Field(4, ge=1, le=256)
+
+    @model_validator(mode="after")
+    def validate_manual_large_image_split(self) -> "ExtractCellsRequest":
+        if self.large_image_split_mode != "manual":
+            return self
+        if self.large_image_columns * self.large_image_rows <= 1:
+            raise ValueError(
+                "Manual Large Image split must create at least two tiles; "
+                "use 'none' for no split"
+            )
+        if self.large_image_columns * self.large_image_rows > 4096:
+            raise ValueError("Manual Large Image split cannot exceed 4096 tiles")
+        return self
 
 
 def _sanitize_nd2_filename(filename: str) -> str:
@@ -89,6 +105,9 @@ def _run_extraction(
     reverse_layers: bool,
     auto_annotation: bool,
     objective_magnification: ObjectiveMagnification,
+    large_image_split_mode: Literal["auto", "manual", "none"],
+    large_image_columns: int,
+    large_image_rows: int,
     result_queue,
 ) -> None:
     try:
@@ -100,6 +119,9 @@ def _run_extraction(
             reverse_layers=reverse_layers,
             auto_annotation=auto_annotation,
             objective_magnification=objective_magnification,
+            large_image_split_mode=large_image_split_mode,
+            large_image_columns=large_image_columns,
+            large_image_rows=large_image_rows,
         )
         num_tiff, ulid, created_databases = extractor.main()
         result_queue.put(
@@ -115,6 +137,9 @@ def _run_extraction(
                     "objective_magnification": extractor.objective_magnification,
                     "pixel_size_um": extractor.pixel_size_um,
                     "pixel_size_source": extractor.pixel_size_source,
+                    "large_image_split_mode": extractor.large_image_split_mode,
+                    "large_image_columns": extractor.large_image_columns,
+                    "large_image_rows": extractor.large_image_rows,
                 },
             }
         )
@@ -291,6 +316,9 @@ def extract_cells(payload: ExtractCellsRequest) -> dict[str, Any]:
             reverse_layers,
             payload.auto_annotation,
             payload.objective_magnification,
+            payload.large_image_split_mode,
+            payload.large_image_columns,
+            payload.large_image_rows,
             result_queue,
         ),
     )

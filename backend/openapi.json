@@ -3101,6 +3101,30 @@
             "minimum": 1.0,
             "title": "Image Size",
             "default": 200
+          },
+          "large_image_split_mode": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "manual",
+              "none"
+            ],
+            "title": "Large Image Split Mode",
+            "default": "auto"
+          },
+          "large_image_columns": {
+            "type": "integer",
+            "maximum": 256.0,
+            "minimum": 1.0,
+            "title": "Large Image Columns",
+            "default": 4
+          },
+          "large_image_rows": {
+            "type": "integer",
+            "maximum": 256.0,
+            "minimum": 1.0,
+            "title": "Large Image Rows",
+            "default": 4
           }
         },
         "type": "object",

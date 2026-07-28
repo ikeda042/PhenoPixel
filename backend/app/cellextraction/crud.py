@@ -40,6 +40,7 @@ AUTOANNOTATION_MODEL_PATH: Path = (
     APP_DIR.parent / "autoannotation" / "artifacts" / "autoannotator.pkl"
 )
 LOGGER: logging.Logger = logging.getLogger("uvicorn.error")
+LargeImageSplitMode = Literal["auto", "manual", "none"]
 
 
 def _get_temp_dir(ulid: str) -> str:
@@ -529,6 +530,59 @@ class SyncChores:
         return scored[0][1]
 
     @staticmethod
+    def _manual_large_image_tile_layout(
+        images,
+        x_fields: int,
+        y_fields: int,
+    ) -> LargeImageTileLayout:
+        sizes = getattr(images, "sizes", {}) or {}
+        width = SyncChores._metadata_int(sizes.get("x"))
+        height = SyncChores._metadata_int(sizes.get("y"))
+        if not width or not height:
+            raise ValueError(
+                "Manual Large Image split requires valid ND2 image dimensions"
+            )
+        if x_fields < 1 or y_fields < 1:
+            raise ValueError("Manual Large Image split rows and columns must be positive")
+        if x_fields * y_fields <= 1:
+            raise ValueError("Manual Large Image split must create at least two tiles")
+        if x_fields > width or y_fields > height:
+            raise ValueError(
+                "Manual Large Image split grid exceeds the image dimensions "
+                f"({x_fields}x{y_fields} grid for {width}x{height}px image)"
+            )
+
+        return LargeImageTileLayout(
+            x_fields=x_fields,
+            y_fields=y_fields,
+            tile_width=width // x_fields,
+            tile_height=height // y_fields,
+            source="manual",
+            strategy="manual_grid",
+            image_width=width,
+            image_height=height,
+        )
+
+    @staticmethod
+    def _resolve_large_image_tile_layout(
+        images,
+        split_mode: LargeImageSplitMode,
+        x_fields: int,
+        y_fields: int,
+    ) -> LargeImageTileLayout | None:
+        if split_mode == "none":
+            return None
+        if split_mode == "manual":
+            return SyncChores._manual_large_image_tile_layout(
+                images,
+                x_fields,
+                y_fields,
+            )
+        if split_mode == "auto":
+            return SyncChores._detect_large_image_tile_layout(images)
+        raise ValueError(f"Invalid Large Image split mode: {split_mode}")
+
+    @staticmethod
     def _tile_axis_bounds(total_size: int, fields: int) -> list[tuple[int, int]]:
         return [
             (index * total_size // fields, (index + 1) * total_size // fields)
@@ -739,7 +793,15 @@ class SyncChores:
             img.close()
 
     @staticmethod
-    def extract_nd2(file_name: str, mode: str, ulid: str, reverse: bool = False) -> int:
+    def extract_nd2(
+        file_name: str,
+        mode: str,
+        ulid: str,
+        reverse: bool = False,
+        large_image_split_mode: LargeImageSplitMode = "auto",
+        large_image_columns: int = 4,
+        large_image_rows: int = 4,
+    ) -> int:
         """
         nd2ファイルをフレーム別TIFFとして展開する。
         """
@@ -773,14 +835,19 @@ class SyncChores:
                 else "".join(axis for axis in images.axes if axis not in images.bundle_axes)
             )
             images.iter_axes = iter_axes
-            tile_layout = SyncChores._detect_large_image_tile_layout(images)
+            tile_layout = SyncChores._resolve_large_image_tile_layout(
+                images,
+                large_image_split_mode,
+                large_image_columns,
+                large_image_rows,
+            )
 
             num_channels = images.sizes.get("c", 1)
             print(f"Total images: {len(images)}")
             print(f"Channels: {num_channels}")
             if tile_layout is not None:
                 print(
-                    "Detected Large Image tile layout: "
+                    "Using Large Image tile layout: "
                     f"{tile_layout.x_fields}x{tile_layout.y_fields} "
                     f"({tile_layout.tile_width}x{tile_layout.tile_height}px, "
                     f"{tile_layout.source}, {tile_layout.strategy})"
@@ -1104,6 +1171,9 @@ class ExtractionCrudBase:
         user_id: str | None = None,
         frame_splits: list[FrameSplitConfig] | None = None,
         objective_magnification: ObjectiveMagnification = DEFAULT_OBJECTIVE_MAGNIFICATION,
+        large_image_split_mode: LargeImageSplitMode = "auto",
+        large_image_columns: int = 4,
+        large_image_rows: int = 4,
     ) -> None:
         self.nd2_path = nd2_path
         self.nd2_path = self.nd2_path.replace("\\", "/")
@@ -1120,6 +1190,9 @@ class ExtractionCrudBase:
         self.temp_dir = _get_temp_dir(self.ulid)
         self.user_id = user_id
         self.frame_splits = list(frame_splits or [])
+        self.large_image_split_mode = large_image_split_mode
+        self.large_image_columns = large_image_columns
+        self.large_image_rows = large_image_rows
         self.contour_dir = str(EXTRACTED_DATA_DIR / self.nd2_stem)
         self.objective_magnification = objective_magnification
         self.pixel_size_source = "objective"
@@ -1397,7 +1470,13 @@ class ExtractionCrudBase:
 
         self._reset_contour_dir()
         num_tiff = chores.extract_nd2(
-            self.nd2_path, self.mode, self.ulid, self.reverse_layers
+            self.nd2_path,
+            self.mode,
+            self.ulid,
+            self.reverse_layers,
+            self.large_image_split_mode,
+            self.large_image_columns,
+            self.large_image_rows,
         )
 
         chores.init(
