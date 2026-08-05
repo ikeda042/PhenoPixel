@@ -26,6 +26,7 @@ import {
   Text,
 } from '@chakra-ui/react'
 import { ArrowLeft, ArrowRight, Download } from 'lucide-react'
+import CellsHelpDrawer from '../components/CellsHelpDrawer'
 import PageBreadcrumb from '../components/PageBreadcrumb'
 import PageHeader from '../components/PageHeader'
 import ReloadButton from '../components/ReloadButton'
@@ -149,6 +150,7 @@ export default function CellsPage() {
   const fastModeRequested = FAST_MODE_QUERY_VALUES.has(fastModeParam)
   const apiBase = useMemo(() => getApiBase(), [])
 
+  const [isHelpOpen, setIsHelpOpen] = useState(false)
   const [cellIds, setCellIds] = useState<string[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [manualLabel, setManualLabel] = useState<string | null>(null)
@@ -1327,6 +1329,8 @@ export default function CellsPage() {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (isHelpOpen) return
+
       const target = event.target as HTMLElement | null
       if (target) {
         const tagName = target.tagName
@@ -1364,7 +1368,7 @@ export default function CellsPage() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [cellCount, isNavigatorDisabled, updateManualLabel])
+  }, [cellCount, isHelpOpen, isNavigatorDisabled, updateManualLabel])
 
   return (
     <Box
@@ -1381,6 +1385,7 @@ export default function CellsPage() {
           <>
             <ReloadButton compact />
             <ThemeToggleButton compact />
+            <CellsHelpDrawer open={isHelpOpen} onOpenChange={setIsHelpOpen} />
           </>
         }
       />

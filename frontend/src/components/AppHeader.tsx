@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { Flex, Icon, IconButton } from '@chakra-ui/react'
 import type { FlexProps } from '@chakra-ui/react'
-import { HelpCircle } from 'lucide-react'
+import { Github } from 'lucide-react'
 
 type AppHeaderProps = Omit<FlexProps, 'children'> & {
   children: ReactNode
@@ -61,7 +61,7 @@ const AppHeader = ({ children, bg = 'sand.50/85', ...rest }: AppHeaderProps) => 
       _hover={{ bg: 'sand.200', color: 'ink.900' }}
       flexShrink={0}
     >
-      <Icon as={HelpCircle} boxSize={{ base: 3, md: 4 }} />
+      <Icon as={Github} boxSize={{ base: 3, md: 4 }} />
     </IconButton>
   </Flex>
 )
