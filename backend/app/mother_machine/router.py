@@ -22,7 +22,11 @@ from PIL import Image
 from pydantic import BaseModel, Field
 
 from app.mother_machine.database import query_cells, query_review_image
-from app.mother_machine.processor import inspect_nd2, run_extraction
+from app.mother_machine.processor import (
+    MASK_COLORS_RGB,
+    inspect_nd2,
+    run_extraction,
+)
 from app.mother_machine.storage import (
     ND2_DIR,
     database_path,
@@ -390,12 +394,59 @@ def _resolve_review_image(
     )
     if channel is None:
         raise HTTPException(status_code=404, detail="ROI not found")
-    image_data = load_review_image(
+    image_data = _load_display_review_image(
         filename, view_index, roi_id, time_frame, mode
     )
     if image_data is None:
         raise HTTPException(status_code=404, detail="Review image not found")
     return image_data
+
+
+def _load_display_review_image(
+    filename: str,
+    view_index: int,
+    roi_id: int,
+    time_frame: int,
+    mode: str,
+) -> bytes | None:
+    image_data = load_review_image(filename, view_index, roi_id, time_frame, mode)
+    if image_data is None or mode != "overlay":
+        return image_data
+    raw_data = load_review_image(filename, view_index, roi_id, time_frame, "raw")
+    if raw_data is None:
+        return image_data
+    raw = cv2.imdecode(np.frombuffer(raw_data, dtype=np.uint8), cv2.IMREAD_GRAYSCALE)
+    stored_overlay = cv2.imdecode(
+        np.frombuffer(image_data, dtype=np.uint8), cv2.IMREAD_COLOR
+    )
+    if raw is None or stored_overlay is None or raw.shape != stored_overlay.shape[:2]:
+        return image_data
+    channel_range = (
+        stored_overlay.max(axis=2).astype(np.int16)
+        - stored_overlay.min(axis=2).astype(np.int16)
+    )
+    colored_pixels = (channel_range > 18).astype(np.uint8)
+    component_count, labels, stats, _centroids = cv2.connectedComponentsWithStats(
+        colored_pixels, connectivity=8
+    )
+    component_ids = sorted(
+        range(1, component_count),
+        key=lambda label: (int(stats[label, cv2.CC_STAT_TOP]), int(stats[label, cv2.CC_STAT_LEFT])),
+    )
+    rgb = cv2.cvtColor(raw, cv2.COLOR_GRAY2RGB)
+    rendered = rgb.copy()
+    alpha = 0.68
+    for color_index, component_id in enumerate(component_ids):
+        pixels = labels == component_id
+        color = MASK_COLORS_RGB[color_index % len(MASK_COLORS_RGB)]
+        rendered[pixels] = np.clip(
+            (1.0 - alpha) * rgb[pixels] + alpha * color, 0, 255
+        ).astype(np.uint8)
+    near_mask = cv2.dilate(colored_pixels, np.ones((3, 3), np.uint8)) > 0
+    stored_white = np.all(stored_overlay >= 245, axis=2)
+    rendered[near_mask & ~colored_pixels.astype(bool) & stored_white] = 255
+    ok, encoded = cv2.imencode(".png", cv2.cvtColor(rendered, cv2.COLOR_RGB2BGR))
+    return encoded.tobytes() if ok else image_data
 
 
 def _densify_contour(points: list[list[float]]) -> list[tuple[float, float]]:
@@ -423,13 +474,8 @@ def _contours_from_overlay(image_data: bytes) -> list[list[list[float]]]:
     )
     if image is None:
         return []
-    blue = image[:, :, 0].astype(np.int16)
-    green = image[:, :, 1].astype(np.int16)
-    red = image[:, :, 2].astype(np.int16)
     mask = (
-        (green > 100)
-        & (green >= blue + 20)
-        & (green >= red + 20)
+        image.max(axis=2).astype(np.int16) - image.min(axis=2).astype(np.int16) > 18
     ).astype(np.uint8)
     contours, _hierarchy = cv2.findContours(
         mask,
@@ -559,7 +605,7 @@ def _cached_aligned_image(
     del database_mtime_ns
     frames: list[bytes] = []
     for time_frame in range(timeframe_count):
-        image_data = load_review_image(
+        image_data = _load_display_review_image(
             filename,
             view_index,
             roi_id,
@@ -603,7 +649,7 @@ def _cached_review_gif(
                 )
             )
             continue
-        image_data = load_review_image(
+        image_data = _load_display_review_image(
             filename,
             view_index,
             roi_id,

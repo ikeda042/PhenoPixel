@@ -29,7 +29,20 @@ LOGGER = logging.getLogger("uvicorn.error")
 CONFIG_PATH = Path(__file__).resolve().parent / "channel_config.json"
 MODEL_NAME = "cpsam_v2"
 DEFAULT_NITER = 500
-MASK_COLOR_RGB = np.array([173, 255, 47], dtype=np.uint8)
+MASK_COLORS_RGB = np.array(
+    [
+        [31, 119, 180],
+        [255, 127, 14],
+        [44, 160, 44],
+        [214, 39, 40],
+        [148, 103, 189],
+        [140, 86, 75],
+        [227, 119, 194],
+        [188, 189, 34],
+        [23, 190, 207],
+    ],
+    dtype=np.uint8,
+)
 ProgressCallback = Callable[[dict[str, Any]], None]
 
 
@@ -450,10 +463,12 @@ def make_channel_overlay(
 ) -> np.ndarray:
     rgb = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
     overlay = rgb.copy()
-    pixels = labels > 0
-    overlay[pixels] = np.clip(
-        (1.0 - alpha) * rgb[pixels] + alpha * MASK_COLOR_RGB, 0, 255
-    ).astype(np.uint8)
+    for color_index, label in enumerate(np.unique(labels[labels > 0])):
+        pixels = labels == label
+        color = MASK_COLORS_RGB[color_index % len(MASK_COLORS_RGB)]
+        overlay[pixels] = np.clip(
+            (1.0 - alpha) * rgb[pixels] + alpha * color, 0, 255
+        ).astype(np.uint8)
     overlay[mask_boundaries(labels)] = 255
     return overlay
 

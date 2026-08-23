@@ -26,6 +26,7 @@ from app.mother_machine.processor import (
     _segment_band,
     extract_channel_cells,
     load_view_config,
+    make_channel_overlay,
 )
 from app.mother_machine.router import (
     _contours_from_overlay,
@@ -59,6 +60,17 @@ class MotherMachineConfigTest(unittest.TestCase):
 
 
 class MotherMachineSegmentationTest(unittest.TestCase):
+    def test_overlay_uses_a_different_color_for_each_cell(self):
+        image = np.full((24, 24), 100, dtype=np.uint8)
+        labels = np.zeros((24, 24), dtype=np.int32)
+        labels[3:10, 3:10] = 1
+        labels[14:21, 14:21] = 2
+
+        overlay = make_channel_overlay(image, labels)
+
+        self.assertFalse(np.array_equal(overlay[6, 6], overlay[17, 17]))
+        self.assertTrue(np.array_equal(overlay[0, 0], [100, 100, 100]))
+
     def test_segment_band_uses_cellpose4_arguments(self):
         class FakeCellposeModel:
             def __init__(self):
