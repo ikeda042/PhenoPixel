@@ -21,6 +21,7 @@ import {
 import { Download, Search, Trash2 } from 'lucide-react'
 import PageBreadcrumb from '../components/PageBreadcrumb'
 import PageHeader from '../components/PageHeader'
+import MotherMachineHelpDrawer from '../components/MotherMachineHelpDrawer'
 import ReloadButton from '../components/ReloadButton'
 import ThemeToggleButton from '../components/ThemeToggleButton'
 import { getApiBase } from '../utils/apiBase'
@@ -108,7 +109,7 @@ export default function MotherMachineDatabasesPage() {
 
   return (
     <Box minH="100vh" bg="sand.50" color="ink.900">
-      <PageHeader actions={<><ReloadButton /><ThemeToggleButton /></>} />
+      <PageHeader actions={<><ReloadButton /><ThemeToggleButton /><MotherMachineHelpDrawer page="databases" /></>} />
       <Container maxW="72.5rem" pt={{ base: 4, md: 6 }} pb={{ base: 8, md: 12 }}>
         <Stack spacing="6">
           <PageBreadcrumb>

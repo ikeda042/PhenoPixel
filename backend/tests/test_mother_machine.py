@@ -30,6 +30,7 @@ from app.mother_machine.processor import (
 from app.mother_machine.router import (
     _contours_from_overlay,
     _densify_contour,
+    _encode_gif,
     render_contour_plot,
 )
 from app.mother_machine.storage import (
@@ -96,6 +97,25 @@ class MotherMachineSegmentationTest(unittest.TestCase):
 
 
 class MotherMachineDatabaseTest(unittest.TestCase):
+    def test_gif_encoder_preserves_frame_order(self):
+        frames: list[bytes] = []
+        for value in (20, 220):
+            image = np.full((8, 8, 3), value, dtype=np.uint8)
+            ok, encoded = cv2.imencode(".png", image)
+            self.assertTrue(ok)
+            frames.append(encoded.tobytes())
+
+        gif = _encode_gif(frames)
+
+        with Image.open(BytesIO(gif)) as animation:
+            self.assertEqual(animation.format, "GIF")
+            self.assertEqual(animation.n_frames, 2)
+            animation.seek(0)
+            first_value = animation.convert("RGB").getpixel((0, 0))[0]
+            animation.seek(1)
+            second_value = animation.convert("RGB").getpixel((0, 0))[0]
+        self.assertLess(first_value, second_value)
+
     def test_overlay_contours_use_roi_local_coordinates(self):
         overlay = np.full((32, 16, 3), 80, dtype=np.uint8)
         overlay[8:24, 4:12] = (40, 210, 60)

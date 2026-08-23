@@ -25,6 +25,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleStop,
+  Download,
   Eye,
   Play,
   RotateCcw,
@@ -32,6 +33,7 @@ import {
 } from 'lucide-react'
 import PageBreadcrumb from '../components/PageBreadcrumb'
 import PageHeader from '../components/PageHeader'
+import MotherMachineHelpDrawer from '../components/MotherMachineHelpDrawer'
 import ReloadButton from '../components/ReloadButton'
 import ThemeToggleButton from '../components/ThemeToggleButton'
 import { getApiBase } from '../utils/apiBase'
@@ -108,6 +110,7 @@ export default function MotherMachineCellExtractionPage() {
   const [imageError, setImageError] = useState(false)
   const [contourLoading, setContourLoading] = useState(false)
   const [contourError, setContourError] = useState(false)
+  const [exportingGif, setExportingGif] = useState<'preview' | 'contours' | null>(null)
   const [iterationNumber, setIterationNumber] = useState('500')
 
   const loadDataset = useCallback(async () => {
@@ -308,6 +311,39 @@ export default function MotherMachineCellExtractionPage() {
     setContourError(false)
   }, [contourUrl])
 
+  const exportGif = useCallback(async (
+    kind: 'raw' | 'overlay' | 'contours',
+    target: 'preview' | 'contours',
+  ) => {
+    if (!dataset || channelId === null || exportingGif) return
+    setExportingGif(target)
+    setError(null)
+    try {
+      const params = new URLSearchParams({
+        view_index: String(viewIndex),
+        roi_id: String(channelId),
+        kind,
+      })
+      const response = await fetch(
+        `${apiBase}/mother-machine/datasets/${encodeURIComponent(filename)}/animation.gif?${params}`,
+      )
+      if (!response.ok) throw new Error(await responseError(response, 'GIF export failed'))
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `${filename.replace(/\.nd2$/i, '')}-field-${viewIndex + 1}-roi-${channelId}-${kind}.gif`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Failed to export GIF')
+    } finally {
+      setExportingGif(null)
+    }
+  }, [apiBase, channelId, dataset, exportingGif, filename, viewIndex])
+
   const progressPercent = useMemo<number | null>(() => {
     const processed = job?.progress?.processed_frames
     const total = job?.progress?.total_frames
@@ -320,7 +356,7 @@ export default function MotherMachineCellExtractionPage() {
   }, [iterationNumber])
   return (
     <Box minH="100vh" bg="sand.50" color="ink.900">
-      <PageHeader actions={<><ReloadButton /><ThemeToggleButton /></>} />
+      <PageHeader actions={<><ReloadButton /><ThemeToggleButton /><MotherMachineHelpDrawer page="cell-extraction" /></>} />
       <Container maxW="80rem" py={{ base: 8, md: 12 }}>
         <PageBreadcrumb>
           <BreadcrumbRoot fontSize="sm" color="ink.700">
@@ -512,59 +548,81 @@ export default function MotherMachineCellExtractionPage() {
                       </HStack>
 
                       <Grid templateColumns={{ base: '1fr', xl: 'repeat(2, minmax(0, 1fr))' }} gap="4">
-                        <Flex
-                          aspectRatio="1 / 1"
-                          bg="#080a0d"
-                          borderRadius="lg"
-                          align="center"
-                          justify="center"
-                          p="3"
-                          position="relative"
-                          overflow="hidden"
-                        >
-                          {imageUrl && !imageError && (
-                            <Box
-                              key={imageUrl}
-                              as="img"
-                              src={imageUrl}
-                              alt={`Field ${viewIndex + 1}, ROI ${channelId}, frame ${timeFrame + 1}`}
-                              w="100%"
-                              h="100%"
-                              objectFit="contain"
-                              imageRendering="auto"
-                              onLoad={() => setImageLoading(false)}
-                              onError={() => { setImageLoading(false); setImageError(true) }}
-                            />
-                          )}
-                          {imageLoading && <Text position="absolute" color="whiteAlpha.700" fontSize="sm">Loading frame…</Text>}
-                          {imageError && <Text color="red.300" fontSize="sm">Preview image could not be loaded.</Text>}
-                        </Flex>
+                        <Stack spacing="2">
+                          <Flex
+                            aspectRatio="1 / 1"
+                            bg="#080a0d"
+                            borderRadius="lg"
+                            align="center"
+                            justify="center"
+                            p="3"
+                            position="relative"
+                            overflow="hidden"
+                          >
+                            {imageUrl && !imageError && (
+                              <Box
+                                key={imageUrl}
+                                as="img"
+                                src={imageUrl}
+                                alt={`Field ${viewIndex + 1}, ROI ${channelId}, frame ${timeFrame + 1}`}
+                                w="100%"
+                                h="100%"
+                                objectFit="contain"
+                                imageRendering="auto"
+                                onLoad={() => setImageLoading(false)}
+                                onError={() => { setImageLoading(false); setImageError(true) }}
+                              />
+                            )}
+                            {imageLoading && <Text position="absolute" color="whiteAlpha.700" fontSize="sm">Loading frame…</Text>}
+                            {imageError && <Text color="red.300" fontSize="sm">Preview image could not be loaded.</Text>}
+                          </Flex>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => void exportGif(imageMode, 'preview')}
+                            loading={exportingGif === 'preview'}
+                            disabled={exportingGif !== null}
+                          >
+                            <Icon as={Download} /> Export as GIF
+                          </Button>
+                        </Stack>
 
-                        <Flex
-                          aspectRatio="1 / 1"
-                          bg="white"
-                          borderRadius="lg"
-                          align="center"
-                          justify="center"
-                          position="relative"
-                          overflow="hidden"
-                        >
-                          {contourUrl && !contourError && (
-                            <Box
-                              key={contourUrl}
-                              as="img"
-                              src={contourUrl}
-                              alt={`Contours for field ${viewIndex + 1}, ROI ${channelId}, frame ${timeFrame + 1}`}
-                              w="100%"
-                              h="100%"
-                              objectFit="contain"
-                              onLoad={() => setContourLoading(false)}
-                              onError={() => { setContourLoading(false); setContourError(true) }}
-                            />
-                          )}
-                          {contourLoading && <Text position="absolute" color="ink.700" fontSize="sm">Drawing contours…</Text>}
-                          {contourError && <Text color="red.300" fontSize="sm">Contour plot could not be loaded.</Text>}
-                        </Flex>
+                        <Stack spacing="2">
+                          <Flex
+                            aspectRatio="1 / 1"
+                            bg="white"
+                            borderRadius="lg"
+                            align="center"
+                            justify="center"
+                            position="relative"
+                            overflow="hidden"
+                          >
+                            {contourUrl && !contourError && (
+                              <Box
+                                key={contourUrl}
+                                as="img"
+                                src={contourUrl}
+                                alt={`Contours for field ${viewIndex + 1}, ROI ${channelId}, frame ${timeFrame + 1}`}
+                                w="100%"
+                                h="100%"
+                                objectFit="contain"
+                                onLoad={() => setContourLoading(false)}
+                                onError={() => { setContourLoading(false); setContourError(true) }}
+                              />
+                            )}
+                            {contourLoading && <Text position="absolute" color="ink.700" fontSize="sm">Drawing contours…</Text>}
+                            {contourError && <Text color="red.300" fontSize="sm">Contour plot could not be loaded.</Text>}
+                          </Flex>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => void exportGif('contours', 'contours')}
+                            loading={exportingGif === 'contours'}
+                            disabled={exportingGif !== null}
+                          >
+                            <Icon as={Download} /> Export as GIF
+                          </Button>
+                        </Stack>
                       </Grid>
 
                       <HStack spacing="3" align="center">

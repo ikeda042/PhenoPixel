@@ -25,6 +25,7 @@ import {
 import { Download, Info, RotateCcw, Search, Trash2, Upload } from 'lucide-react'
 import PageBreadcrumb from '../components/PageBreadcrumb'
 import PageHeader from '../components/PageHeader'
+import MotherMachineHelpDrawer from '../components/MotherMachineHelpDrawer'
 import ReloadButton from '../components/ReloadButton'
 import ThemeToggleButton from '../components/ThemeToggleButton'
 import { getApiBase } from '../utils/apiBase'
@@ -214,7 +215,7 @@ export default function MotherMachineNd2FilesPage() {
 
   return (
     <Box minH="100vh" bg="sand.50" color="ink.900">
-      <PageHeader actions={<><ReloadButton /><ThemeToggleButton /></>} />
+      <PageHeader actions={<><ReloadButton /><ThemeToggleButton /><MotherMachineHelpDrawer page="nd2-files" /></>} />
       <Container maxW="72.5rem" py={{ base: 8, md: 12 }}>
         <PageBreadcrumb>
           <BreadcrumbRoot fontSize="sm" color="ink.700">

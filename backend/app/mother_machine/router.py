@@ -18,6 +18,7 @@ import numpy as np
 from fastapi import APIRouter, File, HTTPException, Path as ApiPath, Query, UploadFile
 from fastapi.responses import FileResponse, Response
 from matplotlib import pyplot as plt
+from PIL import Image
 from pydantic import BaseModel, Field
 
 from app.mother_machine.database import query_cells, query_review_image
@@ -445,6 +446,7 @@ def _contours_from_overlay(image_data: bytes) -> list[list[list[float]]]:
 def render_contour_plot(
     cells: list[dict[str, Any]],
     bounds: tuple[int, int, int, int],
+    title: str = "Cell contours",
 ) -> bytes:
     x0, y0, x1, y1 = bounds
     with _contour_plot_lock:
@@ -469,7 +471,7 @@ def render_contour_plot(
         axes.set_aspect("equal", adjustable="box")
         axes.set_xlabel("x (px)")
         axes.set_ylabel("y (px)")
-        axes.set_title("Cell contours")
+        axes.set_title(title)
         axes.grid(True, alpha=0.25)
         figure.tight_layout()
         output = BytesIO()
@@ -498,7 +500,76 @@ def _cached_contour_plot(
         return render_contour_plot([], (0, 0, x1 - x0, y1 - y0))
     contours = _contours_from_overlay(overlay)
     cells = [{"contour": contour} for contour in contours]
-    return render_contour_plot(cells, (0, 0, x1 - x0, y1 - y0))
+    return render_contour_plot(
+        cells,
+        (0, 0, x1 - x0, y1 - y0),
+        title=f"Cell contours — frame {time_frame + 1}",
+    )
+
+
+def _encode_gif(frame_data: list[bytes], duration_ms: int = 350) -> bytes:
+    frames: list[Image.Image] = []
+    for data in frame_data:
+        with Image.open(BytesIO(data)) as image:
+            frames.append(image.convert("RGB"))
+    if not frames:
+        raise ValueError("No animation frames found")
+    output = BytesIO()
+    frames[0].save(
+        output,
+        format="GIF",
+        save_all=True,
+        append_images=frames[1:],
+        duration=duration_ms,
+        loop=0,
+        disposal=2,
+        optimize=False,
+    )
+    return output.getvalue()
+
+
+@lru_cache(maxsize=16)
+def _cached_review_gif(
+    filename: str,
+    database_file: str,
+    database_mtime_ns: int,
+    view_index: int,
+    roi_id: int,
+    timeframe_count: int,
+    kind: str,
+    x0: int,
+    y0: int,
+    x1: int,
+    y1: int,
+) -> bytes:
+    frames: list[bytes] = []
+    for time_frame in range(timeframe_count):
+        if kind == "contours":
+            frames.append(
+                _cached_contour_plot(
+                    database_file,
+                    database_mtime_ns,
+                    view_index,
+                    roi_id,
+                    time_frame,
+                    x0,
+                    y0,
+                    x1,
+                    y1,
+                )
+            )
+            continue
+        image_data = load_review_image(
+            filename,
+            view_index,
+            roi_id,
+            time_frame,
+            kind,
+        )
+        if image_data is None:
+            raise ValueError(f"Review frame {time_frame} not found")
+        frames.append(image_data)
+    return _encode_gif(frames)
 
 
 @router_mother_machine.get("/datasets/{filename}/image")
@@ -557,6 +628,63 @@ def get_review_contours(
         str(path), path.stat().st_mtime_ns, view_index, roi_id, time_frame, *bounds
     )
     return Response(content=image_data, media_type="image/png")
+
+
+@router_mother_machine.get("/datasets/{filename}/animation.gif")
+def download_review_animation(
+    filename: Annotated[str, ApiPath()],
+    view_index: Annotated[int, Query(ge=0)],
+    roi_id: Annotated[int, Query(ge=1)],
+    kind: Annotated[Literal["raw", "overlay", "contours"], Query()] = "overlay",
+) -> Response:
+    sanitized = sanitize_nd2_filename(filename)
+    manifest = load_manifest(sanitized)
+    path = database_path(sanitized)
+    if manifest is None or not path.is_file():
+        raise HTTPException(status_code=404, detail="Extracted dataset not found")
+    view = next(
+        (
+            item
+            for item in manifest.get("views", [])
+            if int(item.get("view_index", -1)) == view_index
+        ),
+        None,
+    )
+    channel = next(
+        (
+            item
+            for item in (view or {}).get("channels", [])
+            if int(item.get("channel_id", -1)) == roi_id
+        ),
+        None,
+    )
+    roi = channel.get("reference_roi") if isinstance(channel, dict) else None
+    if not isinstance(roi, dict):
+        raise HTTPException(status_code=404, detail="ROI not found")
+    try:
+        bounds = tuple(int(roi[key]) for key in ("x0", "y0", "x1", "y1"))
+        timeframe_count = int(manifest["timeframe_count"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise HTTPException(status_code=500, detail="Invalid dataset manifest") from exc
+    try:
+        gif_data = _cached_review_gif(
+            sanitized,
+            str(path),
+            path.stat().st_mtime_ns,
+            view_index,
+            roi_id,
+            timeframe_count,
+            kind,
+            *bounds,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    download_name = f"{Path(sanitized).stem}-field-{view_index + 1}-roi-{roi_id}-{kind}.gif"
+    return Response(
+        content=gif_data,
+        media_type="image/gif",
+        headers={"Content-Disposition": f'attachment; filename="{download_name}"'},
+    )
 
 
 @router_mother_machine.get("/datasets/{filename}/cells")
