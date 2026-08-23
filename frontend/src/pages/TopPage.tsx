@@ -173,6 +173,12 @@ const menuItems: MenuItem[] = [
     icon: Microscope,
   },
   {
+    title: 'Mother Machine Databases',
+    description: 'Manage, review, and download Mother Machine databases.',
+    path: '/mother-machine/databases',
+    icon: Database,
+  },
+  {
     title: 'Documentation',
     description: 'Read workflow guides and algorithm notes.',
     path: '/docs/',
