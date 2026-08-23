@@ -86,15 +86,6 @@ const responseError = async (response: Response, fallback: string) => {
   }
 }
 
-const SummaryCard = ({ label, value }: { label: string; value: string | number }) => (
-  <Box bg="sand.100" border="1px solid" borderColor="sand.200" borderRadius="lg" p="4">
-    <Text fontSize="xs" color="ink.700" textTransform="uppercase" letterSpacing="0.08em">
-      {label}
-    </Text>
-    <Text fontSize="xl" fontWeight="700" mt="1">{value}</Text>
-  </Box>
-)
-
 export default function MotherMachineCellExtractionPage() {
   const [searchParams] = useSearchParams()
   const filename = searchParams.get('filename')?.trim() ?? ''
@@ -420,13 +411,6 @@ export default function MotherMachineCellExtractionPage() {
 
           {dataset && (
             <Stack spacing="5">
-              <Grid templateColumns={{ base: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }} gap="3">
-                <SummaryCard label="Fields of view" value={dataset.field_count} />
-                <SummaryCard label="Configured fields" value={dataset.configured_field_count} />
-                <SummaryCard label="Time frames" value={dataset.timeframe_count} />
-                <SummaryCard label="Cell instances" value={dataset.total_cell_instances.toLocaleString()} />
-              </Grid>
-
               <Box bg="sand.100" border="1px solid" borderColor="sand.200" borderRadius="xl" p={{ base: 4, md: 5 }}>
                 <HStack justify="space-between" mb="3" flexWrap="wrap" gap="2">
                   <Box>
