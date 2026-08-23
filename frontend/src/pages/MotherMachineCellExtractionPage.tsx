@@ -105,6 +105,7 @@ export default function MotherMachineCellExtractionPage() {
   const [channelId, setChannelId] = useState<number | null>(null)
   const [timeFrame, setTimeFrame] = useState(0)
   const [imageMode, setImageMode] = useState<'raw' | 'overlay'>('overlay')
+  const [isAligned, setIsAligned] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
   const [imageLoading, setImageLoading] = useState(false)
   const [imageError, setImageError] = useState(false)
@@ -280,6 +281,14 @@ export default function MotherMachineCellExtractionPage() {
 
   const imageUrl = useMemo(() => {
     if (!dataset || channelId === null) return ''
+    if (isAligned) {
+      const params = new URLSearchParams({
+        view_index: String(viewIndex),
+        roi_id: String(channelId),
+        kind: imageMode,
+      })
+      return `${apiBase}/mother-machine/datasets/${encodeURIComponent(filename)}/aligned.png?${params}`
+    }
     const params = new URLSearchParams({
       view_index: String(viewIndex),
       roi_id: String(channelId),
@@ -287,7 +296,7 @@ export default function MotherMachineCellExtractionPage() {
       mode: imageMode,
     })
     return `${apiBase}/mother-machine/datasets/${encodeURIComponent(filename)}/image?${params}`
-  }, [apiBase, channelId, dataset, filename, imageMode, timeFrame, viewIndex])
+  }, [apiBase, channelId, dataset, filename, imageMode, isAligned, timeFrame, viewIndex])
 
   const contourUrl = useMemo(() => {
     if (!dataset || channelId === null) return ''
@@ -544,9 +553,52 @@ export default function MotherMachineCellExtractionPage() {
                           <Button size="xs" variant={imageMode === 'overlay' ? 'solid' : 'outline'} bg={imageMode === 'overlay' ? 'tide.500' : undefined} color={imageMode === 'overlay' ? 'white' : undefined} onClick={() => setImageMode('overlay')}>
                             <Icon as={Eye} /> Overlay
                           </Button>
+                          <Button size="xs" variant={isAligned ? 'solid' : 'outline'} bg={isAligned ? 'tide.500' : undefined} color={isAligned ? 'white' : undefined} onClick={() => { setIsAligned((current) => !current); setIsPlaying(false) }}>
+                            Aligned
+                          </Button>
                         </HStack>
                       </HStack>
 
+                      {isAligned ? (
+                        <Stack spacing="2">
+                          <Flex
+                            minH={{ base: '18rem', md: '24rem' }}
+                            bg="#080a0d"
+                            borderRadius="lg"
+                            align="center"
+                            justify="center"
+                            p="3"
+                            position="relative"
+                            overflow="auto"
+                          >
+                            {imageUrl && !imageError && (
+                              <Box
+                                key={imageUrl}
+                                as="img"
+                                src={imageUrl}
+                                alt={`Aligned time frames for field ${viewIndex + 1}, ROI ${channelId}`}
+                                maxW="none"
+                                maxH="34rem"
+                                objectFit="contain"
+                                imageRendering="auto"
+                                onLoad={() => setImageLoading(false)}
+                                onError={() => { setImageLoading(false); setImageError(true) }}
+                              />
+                            )}
+                            {imageLoading && <Text position="absolute" color="whiteAlpha.700" fontSize="sm">Building aligned image…</Text>}
+                            {imageError && <Text color="red.300" fontSize="sm">Aligned image could not be loaded.</Text>}
+                          </Flex>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            as="a"
+                            href={imageUrl}
+                            download={`${filename.replace(/\.nd2$/i, '')}-field-${viewIndex + 1}-roi-${channelId}-${imageMode}-aligned.png`}
+                          >
+                            <Icon as={Download} /> Download aligned PNG
+                          </Button>
+                        </Stack>
+                      ) : (
                       <Grid templateColumns={{ base: '1fr', xl: 'repeat(2, minmax(0, 1fr))' }} gap="4">
                         <Stack spacing="2">
                           <Flex
@@ -624,8 +676,9 @@ export default function MotherMachineCellExtractionPage() {
                           </Button>
                         </Stack>
                       </Grid>
+                      )}
 
-                      <HStack spacing="3" align="center">
+                      {!isAligned && <HStack spacing="3" align="center">
                         <Button size="sm" variant="outline" onClick={() => setIsPlaying((current) => !current)} aria-label={isPlaying ? 'Stop playback' : 'Play time frames'}>
                           <Icon as={isPlaying ? CircleStop : Play} /> {isPlaying ? 'Stop' : 'Play'}
                         </Button>
@@ -646,7 +699,7 @@ export default function MotherMachineCellExtractionPage() {
                           </Slider.Control>
                         </Slider.Root>
                         <Text minW="64px" textAlign="right" fontSize="sm" fontWeight="600">T {timeFrame}</Text>
-                      </HStack>
+                      </HStack>}
 
                     </Stack>
                   </Grid>

@@ -74,6 +74,7 @@ const CellExtractionHelp = () => (
     </HelpSection>
     <HelpSection number="3" title="フレームを確認する">
       <Text>Raw／Overlayを切り替え、スライダーまたはPlayでタイムフレームを移動します。左側にROI画像、右側に同じフレームの輪郭scatterが表示されます。</Text>
+      <Text><Text as="span" fontWeight="700" color="ink.900">Aligned</Text>では、ドリフト補正済みのROIをタイムフレーム順に横へ連結した1枚の画像を表示・保存できます。Raw／Overlayの選択はAligned画像にも反映されます。</Text>
     </HelpSection>
     <HelpSection number="4" title="GIFを書き出す">
       <Text>各表示の下にある<Text as="span" fontWeight="700" color="ink.900">Export as GIF</Text>から、選択中のField・ROIについて全タイムフレームを順番に収録したGIFをダウンロードできます。</Text>

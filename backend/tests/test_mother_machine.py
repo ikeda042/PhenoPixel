@@ -31,6 +31,7 @@ from app.mother_machine.router import (
     _contours_from_overlay,
     _densify_contour,
     _encode_gif,
+    _stitch_frames,
     render_contour_plot,
 )
 from app.mother_machine.storage import (
@@ -97,6 +98,21 @@ class MotherMachineSegmentationTest(unittest.TestCase):
 
 
 class MotherMachineDatabaseTest(unittest.TestCase):
+    def test_aligned_image_stitches_frames_in_time_order(self):
+        frames: list[bytes] = []
+        for color in ((10, 20, 30), (100, 110, 120), (200, 210, 220)):
+            image = np.full((4, 3, 3), color, dtype=np.uint8)
+            ok, encoded = cv2.imencode(".png", image)
+            self.assertTrue(ok)
+            frames.append(encoded.tobytes())
+
+        stitched = _stitch_frames(frames)
+
+        with Image.open(BytesIO(stitched)) as image:
+            self.assertEqual(image.format, "PNG")
+            self.assertEqual(image.size, (9, 4))
+            self.assertNotEqual(image.getpixel((1, 1)), image.getpixel((7, 1)))
+
     def test_gif_encoder_preserves_frame_order(self):
         frames: list[bytes] = []
         for value in (20, 220):

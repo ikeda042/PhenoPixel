@@ -528,6 +528,50 @@ def _encode_gif(frame_data: list[bytes], duration_ms: int = 350) -> bytes:
     return output.getvalue()
 
 
+def _stitch_frames(frame_data: list[bytes]) -> bytes:
+    frames: list[Image.Image] = []
+    for data in frame_data:
+        with Image.open(BytesIO(data)) as image:
+            frames.append(image.convert("RGB"))
+    if not frames:
+        raise ValueError("No aligned frames found")
+    width = sum(frame.width for frame in frames)
+    height = max(frame.height for frame in frames)
+    aligned = Image.new("RGB", (width, height), color="black")
+    offset_x = 0
+    for frame in frames:
+        aligned.paste(frame, (offset_x, 0))
+        offset_x += frame.width
+    output = BytesIO()
+    aligned.save(output, format="PNG")
+    return output.getvalue()
+
+
+@lru_cache(maxsize=32)
+def _cached_aligned_image(
+    filename: str,
+    database_mtime_ns: int,
+    view_index: int,
+    roi_id: int,
+    timeframe_count: int,
+    kind: str,
+) -> bytes:
+    del database_mtime_ns
+    frames: list[bytes] = []
+    for time_frame in range(timeframe_count):
+        image_data = load_review_image(
+            filename,
+            view_index,
+            roi_id,
+            time_frame,
+            kind,
+        )
+        if image_data is None:
+            raise ValueError(f"Review frame {time_frame} not found")
+        frames.append(image_data)
+    return _stitch_frames(frames)
+
+
 @lru_cache(maxsize=16)
 def _cached_review_gif(
     filename: str,
@@ -685,6 +729,51 @@ def download_review_animation(
         media_type="image/gif",
         headers={"Content-Disposition": f'attachment; filename="{download_name}"'},
     )
+
+
+@router_mother_machine.get("/datasets/{filename}/aligned.png")
+def get_aligned_review_image(
+    filename: Annotated[str, ApiPath()],
+    view_index: Annotated[int, Query(ge=0)],
+    roi_id: Annotated[int, Query(ge=1)],
+    kind: Annotated[Literal["raw", "overlay"], Query()] = "raw",
+) -> Response:
+    sanitized = sanitize_nd2_filename(filename)
+    manifest = load_manifest(sanitized)
+    path = database_path(sanitized)
+    if manifest is None or not path.is_file():
+        raise HTTPException(status_code=404, detail="Extracted dataset not found")
+    view = next(
+        (
+            item
+            for item in manifest.get("views", [])
+            if int(item.get("view_index", -1)) == view_index
+        ),
+        None,
+    )
+    channel = next(
+        (
+            item
+            for item in (view or {}).get("channels", [])
+            if int(item.get("channel_id", -1)) == roi_id
+        ),
+        None,
+    )
+    if channel is None:
+        raise HTTPException(status_code=404, detail="ROI not found")
+    try:
+        timeframe_count = int(manifest["timeframe_count"])
+        image_data = _cached_aligned_image(
+            sanitized,
+            path.stat().st_mtime_ns,
+            view_index,
+            roi_id,
+            timeframe_count,
+            kind,
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return Response(content=image_data, media_type="image/png")
 
 
 @router_mother_machine.get("/datasets/{filename}/cells")
