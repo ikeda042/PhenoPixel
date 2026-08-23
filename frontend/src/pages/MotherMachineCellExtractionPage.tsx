@@ -77,14 +77,6 @@ type JobStatus = {
   error?: string
 }
 
-type CellRecord = {
-  id: number
-  local_label_id: number
-  area_px: number
-  temporal_recovery: boolean
-  mean_intensity: number
-}
-
 const responseError = async (response: Response, fallback: string) => {
   try {
     const body = (await response.json()) as { detail?: string }
@@ -121,8 +113,6 @@ export default function MotherMachineCellExtractionPage() {
   const [timeFrame, setTimeFrame] = useState(0)
   const [imageMode, setImageMode] = useState<'raw' | 'overlay'>('overlay')
   const [isPlaying, setIsPlaying] = useState(false)
-  const [cells, setCells] = useState<CellRecord[]>([])
-  const [cellsLoading, setCellsLoading] = useState(false)
   const [imageLoading, setImageLoading] = useState(false)
   const [imageError, setImageError] = useState(false)
   const [iterationNumber, setIterationNumber] = useState('500')
@@ -262,38 +252,6 @@ export default function MotherMachineCellExtractionPage() {
     return () => window.clearInterval(timer)
   }, [dataset, isPlaying, selectedChannel])
 
-  useEffect(() => {
-    if (!dataset || !selectedChannel || channelId === null) {
-      setCells([])
-      return
-    }
-    const controller = new AbortController()
-    setCellsLoading(true)
-    fetch(
-      `${apiBase}/mother-machine/datasets/${encodeURIComponent(filename)}/cells?` +
-        new URLSearchParams({
-          view_index: String(viewIndex),
-          roi_id: String(channelId),
-          time_frame: String(timeFrame),
-        }),
-      { signal: controller.signal },
-    )
-      .then(async (response) => {
-        if (!response.ok) throw new Error(await responseError(response, 'Failed to load cells'))
-        return response.json() as Promise<{ cells?: CellRecord[] }>
-      })
-      .then((body) => setCells(Array.isArray(body.cells) ? body.cells : []))
-      .catch((caught) => {
-        if (!controller.signal.aborted) {
-          setError(caught instanceof Error ? caught.message : 'Failed to load cells')
-        }
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setCellsLoading(false)
-      })
-    return () => controller.abort()
-  }, [apiBase, channelId, dataset, filename, selectedChannel, timeFrame, viewIndex])
-
   const startExtraction = useCallback(async () => {
     if (!filename || isStarting || job?.status === 'running') return
     const niter = Number(iterationNumber)
@@ -351,11 +309,6 @@ export default function MotherMachineCellExtractionPage() {
     const value = Number(iterationNumber)
     return Number.isInteger(value) && value >= 1 && value <= 5000
   }, [iterationNumber])
-  const meanArea = cells.length
-    ? Math.round(cells.reduce((sum, cell) => sum + cell.area_px, 0) / cells.length)
-    : 0
-  const recoveredCount = cells.filter((cell) => cell.temporal_recovery).length
-
   return (
     <Box minH="100vh" bg="sand.50" color="ink.900">
       <PageHeader actions={<><ReloadButton /><ThemeToggleButton /></>} />
@@ -608,11 +561,6 @@ export default function MotherMachineCellExtractionPage() {
                         <Text minW="64px" textAlign="right" fontSize="sm" fontWeight="600">T {timeFrame}</Text>
                       </HStack>
 
-                      <Grid templateColumns="repeat(3, 1fr)" gap="2">
-                        <SummaryCard label="Cells in frame" value={cellsLoading ? '…' : cells.length} />
-                        <SummaryCard label="Mean area" value={cellsLoading ? '…' : `${meanArea} px²`} />
-                        <SummaryCard label="Recovered" value={cellsLoading ? '…' : recoveredCount} />
-                      </Grid>
                     </Stack>
                   </Grid>
                 )}
