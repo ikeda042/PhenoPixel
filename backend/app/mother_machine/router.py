@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 import queue as std_queue
 from datetime import datetime
+from functools import lru_cache
+from io import BytesIO
 from multiprocessing import get_context
 from pathlib import Path
 from threading import Lock, Thread
@@ -11,11 +13,14 @@ from typing import Annotated, Any, Literal
 from uuid import uuid4
 
 import aiofiles
+import cv2
+import numpy as np
 from fastapi import APIRouter, File, HTTPException, Path as ApiPath, Query, UploadFile
 from fastapi.responses import FileResponse, Response
+from matplotlib import pyplot as plt
 from pydantic import BaseModel, Field
 
-from app.mother_machine.database import query_cells
+from app.mother_machine.database import query_cells, query_review_image
 from app.mother_machine.processor import inspect_nd2, run_extraction
 from app.mother_machine.storage import (
     ND2_DIR,
@@ -37,6 +42,7 @@ router_mother_machine = APIRouter(
 UPLOAD_CHUNK_SIZE = 1024 * 1024 * 64
 _jobs: dict[str, dict[str, Any]] = {}
 _jobs_lock = Lock()
+_contour_plot_lock = Lock()
 
 
 class BulkDeleteRequest(BaseModel):
@@ -391,6 +397,110 @@ def _resolve_review_image(
     return image_data
 
 
+def _densify_contour(points: list[list[float]]) -> list[tuple[float, float]]:
+    dense: list[tuple[float, float]] = []
+    for index, start in enumerate(points):
+        end = points[(index + 1) % len(points)]
+        start_x, start_y = float(start[0]), float(start[1])
+        delta_x = float(end[0]) - start_x
+        delta_y = float(end[1]) - start_y
+        steps = max(int(abs(delta_x)), int(abs(delta_y)), 1)
+        dense.extend(
+            (
+                start_x + delta_x * step / steps,
+                start_y + delta_y * step / steps,
+            )
+            for step in range(steps)
+        )
+    return dense
+
+
+def _contours_from_overlay(image_data: bytes) -> list[list[list[float]]]:
+    image = cv2.imdecode(
+        np.frombuffer(image_data, dtype=np.uint8),
+        cv2.IMREAD_COLOR,
+    )
+    if image is None:
+        return []
+    blue = image[:, :, 0].astype(np.int16)
+    green = image[:, :, 1].astype(np.int16)
+    red = image[:, :, 2].astype(np.int16)
+    mask = (
+        (green > 100)
+        & (green >= blue + 20)
+        & (green >= red + 20)
+    ).astype(np.uint8)
+    contours, _hierarchy = cv2.findContours(
+        mask,
+        cv2.RETR_EXTERNAL,
+        cv2.CHAIN_APPROX_NONE,
+    )
+    return [
+        [[float(point[0]), float(point[1])] for point in contour.reshape(-1, 2)]
+        for contour in contours
+        if len(contour) >= 2
+    ]
+
+
+def render_contour_plot(
+    cells: list[dict[str, Any]],
+    bounds: tuple[int, int, int, int],
+) -> bytes:
+    x0, y0, x1, y1 = bounds
+    with _contour_plot_lock:
+        figure, axes = plt.subplots(figsize=(5, 5), dpi=120)
+        for cell in cells:
+            contour = cell.get("contour")
+            if not isinstance(contour, list) or len(contour) < 2:
+                continue
+            points = [
+                point
+                for point in contour
+                if isinstance(point, list) and len(point) >= 2
+            ]
+            if len(points) < 2:
+                continue
+            dense_points = _densify_contour(points)
+            xs = [point[0] for point in dense_points]
+            ys = [point[1] for point in dense_points]
+            plt.scatter(xs, ys, s=4)
+        axes.set_xlim(0, x1 - x0)
+        axes.set_ylim(y1 - y0, 0)
+        axes.set_aspect("equal", adjustable="box")
+        axes.set_xlabel("x (px)")
+        axes.set_ylabel("y (px)")
+        axes.set_title("Cell contours")
+        axes.grid(True, alpha=0.25)
+        figure.tight_layout()
+        output = BytesIO()
+        figure.savefig(output, format="png", dpi=120)
+        plt.close(figure)
+    return output.getvalue()
+
+
+@lru_cache(maxsize=256)
+def _cached_contour_plot(
+    database_file: str,
+    database_mtime_ns: int,
+    view_index: int,
+    roi_id: int,
+    time_frame: int,
+    x0: int,
+    y0: int,
+    x1: int,
+    y1: int,
+) -> bytes:
+    del database_mtime_ns
+    overlay = query_review_image(
+        Path(database_file), view_index, roi_id, time_frame, "overlay"
+    )
+    if overlay is None:
+        return render_contour_plot([], (0, 0, x1 - x0, y1 - y0))
+    contours = _contours_from_overlay(overlay)
+    cells = [{"contour": contour} for contour in contours]
+    return render_contour_plot(cells, (0, 0, x1 - x0, y1 - y0))
+
+
 @router_mother_machine.get("/datasets/{filename}/image")
 def get_review_image(
     filename: Annotated[str, ApiPath()],
@@ -402,6 +512,49 @@ def get_review_image(
     sanitized = sanitize_nd2_filename(filename)
     image_data = _resolve_review_image(
         sanitized, view_index, roi_id, time_frame, mode
+    )
+    return Response(content=image_data, media_type="image/png")
+
+
+@router_mother_machine.get("/datasets/{filename}/contours")
+def get_review_contours(
+    filename: Annotated[str, ApiPath()],
+    view_index: Annotated[int, Query(ge=0)],
+    roi_id: Annotated[int, Query(ge=1)],
+    time_frame: Annotated[int, Query(ge=0)],
+) -> Response:
+    sanitized = sanitize_nd2_filename(filename)
+    manifest = load_manifest(sanitized)
+    path = database_path(sanitized)
+    if manifest is None or not path.is_file():
+        raise HTTPException(status_code=404, detail="Extracted dataset not found")
+    if time_frame < 0 or time_frame >= int(manifest.get("timeframe_count", 0)):
+        raise HTTPException(status_code=404, detail="Time frame not found")
+    view = next(
+        (
+            item
+            for item in manifest.get("views", [])
+            if int(item.get("view_index", -1)) == view_index
+        ),
+        None,
+    )
+    channel = next(
+        (
+            item
+            for item in (view or {}).get("channels", [])
+            if int(item.get("channel_id", -1)) == roi_id
+        ),
+        None,
+    )
+    roi = channel.get("reference_roi") if isinstance(channel, dict) else None
+    if not isinstance(roi, dict):
+        raise HTTPException(status_code=404, detail="ROI not found")
+    try:
+        bounds = tuple(int(roi[key]) for key in ("x0", "y0", "x1", "y1"))
+    except (KeyError, TypeError, ValueError) as exc:
+        raise HTTPException(status_code=500, detail="Invalid ROI bounds") from exc
+    image_data = _cached_contour_plot(
+        str(path), path.stat().st_mtime_ns, view_index, roi_id, time_frame, *bounds
     )
     return Response(content=image_data, media_type="image/png")
 

@@ -4,11 +4,14 @@ import json
 import sqlite3
 import tempfile
 import unittest
+from io import BytesIO
 from pathlib import Path
 from unittest.mock import patch
 
+import cv2
 import numpy as np
 from fastapi import HTTPException
+from PIL import Image
 
 from app.mother_machine.database import (
     create_cells_database,
@@ -23,6 +26,11 @@ from app.mother_machine.processor import (
     _segment_band,
     extract_channel_cells,
     load_view_config,
+)
+from app.mother_machine.router import (
+    _contours_from_overlay,
+    _densify_contour,
+    render_contour_plot,
 )
 from app.mother_machine.storage import (
     dataset_key,
@@ -88,6 +96,39 @@ class MotherMachineSegmentationTest(unittest.TestCase):
 
 
 class MotherMachineDatabaseTest(unittest.TestCase):
+    def test_overlay_contours_use_roi_local_coordinates(self):
+        overlay = np.full((32, 16, 3), 80, dtype=np.uint8)
+        overlay[8:24, 4:12] = (40, 210, 60)
+        ok, encoded = cv2.imencode(".png", overlay)
+        self.assertTrue(ok)
+
+        contours = _contours_from_overlay(encoded.tobytes())
+
+        self.assertEqual(len(contours), 1)
+        xs = [point[0] for point in contours[0]]
+        ys = [point[1] for point in contours[0]]
+        self.assertEqual((min(xs), max(xs)), (4.0, 11.0))
+        self.assertEqual((min(ys), max(ys)), (8.0, 23.0))
+
+    def test_sparse_contour_is_densified_to_pixel_spacing(self):
+        points = [[4, 8], [12, 8], [12, 24], [4, 24]]
+
+        dense = _densify_contour(points)
+
+        self.assertEqual(len(dense), 48)
+        self.assertIn((8.0, 8.0), dense)
+        self.assertIn((12.0, 16.0), dense)
+
+    def test_contour_plot_is_a_square_png(self):
+        png = render_contour_plot(
+            [{"contour": [[4, 8], [12, 8], [12, 24], [4, 24]]}],
+            (0, 0, 16, 32),
+        )
+
+        with Image.open(BytesIO(png)) as image:
+            self.assertEqual(image.format, "PNG")
+            self.assertEqual(image.size, (600, 600))
+
     def test_database_manager_lists_reviewable_extractions(self):
         manifest = {
             "schema_version": 2,

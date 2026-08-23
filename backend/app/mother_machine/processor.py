@@ -460,7 +460,7 @@ def make_channel_overlay(
 
 def _contour_json(mask: np.ndarray, offset_x: int, offset_y: int) -> str:
     contours, _hierarchy = cv2.findContours(
-        mask.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        mask.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE
     )
     points: list[list[int]] = []
     for contour in contours:

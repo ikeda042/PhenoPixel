@@ -106,6 +106,8 @@ export default function MotherMachineCellExtractionPage() {
   const [isPlaying, setIsPlaying] = useState(false)
   const [imageLoading, setImageLoading] = useState(false)
   const [imageError, setImageError] = useState(false)
+  const [contourLoading, setContourLoading] = useState(false)
+  const [contourError, setContourError] = useState(false)
   const [iterationNumber, setIterationNumber] = useState('500')
 
   const loadDataset = useCallback(async () => {
@@ -284,11 +286,27 @@ export default function MotherMachineCellExtractionPage() {
     return `${apiBase}/mother-machine/datasets/${encodeURIComponent(filename)}/image?${params}`
   }, [apiBase, channelId, dataset, filename, imageMode, timeFrame, viewIndex])
 
+  const contourUrl = useMemo(() => {
+    if (!dataset || channelId === null) return ''
+    const params = new URLSearchParams({
+      view_index: String(viewIndex),
+      roi_id: String(channelId),
+      time_frame: String(timeFrame),
+    })
+    return `${apiBase}/mother-machine/datasets/${encodeURIComponent(filename)}/contours?${params}`
+  }, [apiBase, channelId, dataset, filename, timeFrame, viewIndex])
+
   useEffect(() => {
     if (!imageUrl) return
     setImageLoading(true)
     setImageError(false)
   }, [imageUrl])
+
+  useEffect(() => {
+    if (!contourUrl) return
+    setContourLoading(true)
+    setContourError(false)
+  }, [contourUrl])
 
   const progressPercent = useMemo<number | null>(() => {
     const processed = job?.progress?.processed_frames
@@ -493,34 +511,61 @@ export default function MotherMachineCellExtractionPage() {
                         </HStack>
                       </HStack>
 
-                      <Flex
-                        minH="460px"
-                        maxH="620px"
-                        bg="#080a0d"
-                        borderRadius="lg"
-                        align="center"
-                        justify="center"
-                        p="3"
-                        position="relative"
-                        overflow="hidden"
-                      >
-                        {imageUrl && !imageError && (
-                          <Box
-                            key={imageUrl}
-                            as="img"
-                            src={imageUrl}
-                            alt={`Field ${viewIndex + 1}, ROI ${channelId}, frame ${timeFrame + 1}`}
-                            maxW="100%"
-                            maxH="590px"
-                            objectFit="contain"
-                            imageRendering="auto"
-                            onLoad={() => setImageLoading(false)}
-                            onError={() => { setImageLoading(false); setImageError(true) }}
-                          />
-                        )}
-                        {imageLoading && <Text position="absolute" color="whiteAlpha.700" fontSize="sm">Loading frame…</Text>}
-                        {imageError && <Text color="red.300" fontSize="sm">Preview image could not be loaded.</Text>}
-                      </Flex>
+                      <Grid templateColumns={{ base: '1fr', xl: 'repeat(2, minmax(0, 1fr))' }} gap="4">
+                        <Flex
+                          aspectRatio="1 / 1"
+                          bg="#080a0d"
+                          borderRadius="lg"
+                          align="center"
+                          justify="center"
+                          p="3"
+                          position="relative"
+                          overflow="hidden"
+                        >
+                          {imageUrl && !imageError && (
+                            <Box
+                              key={imageUrl}
+                              as="img"
+                              src={imageUrl}
+                              alt={`Field ${viewIndex + 1}, ROI ${channelId}, frame ${timeFrame + 1}`}
+                              w="100%"
+                              h="100%"
+                              objectFit="contain"
+                              imageRendering="auto"
+                              onLoad={() => setImageLoading(false)}
+                              onError={() => { setImageLoading(false); setImageError(true) }}
+                            />
+                          )}
+                          {imageLoading && <Text position="absolute" color="whiteAlpha.700" fontSize="sm">Loading frame…</Text>}
+                          {imageError && <Text color="red.300" fontSize="sm">Preview image could not be loaded.</Text>}
+                        </Flex>
+
+                        <Flex
+                          aspectRatio="1 / 1"
+                          bg="white"
+                          borderRadius="lg"
+                          align="center"
+                          justify="center"
+                          position="relative"
+                          overflow="hidden"
+                        >
+                          {contourUrl && !contourError && (
+                            <Box
+                              key={contourUrl}
+                              as="img"
+                              src={contourUrl}
+                              alt={`Contours for field ${viewIndex + 1}, ROI ${channelId}, frame ${timeFrame + 1}`}
+                              w="100%"
+                              h="100%"
+                              objectFit="contain"
+                              onLoad={() => setContourLoading(false)}
+                              onError={() => { setContourLoading(false); setContourError(true) }}
+                            />
+                          )}
+                          {contourLoading && <Text position="absolute" color="ink.700" fontSize="sm">Drawing contours…</Text>}
+                          {contourError && <Text color="red.300" fontSize="sm">Contour plot could not be loaded.</Text>}
+                        </Flex>
+                      </Grid>
 
                       <HStack spacing="3" align="center">
                         <Button size="sm" variant="outline" onClick={() => setIsPlaying((current) => !current)} aria-label={isPlaying ? 'Stop playback' : 'Play time frames'}>
