@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import numpy as np
+from fastapi import HTTPException
 
 from app.mother_machine.database import (
     create_cells_database,
@@ -23,7 +24,12 @@ from app.mother_machine.processor import (
     extract_channel_cells,
     load_view_config,
 )
-from app.mother_machine.storage import dataset_key, sanitize_nd2_filename
+from app.mother_machine.storage import (
+    dataset_key,
+    list_databases,
+    sanitize_database_name,
+    sanitize_nd2_filename,
+)
 from app.mother_machine import storage
 
 
@@ -82,6 +88,38 @@ class MotherMachineSegmentationTest(unittest.TestCase):
 
 
 class MotherMachineDatabaseTest(unittest.TestCase):
+    def test_database_manager_lists_reviewable_extractions(self):
+        manifest = {
+            "schema_version": 2,
+            "filename": "sample.nd2",
+            "views": [],
+        }
+        with tempfile.TemporaryDirectory() as temp_dir:
+            databases_dir = Path(temp_dir)
+            with patch.object(storage, "DATABASES_DIR", databases_dir):
+                create_cells_database(
+                    databases_dir / "sample.db",
+                    "sample.nd2",
+                    [],
+                    {},
+                    manifest=manifest,
+                )
+
+                databases = list_databases()
+
+        self.assertEqual(len(databases), 1)
+        self.assertEqual(databases[0]["name"], "sample.db")
+        self.assertEqual(databases[0]["source_filename"], "sample.nd2")
+        self.assertEqual(databases[0]["review_filename"], "sample.nd2")
+        self.assertGreater(databases[0]["size_bytes"], 0)
+
+    def test_database_name_rejects_paths_and_non_sqlite_files(self):
+        self.assertEqual(sanitize_database_name("sample.db"), "sample.db")
+        with self.assertRaises(HTTPException):
+            sanitize_database_name("../sample.db")
+        with self.assertRaises(HTTPException):
+            sanitize_database_name("sample.nd2")
+
     def test_one_cell_instance_is_stored_as_one_indexed_record(self):
         row = {
             "view_index": 2,

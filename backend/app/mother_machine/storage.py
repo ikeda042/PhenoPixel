@@ -5,6 +5,7 @@ import os
 import re
 import shutil
 import sqlite3
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -58,6 +59,50 @@ def nd2_path(filename: str) -> Path:
 def database_path(filename: str) -> Path:
     ensure_directories()
     return DATABASES_DIR / f"{dataset_key(filename)}.db"
+
+
+def sanitize_database_name(database_name: str) -> str:
+    cleaned = Path(database_name or "").name.strip()
+    if not cleaned:
+        raise HTTPException(status_code=400, detail="Database name is required")
+    if cleaned != database_name.strip() or Path(cleaned).suffix.lower() != ".db":
+        raise HTTPException(status_code=400, detail="Invalid database name")
+    return cleaned
+
+
+def mother_machine_database_path(database_name: str) -> Path:
+    ensure_directories()
+    return DATABASES_DIR / sanitize_database_name(database_name)
+
+
+def list_databases() -> list[dict[str, Any]]:
+    ensure_directories()
+    databases: list[dict[str, Any]] = []
+    for path in sorted(DATABASES_DIR.glob("*.db"), key=lambda item: item.name.lower()):
+        stat = path.stat()
+        try:
+            manifest = load_dataset_manifest(path)
+        except (OSError, ValueError, json.JSONDecodeError, sqlite3.DatabaseError):
+            manifest = None
+        source_filename = manifest.get("filename") if isinstance(manifest, dict) else None
+        review_filename: str | None = None
+        if isinstance(source_filename, str):
+            try:
+                sanitized = sanitize_nd2_filename(source_filename)
+                if database_path(sanitized) == path:
+                    review_filename = sanitized
+            except HTTPException:
+                pass
+        databases.append(
+            {
+                "name": path.name,
+                "size_bytes": stat.st_size,
+                "modified_time": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                "source_filename": source_filename,
+                "review_filename": review_filename,
+            }
+        )
+    return databases
 
 
 def result_path(filename: str) -> Path:

@@ -21,8 +21,10 @@ from app.mother_machine.storage import (
     ND2_DIR,
     database_path,
     ensure_directories,
+    list_databases,
     load_manifest,
     load_review_image,
+    mother_machine_database_path,
     nd2_path,
     remove_dataset,
     sanitize_nd2_filename,
@@ -174,6 +176,32 @@ def list_nd2_files() -> dict[str, list[dict[str, Any]]]:
             }
         )
     return {"files": files}
+
+
+@router_mother_machine.get("/databases")
+def get_databases() -> dict[str, list[dict[str, Any]]]:
+    return {"databases": list_databases()}
+
+
+@router_mother_machine.get("/databases/{database_name}/download")
+def download_database(database_name: Annotated[str, ApiPath()]) -> FileResponse:
+    path = mother_machine_database_path(database_name)
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Database not found")
+    return FileResponse(
+        path,
+        media_type="application/octet-stream",
+        filename=path.name,
+    )
+
+
+@router_mother_machine.delete("/databases/{database_name}")
+def delete_database(database_name: Annotated[str, ApiPath()]) -> dict[str, Any]:
+    path = mother_machine_database_path(database_name)
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Database not found")
+    path.unlink()
+    return {"deleted": True, "filename": path.name}
 
 
 @router_mother_machine.post("/nd2-files")

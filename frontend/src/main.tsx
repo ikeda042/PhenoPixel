@@ -16,6 +16,7 @@ import GraphEnginePage from './pages/GraphEnginePage'
 import Nd2ParserPage from './pages/Nd2ParserPage'
 import Nd2FilesPage from './pages/Nd2FilesPage'
 import MotherMachineCellExtractionPage from './pages/MotherMachineCellExtractionPage'
+import MotherMachineDatabasesPage from './pages/MotherMachineDatabasesPage'
 import MotherMachineNd2FilesPage from './pages/MotherMachineNd2FilesPage'
 import TopPage from './pages/TopPage'
 import system from './theme'
@@ -48,6 +49,7 @@ createRoot(document.getElementById('root')!).render(
           <Route path="/mother-machine/" element={<Navigate to="/mother-machine/nd2files" replace />} />
           <Route path="/mother-machine/nd2files" element={<MotherMachineNd2FilesPage />} />
           <Route path="/mother-machine/cell-extraction" element={<MotherMachineCellExtractionPage />} />
+          <Route path="/mother-machine/databases" element={<MotherMachineDatabasesPage />} />
         </Routes>
       </BrowserRouter>
     </ChakraProvider>

@@ -333,7 +333,11 @@ export default function MotherMachineNd2FilesPage() {
                     bg="tide.500"
                     color="white"
                     _hover={{ bg: 'tide.400' }}
-                    onClick={() => navigate(`/mother-machine/cell-extraction?filename=${encodeURIComponent(file.filename)}`)}
+                    onClick={() => navigate(
+                      file.has_dataset
+                        ? `/mother-machine/databases?search_dbname=${encodeURIComponent(`${file.filename.replace(/\.nd2$/i, '')}.db`)}`
+                        : `/mother-machine/cell-extraction?filename=${encodeURIComponent(file.filename)}`,
+                    )}
                   >
                     {file.has_dataset ? 'Review cells' : 'Extract cells'}
                   </Button>
