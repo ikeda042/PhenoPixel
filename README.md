@@ -668,6 +668,22 @@ For reproducibility, report OS/Python/Node versions, dependency snapshots, ND2
 metadata or acquisition conditions, extraction parameters, labeling criteria,
 Bulk Engine modes, thresholds, export settings, and the exact commit hash.
 
+### Cellpose-SAM
+
+The Mother Machine workflow uses Cellpose `4.2.1.1` with the updated
+`cpsam_v2` Cellpose-SAM model for cell segmentation. Analyses that use this
+workflow should also cite the Cellpose-SAM paper:
+
+> Pachitariu, M., Rariden, M., & Stringer, C. (2025). Cellpose-SAM:
+> superhuman generalization for cellular segmentation. *bioRxiv*,
+> 2025.04.28.651001. https://doi.org/10.1101/2025.04.28.651001
+
+Software resources:
+
+- Cellpose package: https://pypi.org/project/cellpose/
+- Cellpose source code: https://github.com/MouseLand/cellpose
+- Cellpose documentation: https://cellpose.readthedocs.io/
+
 ## Development And Quality Checks
 
 Backend checks:

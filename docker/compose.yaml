@@ -49,6 +49,9 @@ services:
       - ../backend/app/extracted_data:/app/app/extracted_data
       - ../backend/app/nd2files:/app/app/nd2files
       - ../backend/app/tempdata:/app/app/tempdata
+      - ../backend/app/mother-machine-nd2files:/app/app/mother-machine-nd2files
+      - ../backend/app/mother-machine-databases:/app/app/mother-machine-databases
+      - ../backend/app/mother-machine-results:/app/app/mother-machine-results
 
 networks:
   traefik-proxy:
