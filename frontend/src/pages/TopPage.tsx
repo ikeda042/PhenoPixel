@@ -21,6 +21,7 @@ import {
   Cpu,
   Database,
   Folder,
+  Microscope,
   Server,
   Share2,
   Wifi,
@@ -164,6 +165,12 @@ const menuItems: MenuItem[] = [
     description: 'Generate graph metrics and plots from CSV inputs.',
     path: '/graph-engine',
     icon: Share2,
+  },
+  {
+    title: 'Mother Machine',
+    description: 'Extract and review cells by field, channel, and time.',
+    path: '/mother-machine/nd2files',
+    icon: Microscope,
   },
   {
     title: 'Documentation',

@@ -1,7 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { ChakraProvider } from '@chakra-ui/react'
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import '@fontsource/noto-sans-jp/400.css'
 import '@fontsource/noto-sans-jp/600.css'
 import '@fontsource/noto-sans-jp/700.css'
@@ -15,6 +15,8 @@ import FilesPage from './pages/FilesPage'
 import GraphEnginePage from './pages/GraphEnginePage'
 import Nd2ParserPage from './pages/Nd2ParserPage'
 import Nd2FilesPage from './pages/Nd2FilesPage'
+import MotherMachineCellExtractionPage from './pages/MotherMachineCellExtractionPage'
+import MotherMachineNd2FilesPage from './pages/MotherMachineNd2FilesPage'
 import TopPage from './pages/TopPage'
 import system from './theme'
 
@@ -42,6 +44,10 @@ createRoot(document.getElementById('root')!).render(
           <Route path="/graph-engine" element={<GraphEnginePage />} />
           <Route path="/nd2files" element={<Nd2FilesPage />} />
           <Route path="/nd2parser" element={<Nd2ParserPage />} />
+          <Route path="/mother-machine" element={<Navigate to="/mother-machine/nd2files" replace />} />
+          <Route path="/mother-machine/" element={<Navigate to="/mother-machine/nd2files" replace />} />
+          <Route path="/mother-machine/nd2files" element={<MotherMachineNd2FilesPage />} />
+          <Route path="/mother-machine/cell-extraction" element={<MotherMachineCellExtractionPage />} />
         </Routes>
       </BrowserRouter>
     </ChakraProvider>

@@ -17,6 +17,7 @@ from app.extracted_data.router import router_extracted_data
 from app.file_manager.router import router_file_manager
 from app.graphengine.router import router_graphengine
 from app.mcp import create_mcp_http_app
+from app.mother_machine.router import router_mother_machine
 from app.nd2files.router import router_nd2
 from app.nd2parser.router import router_nd2parser
 from app.system.router import router_system
@@ -61,6 +62,7 @@ app.include_router(router_file_manager, prefix=API_PREFIX)
 app.include_router(router_graphengine, prefix=API_PREFIX)
 app.include_router(router_system, prefix=API_PREFIX)
 app.include_router(router_activity_tracker, prefix=API_PREFIX)
+app.include_router(router_mother_machine, prefix=API_PREFIX)
 app.mount("/mcp", mcp_app)
 
 

@@ -1,0 +1,109 @@
+{
+  "reference_width": 2048,
+  "reference_height": 2044,
+  "views": {
+    "1": {
+      "description": "13 narrow channels between the wide rounded structures",
+      "segmentation": {
+        "side_margin": 0,
+        "minimum_area": 250,
+        "maximum_area": 2600,
+        "maximum_major_axis": 160.0,
+        "maximum_mean_intensity": 205.0,
+        "minimum_local_contrast": 8.0,
+        "minimum_right_edge_fraction": 0.5,
+        "minimum_channel_containment_fraction": 0.85,
+        "exclude_top_boundary": true,
+        "exclude_bottom_boundary": true,
+        "temporal_recovery": true,
+        "temporal_dilation_radius": 5,
+        "temporal_minimum_overlap_fraction": 0.12,
+        "temporal_filter_scale": 1.6,
+        "temporal_intensity_margin": 40.0,
+        "temporal_contrast_scale": 0.5
+      },
+      "channels": [
+        {"x0": 134, "y0": 780, "x1": 198, "y1": 1160},
+        {"x0": 285, "y0": 780, "x1": 349, "y1": 1160},
+        {"x0": 436, "y0": 780, "x1": 500, "y1": 1160},
+        {"x0": 585, "y0": 780, "x1": 649, "y1": 1160},
+        {"x0": 737, "y0": 780, "x1": 801, "y1": 1160},
+        {"x0": 886, "y0": 780, "x1": 950, "y1": 1160},
+        {"x0": 1038, "y0": 780, "x1": 1102, "y1": 1160},
+        {"x0": 1187, "y0": 780, "x1": 1251, "y1": 1160},
+        {"x0": 1339, "y0": 780, "x1": 1403, "y1": 1160},
+        {"x0": 1487, "y0": 780, "x1": 1551, "y1": 1160},
+        {"x0": 1639, "y0": 780, "x1": 1703, "y1": 1160},
+        {"x0": 1788, "y0": 780, "x1": 1852, "y1": 1160},
+        {"x0": 1941, "y0": 780, "x1": 2005, "y1": 1160}
+      ]
+    },
+    "2": {
+      "description": "5 upper and 5 lower large-channel interiors",
+      "segmentation": {
+        "side_margin": 0,
+        "minimum_area": 200,
+        "maximum_area": 2400,
+        "maximum_major_axis": 140.0,
+        "maximum_mean_intensity": 160.0,
+        "minimum_local_contrast": 15.0,
+        "maximum_elongation": 6.0,
+        "exclude_bottom_boundary_channels": [6, 7, 8, 9, 10],
+        "bottom_boundary_margin": 30,
+        "temporal_recovery": true,
+        "temporal_dilation_radius": 5,
+        "temporal_minimum_overlap_fraction": 0.12,
+        "temporal_filter_scale": 1.6,
+        "temporal_intensity_margin": 40.0,
+        "temporal_contrast_scale": 0.5
+      },
+      "channels": [
+        {"x0": 120, "y0": -100, "x1": 266, "y1": 385},
+        {"x0": 479, "y0": -100, "x1": 626, "y1": 385},
+        {"x0": 874, "y0": -100, "x1": 1024, "y1": 385},
+        {"x0": 1234, "y0": -100, "x1": 1386, "y1": 385},
+        {"x0": 1631, "y0": -100, "x1": 1784, "y1": 385},
+        {"x0": 305, "y0": 530, "x1": 454, "y1": 1090},
+        {"x0": 664, "y0": 530, "x1": 815, "y1": 1090},
+        {"x0": 1056, "y0": 530, "x1": 1211, "y1": 1090},
+        {"x0": 1417, "y0": 530, "x1": 1573, "y1": 1090},
+        {"x0": 1815, "y0": 530, "x1": 1971, "y1": 1090}
+      ]
+    },
+    "3": {
+      "description": "12 narrow channels between the wide rounded structures",
+      "segmentation": {
+        "side_margin": 0,
+        "minimum_area": 250,
+        "maximum_area": 2600,
+        "maximum_major_axis": 160.0,
+        "maximum_mean_intensity": 205.0,
+        "minimum_local_contrast": 8.0,
+        "minimum_right_edge_fraction": 0.5,
+        "minimum_channel_containment_fraction": 0.85,
+        "exclude_top_boundary": true,
+        "exclude_bottom_boundary": true,
+        "temporal_recovery": true,
+        "temporal_dilation_radius": 5,
+        "temporal_minimum_overlap_fraction": 0.12,
+        "temporal_filter_scale": 1.6,
+        "temporal_intensity_margin": 40.0,
+        "temporal_contrast_scale": 0.5
+      },
+      "channels": [
+        {"x0": 259, "y0": 830, "x1": 323, "y1": 1210},
+        {"x0": 409, "y0": 830, "x1": 473, "y1": 1210},
+        {"x0": 560, "y0": 830, "x1": 624, "y1": 1210},
+        {"x0": 712, "y0": 830, "x1": 776, "y1": 1210},
+        {"x0": 862, "y0": 830, "x1": 926, "y1": 1210},
+        {"x0": 1013, "y0": 830, "x1": 1077, "y1": 1210},
+        {"x0": 1162, "y0": 830, "x1": 1226, "y1": 1210},
+        {"x0": 1314, "y0": 830, "x1": 1378, "y1": 1210},
+        {"x0": 1462, "y0": 830, "x1": 1526, "y1": 1210},
+        {"x0": 1614, "y0": 830, "x1": 1678, "y1": 1210},
+        {"x0": 1764, "y0": 830, "x1": 1828, "y1": 1210},
+        {"x0": 1915, "y0": 830, "x1": 1979, "y1": 1210}
+      ]
+    }
+  }
+}
