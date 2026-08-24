@@ -41,7 +41,14 @@ from app.mother_machine.storage import (
     sanitize_database_name,
     sanitize_nd2_filename,
 )
-from app.mother_machine import storage
+from app.mother_machine import storage, training
+from app.mother_machine.training import (
+    get_frame_image,
+    get_training_frame,
+    initialize_training_from_extraction,
+    save_annotation,
+    training_summary,
+)
 
 
 class MotherMachineConfigTest(unittest.TestCase):
@@ -306,6 +313,159 @@ class MotherMachineDatabaseTest(unittest.TestCase):
                 self.assertEqual(
                     query_review_image(db_path, 0, 1, 0, "raw"), png_data
                 )
+
+
+class MotherMachineTrainingDatasetTest(unittest.TestCase):
+    def _make_extracted_database(self, path: Path) -> None:
+        raw = np.full((32, 16), 90, dtype=np.uint8)
+        labels = np.zeros((32, 16), dtype=np.uint16)
+        labels[4:14, 4:11] = 1
+        overlay = make_channel_overlay(raw, labels)
+        raw_ok, raw_png = cv2.imencode(".png", raw)
+        overlay_ok, overlay_png = cv2.imencode(
+            ".png", cv2.cvtColor(overlay, cv2.COLOR_RGB2BGR)
+        )
+        self.assertTrue(raw_ok and overlay_ok)
+        manifest = {
+            "schema_version": 2,
+            "filename": "training.nd2",
+            "model": "cpsam_v2",
+            "niter": 500,
+            "timeframe_count": 1,
+            "views": [
+                {
+                    "view_index": 0,
+                    "configured": True,
+                    "channels": [{"channel_id": 1, "frame_cell_counts": [1]}],
+                }
+            ],
+        }
+        create_cells_database(
+            path,
+            "training.nd2",
+            [],
+            {},
+            manifest=manifest,
+            review_images=[
+                (0, 1, 0, "raw", raw_png.tobytes()),
+                (0, 1, 0, "overlay", overlay_png.tobytes()),
+            ],
+        )
+
+    def test_extraction_becomes_resumable_training_database(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "training.db"
+            self._make_extracted_database(path)
+
+            initialize_training_from_extraction(path, "training.nd2")
+            summary = training_summary(path)
+            frame = get_training_frame(path)
+
+            self.assertEqual(summary["status"], "annotating")
+            self.assertEqual(summary["total_frames"], 1)
+            self.assertEqual(frame["status"], "draft")
+            self.assertEqual(len(frame["instances"]), 1)
+            self.assertEqual(load_dataset_manifest(path)["schema_version"], 3)
+            self.assertEqual(load_dataset_manifest(path)["training"]["status"], "annotating")
+            self.assertTrue(get_frame_image(path, frame["id"], "raw").startswith(b"\x89PNG"))
+            self.assertTrue(get_frame_image(path, frame["id"], "auto").startswith(b"\x89PNG"))
+
+    def test_pending_frame_runs_cellpose_only_when_inference_is_requested(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "training.db"
+            self._make_extracted_database(path)
+            initialize_training_from_extraction(path, "training.nd2")
+            frame = get_training_frame(path)
+            connection = sqlite3.connect(path)
+            try:
+                manifest = load_dataset_manifest(path)
+                manifest["image_height"] = 2044
+                manifest["image_width"] = 2048
+                connection.execute(
+                    "UPDATE dataset_manifest SET manifest_json = ? WHERE id = 1",
+                    (json.dumps(manifest),),
+                )
+                connection.execute("DELETE FROM annotation_revisions")
+                connection.execute("DELETE FROM training_annotations")
+                connection.execute("DELETE FROM training_masks")
+                connection.execute(
+                    "UPDATE training_frames SET status = 'pending', revision = 0"
+                )
+                connection.commit()
+            finally:
+                connection.close()
+
+            self.assertIsNone(get_frame_image(path, frame["id"], "auto"))
+            labels = np.zeros((32, 16), dtype=np.uint16)
+            labels[4:20, 4:12] = 1
+            with (
+                patch.object(training, "_get_cellpose_model", return_value=object()),
+                patch.object(training, "_segment_band", return_value=labels) as segment,
+                patch.object(
+                    training,
+                    "load_view_config",
+                    return_value=([], CellFilter(), "test"),
+                ),
+                patch.object(
+                    training,
+                    "extract_channel_cells",
+                    return_value=(labels, set()),
+                ),
+            ):
+                inferred = training.run_training_frame_inference(path, frame["id"])
+
+            segment.assert_called_once()
+            self.assertEqual(inferred["status"], "draft")
+            self.assertEqual(inferred["revision"], 1)
+            self.assertEqual(len(inferred["instances"]), 1)
+            self.assertTrue(
+                get_frame_image(path, frame["id"], "auto").startswith(b"\x89PNG")
+            )
+
+    def test_reviewed_annotation_writes_16_bit_mask_and_completes(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "training.db"
+            self._make_extracted_database(path)
+            initialize_training_from_extraction(path, "training.nd2")
+            frame = get_training_frame(path)
+
+            saved = save_annotation(
+                path,
+                frame["id"],
+                frame["revision"],
+                "reviewed",
+                [{"id": "cell-a", "points": [[3, 3], [12, 3], [12, 20], [3, 20]]}],
+            )
+            mask_png = get_frame_image(path, frame["id"], "corrected")
+            mask = cv2.imdecode(np.frombuffer(mask_png, dtype=np.uint8), cv2.IMREAD_UNCHANGED)
+
+            self.assertEqual(saved["revision"], 1)
+            self.assertEqual(mask.dtype, np.uint16)
+            self.assertEqual(int(mask.max()), 1)
+            self.assertEqual(training_summary(path)["status"], "completed")
+
+            with self.assertRaises(HTTPException) as conflict:
+                save_annotation(path, frame["id"], 0, "draft", [])
+            self.assertEqual(conflict.exception.status_code, 409)
+
+    def test_overlapping_instances_are_rejected(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "training.db"
+            self._make_extracted_database(path)
+            initialize_training_from_extraction(path, "training.nd2")
+            frame = get_training_frame(path)
+            with self.assertRaises(HTTPException) as invalid:
+                save_annotation(
+                    path,
+                    frame["id"],
+                    0,
+                    "reviewed",
+                    [
+                        {"id": "a", "points": [[2, 2], [10, 2], [10, 12], [2, 12]]},
+                        {"id": "b", "points": [[6, 6], [14, 6], [14, 18], [6, 18]]},
+                    ],
+                )
+            self.assertEqual(invalid.exception.status_code, 422)
 
 
 if __name__ == "__main__":
