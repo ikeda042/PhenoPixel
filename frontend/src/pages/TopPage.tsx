@@ -26,6 +26,7 @@ import {
   Share2,
   Wifi,
   WifiOff,
+  DatabaseZap,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
@@ -142,6 +143,12 @@ const MenuListItem = ({ item, onClick }: { item: MenuItem; onClick: () => void }
 )
 
 const menuItems: MenuItem[] = [
+  {
+    title: 'Create dataset',
+    description: 'Build a resumable Mother Machine teaching dataset.',
+    path: '/mother-machine/create-dataset',
+    icon: DatabaseZap,
+  },
   {
     title: 'Cell Extraction',
     description: 'Extract cells from ND2 microscopy files.',

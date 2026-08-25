@@ -28,6 +28,7 @@ from app.mother_machine.processor import (
     run_extraction,
 )
 from app.mother_machine.storage import (
+    DATABASES_DIR,
     ND2_DIR,
     database_path,
     ensure_directories,
@@ -38,6 +39,17 @@ from app.mother_machine.storage import (
     nd2_path,
     remove_dataset,
     sanitize_nd2_filename,
+)
+from app.mother_machine.training import (
+    create_training_database,
+    get_frame_image,
+    get_training_frame,
+    list_training_datasets,
+    prepare_training_rois,
+    run_training_frame_inference,
+    save_annotation,
+    set_dataset_status,
+    training_summary,
 )
 
 
@@ -57,6 +69,17 @@ class BulkDeleteRequest(BaseModel):
 class ExtractionRequest(BaseModel):
     filename: str
     niter: int = Field(default=500, ge=1, le=5000)
+
+
+class TrainingAnnotationInstance(BaseModel):
+    id: str
+    points: list[list[float]]
+
+
+class TrainingAnnotationRequest(BaseModel):
+    base_revision: int = Field(ge=0)
+    status: Literal["draft", "reviewed"]
+    instances: list[TrainingAnnotationInstance]
 
 
 def _public_job(job_id: str, job: dict[str, Any]) -> dict[str, Any]:
@@ -83,6 +106,30 @@ def _run_job(nd2_file: str, filename: str, niter: int, result_queue: Any) -> Non
 
     try:
         result = run_extraction(Path(nd2_file), filename, progress, niter=niter)
+        result_queue.put({"type": "result", "ok": True, "result": result})
+    except Exception as exc:
+        result_queue.put({"type": "result", "ok": False, "error": str(exc)})
+
+
+def _run_training_prepare_job(
+    nd2_file: str, filename: str, niter: int, result_queue: Any, stop_event: Any
+) -> None:
+    def progress(payload: dict[str, Any]) -> None:
+        if stop_event.is_set():
+            raise RuntimeError("ROI preparation paused by user")
+        try:
+            result_queue.put({"type": "progress", "progress": payload})
+        except Exception:
+            pass
+
+    try:
+        result = prepare_training_rois(
+            database_path(filename),
+            Path(nd2_file),
+            filename,
+            progress,
+            niter=niter,
+        )
         result_queue.put({"type": "result", "ok": True, "result": result})
     except Exception as exc:
         result_queue.put({"type": "result", "ok": False, "error": str(exc)})
@@ -124,7 +171,11 @@ def _watch_job(job_id: str, process: Any, result_queue: Any) -> None:
                 job["result"] = final_message.get("result")
                 job["progress"] = {
                     "stage": "completed",
-                    "message": "Extraction completed",
+                    "message": (
+                        "ROI preparation completed"
+                        if job.get("kind") == "training"
+                        else "Extraction completed"
+                    ),
                 }
             else:
                 job["status"] = "failed"
@@ -136,6 +187,18 @@ def _watch_job(job_id: str, process: Any, result_queue: Any) -> None:
             job["finished_at"] = time()
             job["process"] = None
             job["queue"] = None
+            if job.get("kind") == "training":
+                try:
+                    if job["status"] == "completed":
+                        set_dataset_status(database_path(job["filename"]), "annotating")
+                    else:
+                        set_dataset_status(
+                            database_path(job["filename"]),
+                            "paused",
+                            str(job.get("error") or "ROI preparation failed"),
+                        )
+                except Exception:
+                    pass
     try:
         result_queue.close()
         result_queue.cancel_join_thread()
@@ -169,6 +232,282 @@ def _delete_one(filename: str) -> str:
     path.unlink()
     remove_dataset(sanitized)
     return sanitized
+
+
+def _training_frame_response(filename: str, frame: dict[str, Any]) -> dict[str, Any]:
+    frame_id = int(frame["id"])
+    base = f"/api/v1/mother-machine/training-datasets/{filename}/frames/{frame_id}"
+    previous_id = frame.get("previous_frame_id")
+    next_id = frame.get("next_frame_id")
+    return {
+        **frame,
+        "raw_url": f"{base}/raw.png",
+        "mask_url": f"{base}/mask.png",
+        "auto_mask_url": f"{base}/auto-mask.png",
+        "previous_raw_url": (
+            f"/api/v1/mother-machine/training-datasets/{filename}/frames/{previous_id}/raw.png"
+            if previous_id is not None else None
+        ),
+        "next_raw_url": (
+            f"/api/v1/mother-machine/training-datasets/{filename}/frames/{next_id}/raw.png"
+            if next_id is not None else None
+        ),
+    }
+
+
+def _recover_stale_training_summary(summary: dict[str, Any]) -> dict[str, Any]:
+    if summary.get("status") != "preparing":
+        return summary
+    filename = str(summary["filename"])
+    if _running_job_for_filename(filename) is not None:
+        return summary
+    path = database_path(filename)
+    set_dataset_status(
+        path,
+        "paused",
+        "ROI preparation was interrupted. Retry preparation to continue.",
+    )
+    return training_summary(path) or summary
+
+
+@router_mother_machine.get("/training-datasets")
+def get_training_datasets() -> dict[str, Any]:
+    ensure_directories()
+    datasets = list_training_datasets(DATABASES_DIR.glob("*.db"))
+    return {"datasets": [_recover_stale_training_summary(item) for item in datasets]}
+
+
+@router_mother_machine.post("/training-datasets", status_code=201)
+async def create_training_dataset(
+    file: Annotated[UploadFile, File()] = ...,
+) -> dict[str, Any]:
+    sanitized = sanitize_nd2_filename(file.filename or "")
+    destination = nd2_path(sanitized)
+    db_path = database_path(sanitized)
+    if destination.exists() or db_path.exists():
+        raise HTTPException(
+            status_code=409,
+            detail="A dataset with this filename already exists. Resume or delete it first.",
+        )
+    temporary = destination.with_name(f".{destination.name}.{uuid4().hex}.upload")
+    total_size = 0
+    try:
+        async with aiofiles.open(temporary, "wb") as output:
+            while chunk := await file.read(UPLOAD_CHUNK_SIZE):
+                total_size += len(chunk)
+                await output.write(chunk)
+        if total_size == 0:
+            raise HTTPException(status_code=400, detail="Uploaded file is empty")
+        os.replace(temporary, destination)
+        create_training_database(db_path, sanitized)
+    except HTTPException:
+        if temporary.exists():
+            temporary.unlink()
+        raise
+    except Exception as exc:
+        if temporary.exists():
+            temporary.unlink()
+        if destination.exists() and not db_path.exists():
+            destination.unlink()
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    summary = training_summary(db_path)
+    return {**(summary or {}), "size_bytes": total_size}
+
+
+@router_mother_machine.post("/training-datasets/{filename}/prepare", status_code=202)
+def prepare_training_dataset(
+    filename: Annotated[str, ApiPath()],
+    niter: Annotated[int, Query(ge=1, le=5000)] = 500,
+) -> dict[str, Any]:
+    sanitized = sanitize_nd2_filename(filename)
+    source = nd2_path(sanitized)
+    db_path = database_path(sanitized)
+    if not source.is_file() or training_summary(db_path) is None:
+        raise HTTPException(status_code=404, detail="Training dataset not found")
+    existing = _running_job_for_filename(sanitized)
+    if existing:
+        return _public_job(existing[0], existing[1])
+    with _jobs_lock:
+        if any(job["status"] == "running" for job in _jobs.values()):
+            raise HTTPException(status_code=429, detail="Another extraction job is already running")
+    set_dataset_status(db_path, "preparing")
+    context = get_context("spawn")
+    result_queue = context.Queue()
+    stop_event = context.Event()
+    process = context.Process(
+        target=_run_training_prepare_job,
+        args=(str(source), sanitized, niter, result_queue, stop_event),
+    )
+    try:
+        process.start()
+    except Exception as exc:
+        set_dataset_status(db_path, "paused", "Failed to start ROI preparation")
+        raise HTTPException(status_code=500, detail="Failed to start ROI preparation") from exc
+    job_id = uuid4().hex
+    with _jobs_lock:
+        _jobs[job_id] = {
+            "kind": "training",
+            "filename": sanitized,
+            "niter": niter,
+            "status": "running",
+            "progress": {"stage": "starting", "message": "Preparing ROIs"},
+            "result": None,
+            "error": None,
+            "process": process,
+            "queue": result_queue,
+            "stop_event": stop_event,
+            "created_at": time(),
+            "finished_at": None,
+        }
+    Thread(target=_watch_job, args=(job_id, process, result_queue), daemon=True).start()
+    return _public_job(job_id, _jobs[job_id])
+
+
+@router_mother_machine.get("/training-datasets/{filename}")
+def get_training_dataset(filename: Annotated[str, ApiPath()]) -> dict[str, Any]:
+    sanitized = sanitize_nd2_filename(filename)
+    summary = training_summary(database_path(sanitized))
+    if summary is None:
+        raise HTTPException(status_code=404, detail="Training dataset not found")
+    summary["manifest"] = load_manifest(sanitized)
+    summary = _recover_stale_training_summary(summary)
+    running = _running_job_for_filename(sanitized)
+    if running:
+        summary["job"] = _public_job(running[0], running[1])
+    return summary
+
+
+@router_mother_machine.delete("/training-datasets/{filename}")
+def delete_training_dataset(filename: Annotated[str, ApiPath()]) -> dict[str, Any]:
+    sanitized = sanitize_nd2_filename(filename)
+    if _running_job_for_filename(sanitized):
+        raise HTTPException(status_code=409, detail="Dataset preparation is still running")
+    source = nd2_path(sanitized)
+    path = database_path(sanitized)
+    if not source.is_file() and not path.is_file():
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    if source.is_file():
+        source.unlink()
+    remove_dataset(sanitized)
+    return {"deleted": True, "filename": sanitized}
+
+
+@router_mother_machine.get("/training-datasets/{filename}/frames/current")
+def get_current_training_frame(filename: Annotated[str, ApiPath()]) -> dict[str, Any]:
+    sanitized = sanitize_nd2_filename(filename)
+    frame = get_training_frame(database_path(sanitized))
+    if frame is None:
+        raise HTTPException(status_code=404, detail="No training frame found")
+    return _training_frame_response(sanitized, frame)
+
+
+@router_mother_machine.get("/training-datasets/{filename}/frames/{frame_id}")
+def get_training_frame_by_id(
+    filename: Annotated[str, ApiPath()], frame_id: Annotated[int, ApiPath(ge=1)]
+) -> dict[str, Any]:
+    sanitized = sanitize_nd2_filename(filename)
+    frame = get_training_frame(database_path(sanitized), frame_id)
+    if frame is None:
+        raise HTTPException(status_code=404, detail="Training frame not found")
+    return _training_frame_response(sanitized, frame)
+
+
+@router_mother_machine.get("/training-datasets/{filename}/frames/{frame_id}/raw.png")
+def get_training_raw_image(
+    filename: Annotated[str, ApiPath()], frame_id: Annotated[int, ApiPath(ge=1)]
+) -> Response:
+    sanitized = sanitize_nd2_filename(filename)
+    data = get_frame_image(database_path(sanitized), frame_id, "raw")
+    if data is None:
+        raise HTTPException(status_code=404, detail="Training image not found")
+    return Response(content=data, media_type="image/png")
+
+
+@router_mother_machine.get("/training-datasets/{filename}/frames/{frame_id}/mask.png")
+def get_training_mask_image(
+    filename: Annotated[str, ApiPath()], frame_id: Annotated[int, ApiPath(ge=1)]
+) -> Response:
+    sanitized = sanitize_nd2_filename(filename)
+    path = database_path(sanitized)
+    data = get_frame_image(path, frame_id, "corrected") or get_frame_image(path, frame_id, "auto")
+    if data is None:
+        raise HTTPException(status_code=404, detail="Training mask not found")
+    return Response(content=data, media_type="image/png")
+
+
+@router_mother_machine.get("/training-datasets/{filename}/frames/{frame_id}/auto-mask.png")
+def get_training_auto_mask_image(
+    filename: Annotated[str, ApiPath()], frame_id: Annotated[int, ApiPath(ge=1)]
+) -> Response:
+    sanitized = sanitize_nd2_filename(filename)
+    data = get_frame_image(database_path(sanitized), frame_id, "auto")
+    if data is None:
+        raise HTTPException(status_code=404, detail="Automatic mask not found")
+    return Response(content=data, media_type="image/png")
+
+
+@router_mother_machine.post("/training-datasets/{filename}/frames/{frame_id}/infer")
+def infer_training_frame(
+    filename: Annotated[str, ApiPath()], frame_id: Annotated[int, ApiPath(ge=1)]
+) -> dict[str, Any]:
+    sanitized = sanitize_nd2_filename(filename)
+    frame = run_training_frame_inference(database_path(sanitized), frame_id)
+    return _training_frame_response(sanitized, frame)
+
+
+@router_mother_machine.put("/training-datasets/{filename}/frames/{frame_id}/annotation")
+def update_training_annotation(
+    filename: Annotated[str, ApiPath()],
+    frame_id: Annotated[int, ApiPath(ge=1)],
+    payload: TrainingAnnotationRequest,
+) -> dict[str, Any]:
+    sanitized = sanitize_nd2_filename(filename)
+    frame = save_annotation(
+        database_path(sanitized), frame_id, payload.base_revision, payload.status,
+        [item.model_dump() for item in payload.instances],
+    )
+    return _training_frame_response(sanitized, frame)
+
+
+@router_mother_machine.post("/training-datasets/{filename}/pause")
+def pause_training_dataset(filename: Annotated[str, ApiPath()]) -> dict[str, Any]:
+    sanitized = sanitize_nd2_filename(filename)
+    path = database_path(sanitized)
+    if training_summary(path) is None:
+        raise HTTPException(status_code=404, detail="Training dataset not found")
+    with _jobs_lock:
+        for job in _jobs.values():
+            if (
+                job.get("filename") == sanitized
+                and job.get("kind") == "training"
+                and job.get("status") == "running"
+            ):
+                stop_event = job.get("stop_event")
+                if stop_event is not None:
+                    stop_event.set()
+    set_dataset_status(path, "paused")
+    return training_summary(path) or {}
+
+
+@router_mother_machine.post("/training-datasets/{filename}/resume")
+def resume_training_dataset(filename: Annotated[str, ApiPath()]) -> dict[str, Any]:
+    sanitized = sanitize_nd2_filename(filename)
+    path = database_path(sanitized)
+    summary = training_summary(path)
+    if summary is None:
+        raise HTTPException(status_code=404, detail="Training dataset not found")
+    if summary["status"] != "completed":
+        set_dataset_status(path, "annotating")
+    return training_summary(path) or {}
+
+
+@router_mother_machine.get("/training-datasets/{filename}/download")
+def download_training_dataset(filename: Annotated[str, ApiPath()]) -> FileResponse:
+    sanitized = sanitize_nd2_filename(filename)
+    path = database_path(sanitized)
+    if training_summary(path) is None:
+        raise HTTPException(status_code=404, detail="Training dataset not found")
+    return FileResponse(path, media_type="application/vnd.sqlite3", filename=path.name)
 
 
 @router_mother_machine.get("/nd2-files")

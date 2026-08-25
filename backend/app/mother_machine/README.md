@@ -33,6 +33,22 @@ unconfigured instead of being silently omitted. Add future layouts to
 Published results are replaced only after the new self-contained SQLite
 database has been completed successfully.
 
+## Training dataset builder
+
+The dashboard's **Create dataset** workflow uploads one ND2 file, runs the
+existing drift correction and channel-cropping pipeline, and then presents
+every `view / ROI / time frame` for manual correction. Cellpose is deliberately
+lazy: a fresh inference runs only when a pending ROI frame is opened (or when
+the user explicitly chooses Cellpose reset), while draft and reviewed frames
+reuse their saved result. The resulting database is self-contained: it stores
+the 8-bit raw ROI PNG, the automatic 16-bit instance mask once inferred,
+editable ROI-local polygons, the reviewed mask, progress, and revision history.
+
+Drafts are committed frame-by-frame. `pause` preserves the current cursor and
+`resume` returns to the first unreviewed frame. Reviewed frames use optimistic
+revision checks so an older browser tab cannot overwrite newer corrections.
+Only frames marked `reviewed` count as completed teaching data.
+
 ## Citation
 
 This pipeline uses Cellpose `4.2.1.1` and the `cpsam_v2` Cellpose-SAM model.
