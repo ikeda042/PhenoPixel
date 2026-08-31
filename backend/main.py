@@ -1,4 +1,5 @@
 import logging
+import socket
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -23,11 +24,27 @@ from app.nd2parser.router import router_nd2parser
 from app.system.router import router_system
 
 API_PREFIX: str = "/api/v1"
+SERVER_PORT: int = 3000
 mcp_app = create_mcp_http_app()
+
+
+def get_local_ip_address() -> str:
+    """Return the IPv4 address used for the machine's default network route."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as local_socket:
+            local_socket.connect(("8.8.8.8", 80))
+            return str(local_socket.getsockname()[0])
+    except OSError:
+        return "127.0.0.1"
 
 
 @asynccontextmanager
 async def app_lifespan(_: FastAPI):
+    logging.getLogger("uvicorn.error").info(
+        "PhenoPixel is available on your local network at http://%s:%d",
+        get_local_ip_address(),
+        SERVER_PORT,
+    )
     failures = migrate_all_databases()
     for db_name, error in failures:
         logging.getLogger("uvicorn.error").warning(
@@ -136,4 +153,4 @@ if FRONTEND_INDEX.is_file():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("main:app", host="0.0.0.0", port=3000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=SERVER_PORT, reload=True)
