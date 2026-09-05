@@ -12,7 +12,6 @@ import {
   BreadcrumbSeparator,
   Button,
   Checkbox,
-  Container,
   Grid,
   Heading,
   HStack,
@@ -25,6 +24,7 @@ import {
 import { Download, Info, RotateCcw, Search, Trash2, Upload } from 'lucide-react'
 import PageBreadcrumb from '../components/PageBreadcrumb'
 import PageHeader from '../components/PageHeader'
+import PageContainer from '../components/PageContainer'
 import MotherMachineHelpDrawer from '../components/MotherMachineHelpDrawer'
 import ReloadButton from '../components/ReloadButton'
 import ThemeToggleButton from '../components/ThemeToggleButton'
@@ -216,11 +216,11 @@ export default function MotherMachineNd2FilesPage() {
   return (
     <Box minH="100vh" bg="sand.50" color="ink.900">
       <PageHeader actions={<><ReloadButton /><ThemeToggleButton /><MotherMachineHelpDrawer page="nd2-files" /></>} />
-      <Container maxW="72.5rem" py={{ base: 8, md: 12 }}>
+      <PageContainer>
         <PageBreadcrumb>
           <BreadcrumbRoot fontSize="sm" color="ink.700">
             <BreadcrumbList>
-              <BreadcrumbItem><BreadcrumbLink as={RouterLink} to="/">Dashboard</BreadcrumbLink></BreadcrumbItem>
+              <BreadcrumbItem><BreadcrumbLink as={RouterLink} to="/">Home</BreadcrumbLink></BreadcrumbItem>
               <BreadcrumbSeparator>/</BreadcrumbSeparator>
               <BreadcrumbItem><BreadcrumbLink as={RouterLink} to="/mother-machine/nd2files">Mother Machine</BreadcrumbLink></BreadcrumbItem>
               <BreadcrumbSeparator>/</BreadcrumbSeparator>
@@ -248,11 +248,9 @@ export default function MotherMachineNd2FilesPage() {
               />
             </InputGroup>
             <Button
-              bg="tide.500"
-              color="white"
-              _hover={{ bg: 'tide.400' }}
               onClick={() => inputRef.current?.click()}
               loading={isUploading}
+              variant="outline"
             >
               <Icon as={Upload} /> Upload ND2
             </Button>
@@ -266,10 +264,11 @@ export default function MotherMachineNd2FilesPage() {
               alignItems="center"
               gap="2"
               colorPalette="tide"
+              minW="0"
             >
               <Checkbox.HiddenInput />
-              <Checkbox.Control />
-              <Checkbox.Label fontSize="sm">Select all ({selectedFiles.size} selected)</Checkbox.Label>
+              <Checkbox.Control flexShrink={0} />
+              <Checkbox.Label fontSize="sm" minW="0" overflowWrap="anywhere">Select all ({selectedFiles.size} selected)</Checkbox.Label>
             </Checkbox.Root>
             <Button
               size="sm"
@@ -313,8 +312,9 @@ export default function MotherMachineNd2FilesPage() {
                     checked={selectedFiles.has(file.filename)}
                     onCheckedChange={(details) => toggleSelected(file.filename, details.checked === true)}
                     colorPalette="tide"
+                    minW="0"
                   >
-                    <Checkbox.HiddenInput /><Checkbox.Control />
+                    <Checkbox.HiddenInput /><Checkbox.Control flexShrink={0} />
                   </Checkbox.Root>
                   <Box minW="0">
                     <HStack spacing="2" flexWrap="wrap">
@@ -331,12 +331,10 @@ export default function MotherMachineNd2FilesPage() {
                 <HStack spacing="2" flexWrap="wrap" justify={{ base: 'flex-start', lg: 'flex-end' }}>
                   <Button
                     size="xs"
-                    bg="tide.500"
-                    color="white"
-                    _hover={{ bg: 'tide.400' }}
                     onClick={() => navigate(
                       `/mother-machine/cell-extraction?filename=${encodeURIComponent(file.filename)}`,
                     )}
+                    variant="outline"
                   >
                     {file.has_dataset ? 'Review cells' : 'Extract cells'}
                   </Button>
@@ -378,7 +376,7 @@ export default function MotherMachineNd2FilesPage() {
             ))}
           </Box>
         </Stack>
-      </Container>
+      </PageContainer>
 
       <input ref={inputRef} type="file" accept=".nd2" hidden onChange={handleFileChange} />
 

@@ -10,7 +10,6 @@ import {
   BreadcrumbRoot,
   BreadcrumbSeparator,
   Button,
-  Container,
   Grid,
   HStack,
   Icon,
@@ -22,6 +21,7 @@ import {
 import { Search, Trash2 } from 'lucide-react'
 import PageBreadcrumb from '../components/PageBreadcrumb'
 import PageHeader from '../components/PageHeader'
+import PageContainer from '../components/PageContainer'
 import ReloadButton from '../components/ReloadButton'
 import ThemeToggleButton from '../components/ThemeToggleButton'
 import { getApiBase } from '../utils/apiBase'
@@ -217,13 +217,13 @@ export default function FilesPage() {
         }
       />
 
-      <Container maxW="72.5rem" py={{ base: 8, md: 12 }}>
+      <PageContainer>
         <PageBreadcrumb>
           <BreadcrumbRoot fontSize="sm" color="ink.700">
             <BreadcrumbList>
               <BreadcrumbItem>
                 <BreadcrumbLink as={RouterLink} to="/">
-                  Dashboard
+                  Home
                 </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator>/</BreadcrumbSeparator>
@@ -235,13 +235,13 @@ export default function FilesPage() {
         </PageBreadcrumb>
         <Stack spacing="6">
           <InputGroup
-            size="sm"
             maxW="360px"
             startElement={<SearchGlyph />}
             bg="sand.100"
             borderRadius="md"
           >
             <Input
+              size="sm"
               placeholder="Search files"
               value={searchText}
               onChange={(event) => setSearchText(event.target.value)}
@@ -262,11 +262,9 @@ export default function FilesPage() {
             </Text>
             <Button
               size="sm"
-              bg="tide.500"
-              color="white"
-              _hover={{ bg: 'tide.400' }}
               onClick={handleUploadClick}
               loading={isUploading}
+              variant="outline"
             >
               Upload File
             </Button>
@@ -291,13 +289,12 @@ export default function FilesPage() {
               borderColor="sand.200"
               gap={{ base: 2, md: 4 }}
             >
-              <Text fontSize="xs" color="ink.700" letterSpacing="0.18em">
+              <Text fontSize="xs" color="ink.700">
                 Filename
               </Text>
               <Text
                 fontSize="xs"
                 color="ink.700"
-                letterSpacing="0.18em"
                 textAlign={{ base: 'left', md: 'right' }}
               >
                 Size
@@ -305,7 +302,6 @@ export default function FilesPage() {
               <Text
                 fontSize="xs"
                 color="ink.700"
-                letterSpacing="0.18em"
                 textAlign={{ base: 'left', md: 'right' }}
               >
                 Updated
@@ -313,7 +309,6 @@ export default function FilesPage() {
               <Text
                 fontSize="xs"
                 color="ink.700"
-                letterSpacing="0.18em"
                 textAlign={{ base: 'left', md: 'right' }}
               >
                 Action
@@ -394,10 +389,6 @@ export default function FilesPage() {
                     <Button
                       size="xs"
                       variant="outline"
-                      borderColor="tide.500"
-                      bg="tide.500"
-                      color="white"
-                      _hover={{ bg: 'tide.400' }}
                       onClick={() => handleDownload(file)}
                       loading={downloadingFile === file.name}
                     >
@@ -405,14 +396,12 @@ export default function FilesPage() {
                     </Button>
                     <Button
                       size="xs"
-                      bg="violet.400"
-                      color="white"
-                      _hover={{ bg: 'violet.300' }}
                       onClick={() => handleDelete(file)}
                       loading={deletingFile === file.name}
                       aria-label={`Delete ${file.name}`}
                       minW="auto"
                       px="2"
+                      colorPalette="red"
                     >
                       <Icon as={Trash2} boxSize={3.5} />
                     </Button>
@@ -421,7 +410,7 @@ export default function FilesPage() {
               ))}
           </Box>
         </Stack>
-      </Container>
+      </PageContainer>
 
       <input
         ref={inputRef}

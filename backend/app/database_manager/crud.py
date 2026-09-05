@@ -9,6 +9,8 @@ import cv2
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.collections import LineCollection
+from matplotlib.patheffects import withStroke
 import numpy as np
 from aiofiles import os as aioos
 from sqlalchemy import BLOB, FLOAT, Column, Index, Integer, String, Table, create_engine, or_, select, text, update
@@ -26,6 +28,7 @@ DATABASES_DIR: Path = Path(__file__).resolve().parents[1] / "databases"
 DOWNLOAD_CHUNK_SIZE: int = 1024 * 1024
 ANNOTATION_DOWNSCALE: float = 0.2
 ANNOTATION_CONTOUR_THICKNESS: int = 3
+REPLOT_CONTOUR_COLOR: str = "lime"
 FLUO_COLOR_CHANNELS: dict[str, tuple[int, int, int]] = {
     "blue": (1, 0, 0),
     "green": (0, 1, 0),
@@ -1114,11 +1117,105 @@ def _compute_replot_stats(points_inside_cell: np.ndarray) -> dict[str, float]:
     }
 
 
+def _build_replot_mesh(
+    contour: np.ndarray,
+    coefficients: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Sample the fitted axis by arc length and clip its normals to the contour."""
+    empty = (np.empty((0, 2)), np.empty((0, 2, 2)))
+    polygon = np.asarray(contour, dtype=np.float64).reshape(-1, 2)
+    if len(polygon) < 3 or not np.isfinite(polygon).all():
+        return empty
+    polygon_cv = polygon.astype(np.float32).reshape(-1, 1, 2)
+    if cv2.contourArea(polygon_cv) <= 1e-8:
+        return empty
+
+    x_dense = np.linspace(polygon[:, 0].min(), polygon[:, 0].max(), 1000)
+    y_dense = np.polyval(coefficients, x_dense)
+    if not np.isfinite(y_dense).all():
+        return empty
+    arc_lengths = np.concatenate(
+        ([0.0], np.cumsum(np.hypot(np.diff(x_dense), np.diff(y_dense))))
+    )
+    total_length = float(arc_lengths[-1])
+    if total_length <= 1e-8:
+        return empty
+
+    # Equal arc-length intervals of approximately 5 px, with half an interval
+    # at each pole to avoid collapsed ribs at the ends of the cell.
+    count = max(1, int(np.ceil(total_length / 5.0)))
+    positions = (np.arange(count) + 0.5) * total_length / count
+    x_samples = np.interp(positions, arc_lengths, x_dense)
+    y_samples = np.polyval(coefficients, x_samples)
+    slopes = np.polyval(np.polyder(coefficients), x_samples)
+
+    edges = np.roll(polygon, -1, axis=0) - polygon
+    centers = []
+    segments = []
+    for x, y, slope in zip(x_samples, y_samples, slopes):
+        center = np.array([x, y])
+        if cv2.pointPolygonTest(polygon_cv, (float(x), float(y)), False) <= 0:
+            continue
+        normal = np.array([-slope, 1.0]) / np.hypot(slope, 1.0)
+        offsets = polygon - center
+        denominator = normal[0] * edges[:, 1] - normal[1] * edges[:, 0]
+        nonparallel = np.abs(denominator) > 1e-8
+        edge_offsets = offsets[nonparallel]
+        edge_vectors = edges[nonparallel]
+        denominator = denominator[nonparallel]
+        distances = (
+            edge_offsets[:, 0] * edge_vectors[:, 1]
+            - edge_offsets[:, 1] * edge_vectors[:, 0]
+        ) / denominator
+        fractions = (
+            edge_offsets[:, 0] * normal[1] - edge_offsets[:, 1] * normal[0]
+        ) / denominator
+        distances = distances[(fractions >= -1e-8) & (fractions <= 1.0 + 1e-8)]
+        negative = distances[distances < -1e-8]
+        positive = distances[distances > 1e-8]
+        if not len(negative) or not len(positive):
+            continue
+        # Stop at the first boundary on each side, including concave contours.
+        centers.append(center)
+        segments.append(
+            [center + negative.max() * normal, center + positive.min() * normal]
+        )
+
+    if not centers:
+        return empty
+    return np.asarray(centers), np.asarray(segments)
+
+
+def _draw_replot_mesh(
+    u1_contour: np.ndarray,
+    u2_contour: np.ndarray,
+    coefficients: np.ndarray,
+    dark_mode: bool,
+) -> None:
+    centers, segments = _build_replot_mesh(
+        np.column_stack((u1_contour, u2_contour)), coefficients
+    )
+    if not len(centers):
+        return
+    color = REPLOT_CONTOUR_COLOR
+    outline = "#17212b" if dark_mode else "white"
+    ribs = LineCollection(
+        segments, colors=color, linewidths=0.8, label="Mesh", zorder=3
+    )
+    ribs.set_path_effects([withStroke(linewidth=1.8, foreground=outline)])
+    plt.gca().add_collection(ribs)
+    plt.scatter(
+        centers[:, 0], centers[:, 1], color=color, edgecolors=outline,
+        linewidths=0.5, s=12, zorder=4,
+    )
+
+
 def _generate_replot_image(
     image_fluo_raw: bytes,
     contour_raw: bytes,
     degree: int,
     dark_mode: bool = False,
+    mesh: bool = True,
 ) -> bytes:
     image_fluo = _decode_image(image_fluo_raw)
     image_fluo_gray = _as_grayscale(image_fluo)
@@ -1238,10 +1335,15 @@ def _generate_replot_image(
         y_for_fit = np.polyval(theta, x_for_fit)
         plt.plot(x_for_fit, y_for_fit, color="red", label="Poly fit")
 
+        if mesh:
+            _draw_replot_mesh(
+                u1_contour_shifted, u2_contour_shifted, theta, dark_mode
+            )
+
         plt.scatter(
             u1_contour_shifted,
             u2_contour_shifted,
-            color="lime",
+            color=REPLOT_CONTOUR_COLOR,
             s=20,
             label="Contour",
         )
@@ -1264,6 +1366,7 @@ def _generate_replot_overlay_image(
     contour_raw: bytes,
     degree: int,
     dark_mode: bool = False,
+    mesh: bool = True,
 ) -> bytes:
     image_fluo1 = _decode_image(image_fluo1_raw)
     image_fluo2 = _decode_image(image_fluo2_raw)
@@ -1411,10 +1514,15 @@ def _generate_replot_overlay_image(
         y_for_fit = np.polyval(theta, x_for_fit)
         plt.plot(x_for_fit, y_for_fit, color="red", label="Poly fit")
 
+        if mesh:
+            _draw_replot_mesh(
+                u1_contour_shifted, u2_contour_shifted, theta, dark_mode
+            )
+
         plt.scatter(
             u1_contour_shifted,
             u2_contour_shifted,
-            color="lime",
+            color=REPLOT_CONTOUR_COLOR,
             s=20,
             label="Contour",
         )
@@ -2101,6 +2209,7 @@ def get_cell_replot(
     image_type: Literal["fluo1", "fluo2", "ph", "overlay"] = "fluo1",
     degree: int = 4,
     dark_mode: bool = False,
+    mesh: bool = True,
 ) -> bytes:
     if degree < 1:
         raise ValueError("degree must be >= 1")
@@ -2124,6 +2233,7 @@ def get_cell_replot(
                 bytes(row[2]),
                 degree=degree,
                 dark_mode=dark_mode,
+                mesh=mesh,
             )
         column_map = {
             "ph": "img_ph",
@@ -2150,6 +2260,7 @@ def get_cell_replot(
             contour_raw,
             degree=degree,
             dark_mode=dark_mode,
+            mesh=mesh,
         )
     finally:
         session.close()

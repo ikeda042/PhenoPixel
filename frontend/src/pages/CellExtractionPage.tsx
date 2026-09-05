@@ -11,7 +11,6 @@ import {
   BreadcrumbSeparator,
   Checkbox,
   Button,
-  Container,
   Flex,
   Heading,
   HStack,
@@ -25,6 +24,7 @@ import {
 import { strFromU8, unzipSync } from 'fflate'
 import PageBreadcrumb from '../components/PageBreadcrumb'
 import PageHeader from '../components/PageHeader'
+import PageContainer from '../components/PageContainer'
 import ReloadButton from '../components/ReloadButton'
 import ThemeToggleButton from '../components/ThemeToggleButton'
 import { getApiBase } from '../utils/apiBase'
@@ -648,8 +648,7 @@ export default function CellExtractionPage() {
         }
       />
 
-      <Container
-        maxW="72.5rem"
+      <PageContainer
         py={{ base: 4, md: 6 }}
         flex="1"
         display="flex"
@@ -660,7 +659,7 @@ export default function CellExtractionPage() {
             <BreadcrumbList>
               <BreadcrumbItem>
                 <BreadcrumbLink as={RouterLink} to="/">
-                  Dashboard
+                  Home
                 </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator>/</BreadcrumbSeparator>
@@ -962,6 +961,7 @@ export default function CellExtractionPage() {
                       display="flex"
                       alignItems="center"
                       gap="2"
+                      minW="0"
                     >
                       <Checkbox.HiddenInput />
                       <Checkbox.Control
@@ -969,10 +969,11 @@ export default function CellExtractionPage() {
                         _checked={{
                           bg: 'tide.500',
                           borderColor: 'tide.500',
-                          color: 'ink.900',
+                          color: 'white',
                         }}
+                        flexShrink={0}
                       />
-                      <Checkbox.Label fontSize="sm" color="ink.700" whiteSpace="nowrap">
+                      <Checkbox.Label fontSize="sm" color="ink.700" whiteSpace="nowrap" minW="0" overflowWrap="anywhere">
                         Auto Annotation
                       </Checkbox.Label>
                     </Checkbox.Root>
@@ -984,21 +985,17 @@ export default function CellExtractionPage() {
                     <HStack spacing="2" mr="auto">
                       <Button
                         size="sm"
-                        bg="tide.500"
-                        color="white"
-                        _hover={{ bg: 'tide.400' }}
                         as={RouterLink}
                         to={`/databases?search_dbname=${encodeURIComponent(extractedDbName)}`}
+                        variant="outline"
                       >
                         Go to database
                       </Button>
                       <Button
                         size="sm"
-                        bg="tide.500"
-                        color="white"
-                        _hover={{ bg: 'tide.400' }}
                         as={RouterLink}
                         to={`/annotation?dbname=${encodeURIComponent(extractedDbName)}`}
+                        variant="outline"
                       >
                         Go to annotation
                       </Button>
@@ -1006,11 +1003,9 @@ export default function CellExtractionPage() {
                   )}
                   <Button
                     size="sm"
-                    bg="tide.500"
-                    color="white"
-                    _hover={{ bg: 'tide.400' }}
                     onClick={handleSubmit}
                     loading={isSubmitting}
+                    variant="outline"
                   >
                     {isSubmitting ? 'Extracting...' : hasExtracted ? 'Re-extract' : 'Extract Cells'}
                   </Button>
@@ -1122,7 +1117,7 @@ export default function CellExtractionPage() {
             </Box>
           )}
         </Stack>
-      </Container>
+      </PageContainer>
 
       {autoAnnotation && overlayVisible && (
         <Box
@@ -1163,10 +1158,6 @@ export default function CellExtractionPage() {
               <Button
                 size="xs"
                 variant="outline"
-                borderColor="tide.500"
-                bg="tide.500"
-                color="white"
-                _hover={{ bg: 'tide.400' }}
                 onClick={() => closeOverlay({ showFinished: overlayStatus === 'done' })}
               >
                 Close

@@ -1,28 +1,55 @@
-import { createSystem, defaultConfig, defineConfig, defineSemanticTokens } from '@chakra-ui/react'
+import { createSystem, defaultConfig, defineConfig, defineRecipe, defineSemanticTokens, defineSlotRecipe } from '@chakra-ui/react'
+
+const appFont = '-apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans JP", sans-serif'
+
+// Use the same size scale for buttons, inputs, and native selects.
+const controlSizes = {
+  xs: { height: '30px', fontSize: '12px' },
+  sm: { height: '32px', fontSize: '13px' },
+  md: { height: '36px', fontSize: '14px' },
+} as const
 
 const semanticColors = defineSemanticTokens.colors({
+  gray: {
+    fg: { value: 'var(--app-fg)' },
+    solid: { value: 'var(--app-fg)' },
+    contrast: { value: 'var(--app-bg)' },
+    subtle: { value: 'var(--app-surface)' },
+    muted: { value: 'var(--app-border)' },
+    emphasized: { value: 'var(--app-border-strong)' },
+    border: { value: 'var(--app-border-strong)' },
+    focusRing: { value: 'var(--app-link)' },
+  },
   ink: {
-    900: { value: { _dark: '#f8fafc', _light: '#0b0d10' } },
-    800: { value: { _dark: '#e2e8f0', _light: '#111827' } },
-    700: { value: { _dark: '#9aa3af', _light: '#334155' } },
+    900: { value: 'var(--app-fg)' },
+    800: { value: 'var(--app-fg)' },
+    700: { value: 'var(--app-muted)' },
   },
   sand: {
-    50: { value: { _dark: '#0b0d10', _light: '#ffffff' } },
-    100: { value: { _dark: '#111318', _light: '#f5fbff' } },
-    200: { value: { _dark: '#1a1d24', _light: '#e1edf5' } },
-    300: { value: { _dark: '#242833', _light: '#cddbe6' } },
+    50: { value: 'var(--app-bg)' },
+    100: { value: 'var(--app-surface)' },
+    200: { value: 'var(--app-border)' },
+    300: { value: 'var(--app-border-strong)' },
   },
   tide: {
-    300: { value: { _dark: '#2dd4bf', _light: '#00AED3' } },
-    400: { value: { _dark: '#22b3a1', _light: '#00AED3' } },
-    500: { value: { _dark: '#178d80', _light: '#00AED3' } },
-    600: { value: { _dark: '#0f625a', _light: '#00AED3' } },
+    300: { value: 'var(--app-link)' },
+    400: { value: 'var(--app-link)' },
+    500: { value: 'var(--app-action)' },
+    600: { value: 'var(--app-action-hover)' },
+    fg: { value: 'var(--app-link)' },
+    solid: { value: 'var(--app-action)' },
+    contrast: { value: '#fff' },
+    subtle: { value: 'var(--app-selection)' },
+    muted: { value: 'var(--app-selection)' },
+    emphasized: { value: 'var(--app-border-strong)' },
+    border: { value: 'var(--app-border-strong)' },
+    focusRing: { value: 'var(--app-link)' },
   },
   violet: {
-    300: { value: { _dark: '#c4b5fd', _light: '#00AED3' } },
-    400: { value: { _dark: '#a78bfa', _light: '#00AED3' } },
-    500: { value: { _dark: '#8b5cf6', _light: '#00AED3' } },
-    600: { value: { _dark: '#6d28d9', _light: '#00AED3' } },
+    300: { value: 'var(--app-error)' },
+    400: { value: 'var(--app-error)' },
+    500: { value: 'var(--app-error)' },
+    600: { value: 'var(--app-error)' },
   },
 })
 
@@ -30,54 +57,76 @@ const customConfig = defineConfig({
   theme: {
     tokens: {
       fonts: {
-        heading: {
-          value:
-            '"Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif',
-        },
-        body: {
-          value:
-            '"Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif',
-        },
+        heading: { value: appFont },
+        body: { value: appFont },
       },
-      colors: {
-        ink: {
-          900: { value: '#f8fafc' },
-          800: { value: '#e2e8f0' },
-          700: { value: '#9aa3af' },
+      radii: {
+        xs: { value: '2px' },
+        sm: { value: '3px' },
+        md: { value: '3px' },
+        lg: { value: '3px' },
+        xl: { value: '3px' },
+        '2xl': { value: '4px' },
+        '3xl': { value: '4px' },
+      },
+    },
+    semanticTokens: { colors: semanticColors },
+    recipes: {
+      button: defineRecipe({
+        base: { fontWeight: '500', borderRadius: '3px', boxShadow: 'none' },
+        variants: {
+          variant: { outline: { bg: 'sand.50' } },
+          size: Object.fromEntries(
+            Object.entries(controlSizes).map(([size, { height, fontSize }]) => [
+              size,
+              { h: height, minW: height, fontSize, gap: size === 'md' ? '8px' : '6px' },
+            ]),
+          ),
         },
-        sand: {
-          50: { value: '#0b0d10' },
-          100: { value: '#111318' },
-          200: { value: '#1a1d24' },
-          300: { value: '#242833' },
-        },
-        tide: {
-          300: { value: '#2dd4bf' },
-          400: { value: '#22b3a1' },
-          500: { value: '#178d80' },
-          600: { value: '#0f625a' },
-        },
-        violet: {
-          300: { value: '#c4b5fd' },
-          400: { value: '#a78bfa' },
-          500: { value: '#8b5cf6' },
-          600: { value: '#6d28d9' },
+        defaultVariants: { variant: 'outline' },
+      }),
+      input: {
+        base: { borderRadius: '3px', minH: 'var(--input-height)' },
+        variants: {
+          size: Object.fromEntries(
+            Object.entries(controlSizes).map(([size, { height, fontSize }]) => [
+              size,
+              { '--input-height': height, fontSize },
+            ]),
+          ),
+          variant: {
+            outline: {
+              bg: 'sand.50',
+              borderColor: 'sand.300',
+              _placeholder: { color: 'ink.700' },
+            },
+          },
         },
       },
     },
-    semanticTokens: {
-      colors: semanticColors,
+    slotRecipes: {
+      nativeSelect: defineSlotRecipe({
+        slots: ['root', 'field', 'indicator'],
+        base: {
+          field: { borderRadius: '3px', minH: 'var(--select-field-height)' },
+        },
+        variants: {
+          size: Object.fromEntries(
+            Object.entries(controlSizes).map(([size, { height, fontSize }]) => [
+              size,
+              {
+                root: { '--select-field-height': height },
+                field: { fontSize },
+              },
+            ]),
+          ),
+        },
+      }),
     },
   },
   globalCss: {
-    body: {
-      bg: 'sand.50',
-      color: 'ink.900',
-      fontFamily: 'body',
-    },
+    body: { bg: 'sand.50', color: 'ink.900', fontFamily: 'body', fontSize: '14px' },
   },
 })
 
-const system = createSystem(defaultConfig, customConfig)
-
-export default system
+export default createSystem(defaultConfig, customConfig)

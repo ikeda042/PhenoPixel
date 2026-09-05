@@ -207,7 +207,7 @@ const CellsHelpDrawer = ({ open, onOpenChange }: CellsHelpDrawerProps) => (
                 <Text>Draw modeで、現在の細胞を次の形式に切り替えて確認できます。</Text>
                 <Box as="ul" ps="5" m="0">
                   <Box as="li" mb="1"><Text as="span" fontWeight="700" color="ink.900">Contour</Text>：保存済みの輪郭</Box>
-                  <Box as="li" mb="1"><Text as="span" fontWeight="700" color="ink.900">Replot</Text>：細胞の向きをそろえた再描画</Box>
+                  <Box as="li" mb="1"><Text as="span" fontWeight="700" color="ink.900">Replot</Text>：細胞の向きをそろえた再描画。MeshをONにすると、長軸上の等間隔の点から左右の輪郭まで垂直な線を表示</Box>
                   <Box as="li" mb="1"><Text as="span" fontWeight="700" color="ink.900">Overlay / Raw / Fluo</Text>：チャンネルの重ね合わせ</Box>
                   <Box as="li" mb="1"><Text as="span" fontWeight="700" color="ink.900">Heatmap</Text>：中心線方向の蛍光ヒートマップ</Box>
                   <Box as="li" mb="1"><Text as="span" fontWeight="700" color="ink.900">Map 256 / Map Raw</Text>：正規化マップとJet表示</Box>

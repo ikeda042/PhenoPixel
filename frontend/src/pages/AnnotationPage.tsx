@@ -11,7 +11,6 @@ import {
   BreadcrumbRoot,
   BreadcrumbSeparator,
   Button,
-  Container,
   Grid,
   Heading,
   HStack,
@@ -23,6 +22,7 @@ import {
 import { strFromU8, unzipSync } from 'fflate'
 import PageBreadcrumb from '../components/PageBreadcrumb'
 import PageHeader from '../components/PageHeader'
+import PageContainer from '../components/PageContainer'
 import ReloadButton from '../components/ReloadButton'
 import ThemeToggleButton from '../components/ThemeToggleButton'
 import { getApiBase } from '../utils/apiBase'
@@ -379,8 +379,7 @@ export default function AnnotationPage() {
         }
       />
 
-      <Container
-        maxW="96rem"
+      <PageContainer
         py={{ base: 6, md: 8, lg: 4 }}
         flex="1"
         display="flex"
@@ -392,7 +391,7 @@ export default function AnnotationPage() {
             <BreadcrumbList>
               <BreadcrumbItem>
                 <BreadcrumbLink as={RouterLink} to="/">
-                  Dashboard
+                  Home
                 </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator>/</BreadcrumbSeparator>
@@ -413,15 +412,11 @@ export default function AnnotationPage() {
             <Text fontSize="sm" color="ink.700">
               Database: {dbName || 'Not selected'}
             </Text>
-            <HStack spacing="4" flexWrap="wrap" align="flex-end">
+            <HStack spacing="4" flexWrap="wrap" align="center">
               {dbName && (
                 <Button
-                  size="xs"
+                  size="sm"
                   variant="outline"
-                  borderColor="tide.500"
-                  bg="tide.500"
-                  color="white"
-                  _hover={{ bg: 'tide.400' }}
                   as={RouterLink}
                   to={`/bulk-engine?dbname=${encodeURIComponent(dbName)}`}
                 >
@@ -429,7 +424,7 @@ export default function AnnotationPage() {
                 </Button>
               )}
               <Box minW="10rem">
-                <NativeSelect.Root>
+                <NativeSelect.Root size="sm">
                   <NativeSelect.Field
                     value={String(downscale)}
                     onChange={(event) => {
@@ -439,8 +434,6 @@ export default function AnnotationPage() {
                     bg="sand.50"
                     border="1px solid"
                     borderColor="sand.200"
-                    fontSize="sm"
-                    h="2.25rem"
                     color="ink.900"
                     _focusVisible={{
                       borderColor: 'tide.400',
@@ -457,14 +450,12 @@ export default function AnnotationPage() {
                 </NativeSelect.Root>
               </Box>
               <Button
-                size="xs"
-                bg="tide.500"
-                color="white"
-                _hover={{ bg: 'tide.400' }}
+                size="sm"
                 onClick={applySelection}
-                isDisabled={selectedCount === 0 || isUpdating}
+                disabled={selectedCount === 0 || isUpdating}
                 opacity={selectedCount === 0 ? 0.5 : 1}
                 cursor={selectedCount === 0 ? 'not-allowed' : 'pointer'}
+                variant="outline"
               >
                 Apply ({selectedCount})
               </Button>
@@ -524,8 +515,7 @@ export default function AnnotationPage() {
                       borderRadius="full"
                       px="2"
                       py="1"
-                      fontSize="0.6rem"
-                      letterSpacing="0.18em"
+                      fontSize="11px"
                       textTransform="uppercase"
                     >
                       N/A
@@ -570,7 +560,7 @@ export default function AnnotationPage() {
                             borderRadius="sm"
                           />
                         </AspectRatio>
-                        <Text fontSize="0.6rem" mt="1" color="ink.700" textAlign="center">
+                        <Text fontSize="11px" mt="1" color="ink.700" textAlign="center">
                           {cell.cellId}
                         </Text>
                       </Box>
@@ -598,14 +588,13 @@ export default function AnnotationPage() {
                       borderRadius="full"
                       px="2"
                       py="1"
-                      fontSize="0.6rem"
-                      letterSpacing="0.18em"
+                      fontSize="11px"
                       textTransform="uppercase"
                     >
                       Label {activeLabel}
                     </Badge>
                     <Box minW="4.5rem">
-                      <NativeSelect.Root>
+                      <NativeSelect.Root size="xs">
                         <NativeSelect.Field
                           value={activeLabel}
                           onChange={(event) => {
@@ -614,8 +603,6 @@ export default function AnnotationPage() {
                           bg="sand.50"
                           border="1px solid"
                           borderColor="sand.200"
-                          fontSize="xs"
-                          h="1.75rem"
                           color="ink.900"
                           _focusVisible={{
                             borderColor: 'tide.400',
@@ -671,7 +658,7 @@ export default function AnnotationPage() {
                             borderRadius="sm"
                           />
                         </AspectRatio>
-                        <Text fontSize="0.6rem" mt="1" color="ink.700" textAlign="center">
+                        <Text fontSize="11px" mt="1" color="ink.700" textAlign="center">
                           {cell.cellId}
                         </Text>
                       </Box>
@@ -682,7 +669,7 @@ export default function AnnotationPage() {
             </Grid>
           )}
         </Stack>
-      </Container>
+      </PageContainer>
     </Box>
   )
 }

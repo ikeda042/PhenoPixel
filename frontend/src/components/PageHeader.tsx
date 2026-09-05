@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react'
-import { Box, Heading, HStack } from '@chakra-ui/react'
 import type { FlexProps } from '@chakra-ui/react'
-import { Link as RouterLink } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import AppHeader from './AppHeader'
 
 type PageHeaderProps = {
@@ -11,28 +10,11 @@ type PageHeaderProps = {
 
 const PageHeader = ({ actions, bg }: PageHeaderProps) => (
   <AppHeader bg={bg}>
-    <HStack
-      as={RouterLink}
-      to="/"
-      spacing="3"
-      color="inherit"
-      _hover={{ textDecoration: 'none' }}
-    >
-      <Box
-        as="img"
-        src="/favicon.png"
-        alt="PhenoPixel logo"
-        w="1.25rem"
-        h="1.25rem"
-        objectFit="contain"
-      />
-      <Heading size="md" letterSpacing="0.08em">
-        PhenoPixel
-      </Heading>
-    </HStack>
-    <HStack spacing="4" align="center">
-      {actions}
-    </HStack>
+    <Link to="/" className="app-header-brand" aria-label="PhenoPixel home">
+      <img src="/favicon.png" alt="" width="23" height="23" />
+      <span>PhenoPixel</span>
+    </Link>
+    <div className="app-header-actions">{actions}</div>
   </AppHeader>
 )
 

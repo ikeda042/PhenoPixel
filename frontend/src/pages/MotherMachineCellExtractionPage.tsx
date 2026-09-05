@@ -10,7 +10,6 @@ import {
   BreadcrumbRoot,
   BreadcrumbSeparator,
   Button,
-  Container,
   Flex,
   Grid,
   Heading,
@@ -33,6 +32,7 @@ import {
 } from 'lucide-react'
 import PageBreadcrumb from '../components/PageBreadcrumb'
 import PageHeader from '../components/PageHeader'
+import PageContainer from '../components/PageContainer'
 import MotherMachineHelpDrawer from '../components/MotherMachineHelpDrawer'
 import ReloadButton from '../components/ReloadButton'
 import ThemeToggleButton from '../components/ThemeToggleButton'
@@ -366,11 +366,11 @@ export default function MotherMachineCellExtractionPage() {
   return (
     <Box minH="100vh" bg="sand.50" color="ink.900">
       <PageHeader actions={<><ReloadButton /><ThemeToggleButton /><MotherMachineHelpDrawer page="cell-extraction" /></>} />
-      <Container maxW="80rem" py={{ base: 8, md: 12 }}>
+      <PageContainer>
         <PageBreadcrumb>
           <BreadcrumbRoot fontSize="sm" color="ink.700">
             <BreadcrumbList>
-              <BreadcrumbItem><BreadcrumbLink as={RouterLink} to="/">Dashboard</BreadcrumbLink></BreadcrumbItem>
+              <BreadcrumbItem><BreadcrumbLink as={RouterLink} to="/">Home</BreadcrumbLink></BreadcrumbItem>
               <BreadcrumbSeparator>/</BreadcrumbSeparator>
               <BreadcrumbItem><BreadcrumbLink as={RouterLink} to="/mother-machine/nd2files">Mother Machine</BreadcrumbLink></BreadcrumbItem>
               <BreadcrumbSeparator>/</BreadcrumbSeparator>
@@ -395,7 +395,7 @@ export default function MotherMachineCellExtractionPage() {
           </Stack>
 
           <Box bg="sand.100" border="1px solid" borderColor="sand.200" borderRadius="xl" p="5">
-            <HStack justify="space-between" align="flex-start" gap="4" flexWrap="wrap">
+            <HStack justify="space-between" align="flex-end" gap="4" flexWrap="wrap">
               <HStack align="flex-start" spacing="3">
                 <Flex w="9" h="9" align="center" justify="center" bg="sand.200" borderRadius="md">
                   <Icon as={Settings2} color="tide.400" />
@@ -424,12 +424,10 @@ export default function MotherMachineCellExtractionPage() {
                 </Box>
               </HStack>
               <Button
-                bg="tide.500"
-                color="white"
-                _hover={{ bg: 'tide.400' }}
                 onClick={() => void startExtraction()}
                 loading={isStarting}
                 disabled={!filename || !iterationNumberIsValid || job?.status === 'running'}
+                variant="outline"
               >
                 <Icon as={dataset ? RotateCcw : Play} /> {dataset ? 'Re-extract' : 'Extract'}
               </Button>
@@ -545,7 +543,7 @@ export default function MotherMachineCellExtractionPage() {
                     <Stack spacing="4" minW="0">
                       <HStack justify="space-between" flexWrap="wrap" gap="2">
                         <HStack spacing="2">
-                          <Badge colorPalette="cyan">ROI {selectedChannel.channel_id}</Badge>
+                          <Badge colorPalette="tide">ROI {selectedChannel.channel_id}</Badge>
                           <Text fontSize="sm" color="ink.700">Frame {timeFrame + 1} / {dataset.timeframe_count}</Text>
                         </HStack>
                         <HStack spacing="1">
@@ -708,7 +706,7 @@ export default function MotherMachineCellExtractionPage() {
             </Stack>
           )}
         </Stack>
-      </Container>
+      </PageContainer>
     </Box>
   )
 }

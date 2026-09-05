@@ -11,7 +11,6 @@ import {
   BreadcrumbSeparator,
   Button,
   Checkbox,
-  Container,
   Grid,
   Icon,
   Input,
@@ -22,6 +21,7 @@ import {
 } from '@chakra-ui/react'
 import PageBreadcrumb from '../components/PageBreadcrumb'
 import PageHeader from '../components/PageHeader'
+import PageContainer from '../components/PageContainer'
 import ReloadButton from '../components/ReloadButton'
 import ThemeToggleButton from '../components/ThemeToggleButton'
 import { Search, Trash2, Upload } from 'lucide-react'
@@ -359,13 +359,13 @@ export default function Nd2FilesPage() {
         }
       />
 
-      <Container maxW="72.5rem" py={{ base: 8, md: 12 }}>
+      <PageContainer>
         <PageBreadcrumb>
           <BreadcrumbRoot fontSize="sm" color="ink.700">
             <BreadcrumbList>
               <BreadcrumbItem>
                 <BreadcrumbLink as={RouterLink} to="/">
-                  Dashboard
+                  Home
                 </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator>/</BreadcrumbSeparator>
@@ -383,13 +383,13 @@ export default function Nd2FilesPage() {
             gap="3"
           >
             <InputGroup
-              size="sm"
               maxW={{ base: '100%', md: '360px' }}
               startElement={<SearchGlyph />}
               bg="sand.100"
               borderRadius="md"
             >
               <Input
+                size="sm"
                 placeholder="Search ND2 files"
                 value={searchText}
                 onChange={(event) => setSearchText(event.target.value)}
@@ -422,6 +422,7 @@ export default function Nd2FilesPage() {
                 display="flex"
                 alignItems="center"
                 gap="2"
+                minW="0"
               >
                 <Checkbox.HiddenInput />
                 <Checkbox.Control
@@ -429,10 +430,11 @@ export default function Nd2FilesPage() {
                   _checked={{
                     bg: 'tide.500',
                     borderColor: 'tide.500',
-                    color: 'ink.900',
+                    color: 'white',
                   }}
+                  flexShrink={0}
                 />
-                <Checkbox.Label fontSize="sm" color="ink.700">
+                <Checkbox.Label fontSize="sm" color="ink.700" minW="0" overflowWrap="anywhere">
                   Select all
                 </Checkbox.Label>
               </Checkbox.Root>
@@ -443,11 +445,9 @@ export default function Nd2FilesPage() {
             <HStack spacing="2" align="center" flexWrap="wrap">
               <Button
                 size="xs"
-                bg="tide.500"
-                color="white"
-                _hover={{ bg: 'tide.400' }}
                 onClick={handleUploadClick}
                 loading={isUploading}
+                variant="outline"
               >
                 <HStack spacing="1">
                   <Icon as={Upload} boxSize={3.5} />
@@ -457,25 +457,18 @@ export default function Nd2FilesPage() {
               <Button
                 size="xs"
                 variant="outline"
-                borderColor="tide.500"
-                bg="tide.500"
-                color="white"
-                _hover={{ bg: 'tide.400' }}
                 onClick={() => setSelectedFiles(new Set())}
-                isDisabled={selectedCount === 0}
+                disabled={selectedCount === 0}
               >
                 Clear
               </Button>
               <Button
                 size="xs"
                 variant="outline"
-                borderColor="red.500"
-                bg="red.500"
-                color="white"
-                _hover={{ bg: 'red.600' }}
                 onClick={handleBulkDelete}
                 loading={isBulkDeleting}
-                isDisabled={selectedCount === 0 || isBulkDeleting || !!deletingFile}
+                disabled={selectedCount === 0 || isBulkDeleting || !!deletingFile}
+                colorPalette="red"
               >
                 Delete selected
               </Button>
@@ -531,10 +524,11 @@ export default function Nd2FilesPage() {
                   key={file}
                   templateColumns={{
                     base: 'minmax(0, 1fr)',
-                    md: 'minmax(0, 1fr) 18rem',
+                    lg: 'minmax(0, 1fr) auto',
                   }}
                   px="4"
                   py="3"
+                  gap="12px"
                   borderBottom={
                     index === filteredFiles.length - 1 ? 'none' : '1px solid'
                   }
@@ -551,6 +545,7 @@ export default function Nd2FilesPage() {
                     display="flex"
                     alignItems="center"
                     gap="3"
+                    minW="0"
                   >
                     <Checkbox.HiddenInput />
                     <Checkbox.Control
@@ -558,78 +553,64 @@ export default function Nd2FilesPage() {
                       _checked={{
                         bg: 'tide.500',
                         borderColor: 'tide.500',
-                        color: 'ink.900',
+                        color: 'white',
                       }}
+                      flexShrink={0}
                     />
-                    <Checkbox.Label fontSize="sm" fontWeight="500" color="ink.900">
+                    <Checkbox.Label fontSize="sm" fontWeight="500" color="ink.900" minW="0" overflowWrap="anywhere">
                       {file}
                     </Checkbox.Label>
                   </Checkbox.Root>
                   <HStack
-                    justify={{ base: 'flex-start', md: 'flex-end' }}
+                    justify={{ base: 'flex-start', lg: 'flex-end' }}
                     spacing="2"
-                    flexWrap={{ base: 'wrap', md: 'nowrap' }}
+                    flexWrap="wrap"
                   >
                     <Button
                       size="xs"
-                      bg="tide.500"
-                      color="white"
-                      _hover={{ bg: 'tide.400' }}
                       onClick={() =>
                         navigate(`/cell-extraction?filename=${encodeURIComponent(file)}`)
                       }
+                      variant="outline"
                     >
                       Extract cells
                     </Button>
                     <Button
                       size="xs"
-                      bg="tide.500"
-                      color="white"
-                      _hover={{ bg: 'tide.400' }}
                       onClick={() => handleParse(file)}
                       loading={parsingFile === file}
-                      isDisabled={isBulkDeleting}
+                      disabled={isBulkDeleting}
+                      variant="outline"
                     >
                       ND2 viewer
                     </Button>
                     <Button
                       size="xs"
                       variant="outline"
-                      borderColor="tide.500"
-                      bg="tide.500"
-                      color="white"
-                      _hover={{ bg: 'tide.400' }}
                       onClick={() => handleMetadata(file)}
                       loading={isMetadataLoading && metadataFile === file}
-                      isDisabled={isBulkDeleting}
+                      disabled={isBulkDeleting}
                     >
                       Metadata
                     </Button>
                     <Button
                       size="xs"
                       variant="outline"
-                      borderColor="tide.500"
-                      bg="tide.500"
-                      color="white"
-                      _hover={{ bg: 'tide.400' }}
                       onClick={() => handleDownload(file)}
-                      isDisabled={isBulkDeleting}
+                      disabled={isBulkDeleting}
                     >
                       Download
                     </Button>
                     <Button
                       size="xs"
                       variant="outline"
-                      borderColor="red.500"
-                      bg="red.500"
-                      color="white"
-                      _hover={{ bg: 'red.600' }}
                       onClick={() => handleDelete(file)}
                       loading={deletingFile === file}
-                      isDisabled={isBulkDeleting}
+                      disabled={isBulkDeleting}
                       aria-label={`Delete ${file}`}
                       minW="auto"
                       px="2"
+                      colorPalette="red"
                     >
                       <Icon as={Trash2} boxSize={3.5} />
                     </Button>
@@ -638,7 +619,7 @@ export default function Nd2FilesPage() {
               ))}
           </Box>
         </Stack>
-      </Container>
+      </PageContainer>
 
       <input
         ref={inputRef}
@@ -683,10 +664,6 @@ export default function Nd2FilesPage() {
               <Button
                 size="xs"
                 variant="outline"
-                borderColor="tide.500"
-                bg="tide.500"
-                color="white"
-                _hover={{ bg: 'tide.400' }}
                 onClick={handleMetadataClose}
               >
                 Close

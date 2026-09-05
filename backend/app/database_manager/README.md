@@ -116,7 +116,10 @@ Response: `image/png`
 
 **GET** `/get-cell-replot`  
 Replot image with contour alignment.  
-Params: `dbname`, `cell_id`, `image_type=ph|fluo1|fluo2|overlay`, `degree`, `dark_mode`  
+Params: `dbname`, `cell_id`, `image_type=ph|fluo1|fluo2|overlay`, `degree`, `dark_mode`, `mesh=true`
+
+By default, normals are drawn in the contour color from equally spaced points along the fitted long axis to the first contour intersection on each side (approximately 5 px spacing along the curve). Set `mesh=false` to hide them.
+
 Response: `image/png`
 
 **GET** `/get-cell-heatmap`  

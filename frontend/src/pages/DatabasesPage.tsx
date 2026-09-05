@@ -9,7 +9,6 @@ import {
   BreadcrumbList,
   BreadcrumbRoot,
   BreadcrumbSeparator,
-  Container,
   Grid,
   HStack,
   Icon,
@@ -22,6 +21,7 @@ import {
 import { Download, Pencil, Search, Trash2 } from 'lucide-react'
 import PageBreadcrumb from '../components/PageBreadcrumb'
 import PageHeader from '../components/PageHeader'
+import PageContainer from '../components/PageContainer'
 import ReloadButton from '../components/ReloadButton'
 import ThemeToggleButton from '../components/ThemeToggleButton'
 import { getApiBase } from '../utils/apiBase'
@@ -293,11 +293,11 @@ export default function DatabasesPage() {
         }
       />
 
-      <Container maxW="72.5rem" pt={{ base: 4, md: 6 }} pb={{ base: 8, md: 12 }}>
+      <PageContainer>
         <Stack spacing="6">
           <Box
             position="sticky"
-            top="4rem"
+            top="var(--app-header-height)"
             zIndex="docked"
             bg="sand.50"
             pt={{ base: 1, md: 2 }}
@@ -310,7 +310,7 @@ export default function DatabasesPage() {
                 <BreadcrumbList>
                   <BreadcrumbItem>
                     <BreadcrumbLink as={RouterLink} to="/">
-                      Dashboard
+                      Home
                     </BreadcrumbLink>
                   </BreadcrumbItem>
                   <BreadcrumbSeparator>/</BreadcrumbSeparator>
@@ -330,13 +330,13 @@ export default function DatabasesPage() {
                 gap="3"
               >
                 <InputGroup
-                  size="sm"
                   maxW={{ base: '100%', md: '360px' }}
                   startElement={<SearchGlyph />}
                   bg="sand.100"
                   borderRadius="md"
                 >
                   <Input
+                    size="sm"
                     placeholder="Search databases"
                     value={searchText}
                     onChange={(event) => setSearchText(event.target.value)}
@@ -354,12 +354,10 @@ export default function DatabasesPage() {
 
                 <Button
                   size="sm"
-                  bg="tide.500"
-                  color="white"
-                  _hover={{ bg: 'tide.400' }}
                   onClick={handleUploadClick}
                   loading={isUploading}
                   alignSelf={{ base: 'flex-start', md: 'center' }}
+                  variant="outline"
                 >
                   Upload DB
                 </Button>
@@ -375,10 +373,6 @@ export default function DatabasesPage() {
                   <Button
                     size="xs"
                     variant="outline"
-                    borderColor="tide.500"
-                    bg="tide.500"
-                    color="white"
-                    _hover={{ bg: 'tide.400' }}
                     onClick={() => setPage((prev) => Math.max(1, prev - 1))}
                     disabled={!canGoPrev || renamingDatabase !== null || isRenaming}
                   >
@@ -390,10 +384,6 @@ export default function DatabasesPage() {
                   <Button
                     size="xs"
                     variant="outline"
-                    borderColor="tide.500"
-                    bg="tide.500"
-                    color="white"
-                    _hover={{ bg: 'tide.400' }}
                     onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
                     disabled={!canGoNext || renamingDatabase !== null || isRenaming}
                   >
@@ -428,7 +418,6 @@ export default function DatabasesPage() {
               <Text
                 fontSize="xs"
                 color="ink.700"
-                letterSpacing="0.18em"
                 textAlign={{ base: 'left', md: 'center' }}
               >
                 Actions
@@ -482,6 +471,7 @@ export default function DatabasesPage() {
                 return (
                   <Grid
                     key={name}
+                    alignItems="center"
                     templateColumns={{
                       base: 'minmax(0, 1fr)',
                       md: 'minmax(0, 1fr) 26rem',
@@ -497,7 +487,7 @@ export default function DatabasesPage() {
                   >
                     {isEditing ? (
                       <Input
-                        size="sm"
+                        size="xs"
                         value={renameValue}
                         onChange={(event) => setRenameValue(event.target.value)}
                         onKeyDown={(event) => {
@@ -532,12 +522,10 @@ export default function DatabasesPage() {
                         <>
                           <Button
                             size="xs"
-                            bg="tide.500"
-                            color="white"
-                            _hover={{ bg: 'tide.400' }}
                             onClick={() => void confirmRename()}
                             loading={isRenaming}
                             disabled={isRenaming}
+                            variant="outline"
                           >
                             Save
                           </Button>
@@ -557,51 +545,41 @@ export default function DatabasesPage() {
                         <>
                           <Button
                             size="xs"
-                            bg="tide.500"
-                            color="white"
-                            _hover={{ bg: 'tide.400' }}
                             onClick={() =>
                               navigate(`/cells?db=${encodeURIComponent(name)}`)
                             }
                             disabled={disableActions}
+                            variant="outline"
                           >
                             Access
                           </Button>
                           <Button
                             size="xs"
-                            bg="tide.500"
-                            color="white"
-                            _hover={{ bg: 'tide.400' }}
                             onClick={() =>
                               navigate(
                                 `/annotation?dbname=${encodeURIComponent(name)}`,
                               )
                             }
                             disabled={disableActions}
+                            variant="outline"
                           >
                             Annotation
                           </Button>
                           <Button
                             size="xs"
-                            bg="tide.500"
-                            color="white"
-                            _hover={{ bg: 'tide.400' }}
                             onClick={() =>
                               navigate(
                                 `/bulk-engine?dbname=${encodeURIComponent(name)}`,
                               )
                             }
                             disabled={disableActions}
+                            variant="outline"
                           >
                             Bulk-engine
                           </Button>
                           <Button
                             size="xs"
                             variant="outline"
-                            borderColor="tide.500"
-                            bg="tide.500"
-                            color="white"
-                            _hover={{ bg: 'tide.400' }}
                             onClick={() => beginRename(name)}
                             disabled={disableActions}
                             aria-label={`Rename ${name}`}
@@ -613,10 +591,6 @@ export default function DatabasesPage() {
                           <Button
                             size="xs"
                             variant="outline"
-                            borderColor="tide.500"
-                            bg="tide.500"
-                            color="white"
-                            _hover={{ bg: 'tide.400' }}
                             onClick={() => handleDownload(name)}
                             loading={downloadingDatabase === name}
                             aria-label={`Download ${name}`}
@@ -629,16 +603,13 @@ export default function DatabasesPage() {
                           <Button
                             size="xs"
                             variant="outline"
-                            borderColor="red.500"
-                            bg="red.500"
-                            color="white"
-                            _hover={{ bg: 'red.600' }}
                             onClick={() => handleDelete(name)}
                             loading={deletingDatabase === name}
                             aria-label={`Delete ${name}`}
                             minW="auto"
                             px="2"
                             disabled={disableActions}
+                            colorPalette="red"
                           >
                             <Icon as={Trash2} boxSize={3.5} />
                           </Button>
@@ -650,7 +621,7 @@ export default function DatabasesPage() {
               })}
           </Box>
         </Stack>
-      </Container>
+      </PageContainer>
 
       <input
         ref={inputRef}
