@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { BookOpen, ChartNoAxesCombined, Database, Folder, Github, Microscope, ScanLine, Table2 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import ReloadButton, { runGitPullUpdate } from '../components/ReloadButton'
 import ThemeToggleButton from '../components/ThemeToggleButton'
 import { getApiBase } from '../utils/apiBase'
@@ -14,6 +16,7 @@ type Tool = {
   title: string
   description: string
   path: string
+  icon: LucideIcon
 }
 
 const singleCellTools: Tool[] = [
@@ -21,16 +24,19 @@ const singleCellTools: Tool[] = [
     title: 'Cell Extraction',
     description: 'Upload ND2 files and extract cells.',
     path: '/nd2files',
+    icon: ScanLine,
   },
   {
     title: 'Database Console',
     description: 'View cells, edit labels, and run batch analysis.',
     path: '/databases',
+    icon: Database,
   },
   {
     title: 'Graph Engine',
     description: 'Plot and analyze measurements from CSV files.',
     path: '/graph-engine',
+    icon: ChartNoAxesCombined,
   },
 ]
 
@@ -39,16 +45,19 @@ const motherMachineTools: Tool[] = [
     title: 'Cell Extraction',
     description: 'Process ND2 files by field, channel, and time.',
     path: '/mother-machine/nd2files',
+    icon: Microscope,
   },
   {
     title: 'Databases',
     description: 'Review and download extracted cells.',
     path: '/mother-machine/databases',
+    icon: Database,
   },
   {
     title: 'Create dataset',
     description: 'Prepare or continue a teaching dataset.',
     path: '/mother-machine/create-dataset',
+    icon: Table2,
   },
 ]
 
@@ -63,7 +72,10 @@ const ToolList = ({ tools }: { tools: Tool[] }) => (
     {tools.map((tool) => (
       <li key={tool.path}>
         <Link to={tool.path}>
-          <span className="home-tool-name">{tool.title}</span>
+          <span className="home-tool-name">
+            <tool.icon className="home-link-icon" size={16} strokeWidth={1.5} aria-hidden="true" />
+            {tool.title}
+          </span>
           <span className="home-tool-description">{tool.description}</span>
         </Link>
       </li>
@@ -199,17 +211,28 @@ export default function TopPage() {
             <section aria-labelledby="resources-heading">
               <h2 id="resources-heading">Resources</h2>
               <ul className="home-resource-links">
-                <li><Link to="/files">File Manager</Link></li>
-                <li><a href="/docs/">Documentation</a></li>
+                <li>
+                  <Link to="/files">
+                    <Folder className="home-link-icon" size={16} strokeWidth={1.5} aria-hidden="true" />
+                    File Manager
+                  </Link>
+                </li>
+                <li>
+                  <a href="/docs/">
+                    <BookOpen className="home-link-icon" size={16} strokeWidth={1.5} aria-hidden="true" />
+                    Documentation
+                  </a>
+                </li>
                 <li>
                   <a href="https://github.com/ikeda042/PhenoPixel" target="_blank" rel="noopener noreferrer">
+                    <Github className="home-link-icon" size={16} strokeWidth={1.5} aria-hidden="true" />
                     GitHub
                   </a>
                 </li>
               </ul>
             </section>
 
-            <details className="home-activity">
+            <details className="home-activity" open>
               <summary>Activity</summary>
               <div className="home-activity-content" aria-busy={activityStatus === 'loading' || activityStatus === 'idle'}>
                 <p className="home-activity-period">{activityRange}</p>
