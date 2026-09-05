@@ -13,7 +13,6 @@ import {
   BreadcrumbSeparator,
   Button,
   Checkbox,
-  Container,
   Grid,
   Heading,
   HStack,
@@ -29,6 +28,7 @@ import { ArrowLeft, ArrowRight, Download } from 'lucide-react'
 import CellsHelpDrawer from '../components/CellsHelpDrawer'
 import PageBreadcrumb from '../components/PageBreadcrumb'
 import PageHeader from '../components/PageHeader'
+import PageContainer from '../components/PageContainer'
 import ReloadButton from '../components/ReloadButton'
 import ThemeToggleButton from '../components/ThemeToggleButton'
 import { getApiBase } from '../utils/apiBase'
@@ -1390,8 +1390,7 @@ export default function CellsPage() {
         }
       />
 
-      <Container
-        maxW="80rem"
+      <PageContainer
         py={{ base: 4, md: 3, lg: 2 }}
         flex="1"
         display="flex"
@@ -1403,7 +1402,7 @@ export default function CellsPage() {
             <BreadcrumbList>
               <BreadcrumbItem>
                 <BreadcrumbLink as={RouterLink} to="/">
-                  Dashboard
+                  Home
                 </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator>/</BreadcrumbSeparator>
@@ -1430,7 +1429,7 @@ export default function CellsPage() {
           >
             <Stack spacing="2">
               <HStack spacing="2" justify="space-between" flexWrap="wrap">
-                <Text fontSize="xs" letterSpacing="0.18em" color="ink.700">
+                <Text fontSize="xs" color="ink.700">
                   Cell Control Panel
                 </Text>
                 <HStack spacing="2" align="center">
@@ -1441,8 +1440,7 @@ export default function CellsPage() {
                       borderRadius="full"
                       px="2"
                       py="1"
-                      fontSize="0.6rem"
-                      letterSpacing="0.18em"
+                      fontSize="11px"
                       textTransform="uppercase"
                     >
                       Fast mode
@@ -1461,7 +1459,7 @@ export default function CellsPage() {
                   <Stack spacing="1">
                     <HStack spacing="2" align="flex-start" flexWrap="wrap">
                       <Box>
-                        <Text fontSize="xs" letterSpacing="0.18em" color="ink.700" mb="1">
+                        <Text fontSize="xs" color="ink.700" mb="1">
                           Label Filter
                         </Text>
                         <NativeSelect.Root>
@@ -1504,7 +1502,7 @@ export default function CellsPage() {
                             h={{ base: '2.25rem', lg: '2rem' }}
                             w="8rem"
                             color="ink.900"
-                            isDisabled={
+                            disabled={
                               !dbName || !currentCellId || isLoadingLabel || isUpdatingLabel
                             }
                             _focusVisible={{
@@ -1533,7 +1531,7 @@ export default function CellsPage() {
                   </Stack>
                 </Box>
                 <Box>
-                  <Text fontSize="xs" letterSpacing="0.18em" color="ink.700" mb="1">
+                  <Text fontSize="xs" color="ink.700" mb="1">
                     Overlays
                   </Text>
                   <HStack spacing="4" align="center" minH={{ base: '2.25rem', lg: '2rem' }}>
@@ -1549,13 +1547,15 @@ export default function CellsPage() {
                       display="flex"
                       alignItems="center"
                       gap="2"
+                      minW="0"
                     >
                       <Checkbox.HiddenInput />
                       <Checkbox.Control
                         borderColor="tide.400"
                         _checked={{ bg: 'tide.500', borderColor: 'tide.500', color: 'white' }}
+                        flexShrink={0}
                       />
-                      <Checkbox.Label fontSize="sm" color="ink.700">
+                      <Checkbox.Label fontSize="sm" color="ink.700" minW="0" overflowWrap="anywhere">
                         Contour
                       </Checkbox.Label>
                     </Checkbox.Root>
@@ -1571,20 +1571,22 @@ export default function CellsPage() {
                       display="flex"
                       alignItems="center"
                       gap="2"
+                      minW="0"
                     >
                       <Checkbox.HiddenInput />
                       <Checkbox.Control
                         borderColor="tide.400"
                         _checked={{ bg: 'tide.500', borderColor: 'tide.500', color: 'white' }}
+                        flexShrink={0}
                       />
-                      <Checkbox.Label fontSize="sm" color="ink.700">
+                      <Checkbox.Label fontSize="sm" color="ink.700" minW="0" overflowWrap="anywhere">
                         Scale
                       </Checkbox.Label>
                     </Checkbox.Root>
                   </HStack>
                 </Box>
                 <Box>
-                  <Text fontSize="xs" letterSpacing="0.18em" color="ink.700" mb="1">
+                  <Text fontSize="xs" color="ink.700" mb="1">
                     Navigator
                   </Text>
                   <Stack spacing="2">
@@ -1645,7 +1647,7 @@ export default function CellsPage() {
               border="1px solid"
               borderColor="sand.200"
             >
-              <Spinner size="sm" color="teal.500" />
+              <Spinner size="sm" color="tide.300" />
               <Text fontSize="sm" color="ink.700">
                 Fast preloading cells...
               </Text>
@@ -1692,7 +1694,7 @@ export default function CellsPage() {
                 order={0}
               >
                 <Stack spacing="2">
-                  <Text fontSize="xs" letterSpacing="0.18em" color="ink.700">
+                  <Text fontSize="xs" color="ink.700">
                     Modification
                   </Text>
                   <HStack spacing="2" align="flex-end" flexWrap="wrap">
@@ -1762,11 +1764,9 @@ export default function CellsPage() {
                           <Button
                             size="sm"
                             h={{ base: '2.25rem', lg: '2rem' }}
-                            bg="tide.500"
-                            color="white"
-                            _hover={{ bg: 'tide.400' }}
                             onClick={handleApplyModification}
-                            isDisabled={!dbName || !currentCellId || isApplyingAnyModification}
+                            disabled={!dbName || !currentCellId || isApplyingAnyModification}
+                            variant="outline"
                           >
                             {isApplyingModification ? 'Applying...' : 'Apply'}
                           </Button>
@@ -1776,12 +1776,8 @@ export default function CellsPage() {
                             size="sm"
                             h={{ base: '2.25rem', lg: '2rem' }}
                             variant="outline"
-                            borderColor="tide.500"
-                            bg="tide.500"
-                            color="white"
-                            _hover={{ bg: 'tide.400' }}
                             onClick={handleApplyBulkModification}
-                            isDisabled={
+                            disabled={
                               !dbName ||
                               cellCount === 0 ||
                               isLoadingIds ||
@@ -1845,16 +1841,14 @@ export default function CellsPage() {
                           <Button
                             size="sm"
                             h={{ base: '2.25rem', lg: '2rem' }}
-                            bg="tide.500"
-                            color="white"
-                            _hover={{ bg: 'tide.400' }}
                             onClick={handleApplyModification}
-                            isDisabled={
+                            disabled={
                               !dbName ||
                               !currentCellId ||
                               isApplyingAnyModification ||
                               !isGainValid
                             }
+                            variant="outline"
                           >
                             {isApplyingModification ? 'Applying...' : 'Apply'}
                           </Button>
@@ -1905,10 +1899,10 @@ export default function CellsPage() {
                         aria-label={`Download ${channel.label} image`}
                         size="xs"
                         variant="ghost"
-                        color="teal.500"
-                        _hover={{ bg: 'sand.200', color: 'teal.600' }}
+                        color="tide.300"
+                        _hover={{ bg: 'sand.200', color: 'tide.300' }}
                         _active={{ bg: 'sand.300' }}
-                        isDisabled={isLoadingImages || !activeImages[channel.key]}
+                        disabled={isLoadingImages || !activeImages[channel.key]}
                         onClick={() => handleDownloadImage(channel.key)}
                       >
                         <Download size={14} />
@@ -1924,13 +1918,13 @@ export default function CellsPage() {
                             bg="sand.50"
                             border="1px solid"
                             borderColor="sand.200"
-                            fontSize="0.68rem"
+                            fontSize="11px"
                             h="1.5rem"
                             color="ink.900"
                             pl="1.5"
                             pr="1.75rem"
                             w={{ base: '4.25rem', lg: '4.75rem' }}
-                            isDisabled={!dbName || !currentCellId}
+                            disabled={!dbName || !currentCellId}
                             _focusVisible={{
                               borderColor: 'tide.400',
                               boxShadow: '0 0 0 1px var(--app-accent-ring)',
@@ -1994,10 +1988,6 @@ export default function CellsPage() {
                 <Button
                   size="sm"
                   variant="outline"
-                  borderColor="tide.500"
-                  bg="tide.500"
-                  color="white"
-                  _hover={{ bg: 'tide.400' }}
                   onClick={handlePrevious}
                   disabled={isNavigatorDisabled || currentIndex === 0}
                   gap="1"
@@ -2027,10 +2017,6 @@ export default function CellsPage() {
                 <Button
                   size="sm"
                   variant="outline"
-                  borderColor="tide.500"
-                  bg="tide.500"
-                  color="white"
-                  _hover={{ bg: 'tide.400' }}
                   onClick={handleNext}
                   disabled={isNavigatorDisabled || currentIndex >= cellCount - 1}
                   gap="1"
@@ -2054,7 +2040,7 @@ export default function CellsPage() {
             >
               <Stack spacing="2" flex="1" minH="0">
                 <HStack justify="space-between" align="center" spacing="3" flexWrap="nowrap">
-                  <Text fontSize="xs" letterSpacing="0.18em" color="ink.700">
+                  <Text fontSize="xs" color="ink.700">
                     Function Panel
                   </Text>
                   <HStack spacing="2" flexWrap="nowrap">
@@ -2437,7 +2423,7 @@ export default function CellsPage() {
             </Box>
           </Grid>
         </Stack>
-      </Container>
+      </PageContainer>
     </Box>
   )
 }

@@ -2,40 +2,17 @@ import { useMemo, useState } from 'react'
 import { Button, HStack, Icon, Text } from '@chakra-ui/react'
 import { RotateCw } from 'lucide-react'
 import { getApiBase } from '../utils/apiBase'
-
-type GitPullResponse = {
-  status?: string
-  output?: string
-  detail?: string
-}
+import { runGitPullUpdate } from '../utils/appUpdate'
 
 type ReloadButtonProps = {
   compact?: boolean
 }
 
-export const runGitPullUpdate = async (apiBase: string): Promise<GitPullResponse> => {
-  const response = await fetch(`${apiBase}/system/git-pull`, { method: 'POST' })
-  const payload = (await response.json().catch(() => ({}))) as GitPullResponse
-  if (!response.ok) {
-    const message =
-      typeof payload.detail === 'string' && payload.detail.trim()
-        ? payload.detail
-        : 'Update failed.'
-    throw new Error(message)
-  }
-  if (typeof payload.output === 'string' && payload.output.trim()) {
-    console.info(payload.output)
-  }
-  return payload
-}
-
 const ReloadButton = ({ compact = false }: ReloadButtonProps) => {
   const apiBase = useMemo(() => getApiBase(), [])
   const [isUpdating, setIsUpdating] = useState(false)
-  const buttonHeight = compact ? { base: '1.5rem', md: '1.5rem' } : { base: '1.75rem', md: '2rem' }
-  const buttonMinWidth = compact
-    ? { base: '1.75rem', md: '1.75rem' }
-    : { base: '2.25rem', md: '2.75rem' }
+  const buttonHeight = compact ? '28px' : '30px'
+  const buttonMinWidth = buttonHeight
 
   const handleUpdate = async () => {
     if (isUpdating) return
@@ -60,7 +37,7 @@ const ReloadButton = ({ compact = false }: ReloadButtonProps) => {
       minH={buttonHeight}
       maxH={buttonHeight}
       minW={buttonMinWidth}
-      px={compact ? 2 : { base: 3, md: 4 }}
+      px="9px"
       py="0"
       alignSelf="center"
       lineHeight="1"
@@ -70,21 +47,19 @@ const ReloadButton = ({ compact = false }: ReloadButtonProps) => {
       justifyContent="center"
       flexShrink={0}
       border="1px solid"
-      borderColor="tide.500"
-      bg="tide.500"
-      color="white"
-      _hover={{ bg: 'tide.400' }}
+      borderColor="sand.200"
+      bg="sand.50"
+      color="ink.900"
+      _hover={{ bg: 'sand.100' }}
       onClick={handleUpdate}
       loading={isUpdating}
       loadingText="Updating"
       aria-label="Update application"
     >
-      <HStack spacing="2" align="center" justify="center">
-        <Icon as={RotateCw} boxSize={compact ? 3 : 4} />
+      <HStack gap="6px" align="center" justify="center">
+        <Icon as={RotateCw} boxSize="14px" />
         <Text
-          fontSize={compact ? '0.55rem' : 'xs'}
-          letterSpacing="0.12em"
-          textTransform="uppercase"
+          fontSize="11px"
           display={{ base: 'none', md: 'inline' }}
         >
           Update

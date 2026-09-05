@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link as RouterLink, useSearchParams } from 'react-router-dom'
+import type { ReactNode } from 'react'
+import type { IconButtonProps } from '@chakra-ui/react'
 import {
   Box,
   BreadcrumbCurrentLink,
@@ -9,7 +11,6 @@ import {
   BreadcrumbRoot,
   BreadcrumbSeparator,
   Button,
-  Container,
   Flex,
   Grid,
   Heading,
@@ -26,6 +27,7 @@ import {
 } from '@chakra-ui/react'
 import PageBreadcrumb from '../components/PageBreadcrumb'
 import PageHeader from '../components/PageHeader'
+import PageContainer from '../components/PageContainer'
 import ReloadButton from '../components/ReloadButton'
 import ThemeToggleButton from '../components/ThemeToggleButton'
 import { getApiBase } from '../utils/apiBase'
@@ -40,19 +42,16 @@ import {
 
 // --- 連続入力のためのカスタムフック ---
 function useContinuousHold(callback: () => void, interval = 7, delay = 27) {
-  const [isHolding, setIsHolding] = useState(false)
   const timerRef = useRef<number | null>(null)
   const intervalRef = useRef<number | null>(null)
 
   const stop = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current)
     if (intervalRef.current) clearInterval(intervalRef.current)
-    setIsHolding(false)
   }, [])
 
   const start = useCallback(() => {
     stop() // Reset any existing timers
-    setIsHolding(true)
     callback() // 初回実行
 
     // delay ms後に連続実行開始
@@ -83,11 +82,10 @@ const DPadButton = ({
   onClick,
   isDisabled,
   ...props
-}: {
-  icon: React.ReactNode
+}: Omit<IconButtonProps, 'children' | 'onClick'> & {
+  icon: ReactNode
   onClick: () => void
   isDisabled?: boolean
-  [key: string]: any
 }) => {
   const holdHandlers = useContinuousHold(onClick)
   
@@ -95,16 +93,16 @@ const DPadButton = ({
     <IconButton
       size="xs"
       variant="outline"
-      bg="white"
+      bg="sand.50"
       borderColor="sand.200"
-      color="gray.900"
+      color="ink.900"
       borderRadius="md"
       w="2rem"
       h="2rem"
       minW="2rem"
-      _hover={{ bg: 'white', borderColor: 'sand.300' }}
-      _active={{ bg: 'white', transform: 'scale(0.96)' }}
-      isDisabled={isDisabled}
+      _hover={{ bg: 'sand.100', borderColor: 'sand.300' }}
+      _active={{ bg: 'sand.200' }}
+      disabled={isDisabled}
       {...holdHandlers} // マウス・タッチイベントを展開
       {...props}
     >
@@ -538,8 +536,7 @@ export default function Nd2ParserPage() {
         }
       />
 
-      <Container
-        maxW="72.5rem"
+      <PageContainer
         py={{ base: 4, md: 6 }}
         flex="1"
         display="flex"
@@ -551,7 +548,7 @@ export default function Nd2ParserPage() {
             <BreadcrumbList>
               <BreadcrumbItem>
                 <BreadcrumbLink as={RouterLink} to="/">
-                  Dashboard
+                  Home
                 </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator>/</BreadcrumbSeparator>
@@ -618,13 +615,11 @@ export default function Nd2ParserPage() {
               {!metadata && (
                 <Button
                   size="sm"
-                  bg="tide.500"
-                  color="white"
-                  _hover={{ bg: 'tide.400' }}
                   onClick={handleParse}
                   loading={isParsing}
-                  isDisabled={!nd2file}
+                  disabled={!nd2file}
                   alignSelf="flex-end"
+                  variant="outline"
                 >
                   Parse ND2
                 </Button>
@@ -725,6 +720,7 @@ export default function Nd2ParserPage() {
                           display="flex"
                           alignItems="center"
                           gap="2"
+                          minW="0"
                         >
                           <Checkbox.HiddenInput />
                           <Checkbox.Control
@@ -732,10 +728,11 @@ export default function Nd2ParserPage() {
                             _checked={{
                               bg: 'tide.500',
                               borderColor: 'tide.500',
-                              color: 'ink.900',
+                              color: 'white',
                             }}
+                            flexShrink={0}
                           />
-                          <Checkbox.Label fontSize="sm" color="ink.700">
+                          <Checkbox.Label fontSize="sm" color="ink.700" minW="0" overflowWrap="anywhere">
                             Optical boost
                           </Checkbox.Label>
                         </Checkbox.Root>
@@ -790,14 +787,12 @@ export default function Nd2ParserPage() {
 
                   <Button
                     size="sm"
-                    bg="tide.500"
-                    color="white"
-                    _hover={{ bg: 'tide.400' }}
                     onClick={handleExportRegion}
                     loading={isExporting}
-                    isDisabled={!metadata || frameCount <= 0}
+                    disabled={!metadata || frameCount <= 0}
                     leftIcon={<CropIcon size={16} />}
-                    ml={{ lg: 'auto' }} 
+                    ml={{ lg: 'auto' }}
+                    variant="outline"
                   >
                     Export
                   </Button>
@@ -869,7 +864,6 @@ export default function Nd2ParserPage() {
                         >
                           <Text
                             fontSize="xs"
-                            letterSpacing="0.18em"
                             color="ink.700"
                             mb="2"
                           >
@@ -940,24 +934,16 @@ export default function Nd2ParserPage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        borderColor="tide.500"
-                        bg="tide.500"
-                        color="white"
-                        _hover={{ bg: 'tide.400' }}
                         onClick={handlePreviousFrame}
-                        isDisabled={currentFrame <= 0 || isLoadingImages}
+                        disabled={currentFrame <= 0 || isLoadingImages}
                       >
                         Previous
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
-                        borderColor="tide.500"
-                        bg="tide.500"
-                        color="white"
-                        _hover={{ bg: 'tide.400' }}
                         onClick={handleNextFrame}
-                        isDisabled={
+                        disabled={
                           currentFrame >= Math.max(frameCount - 1, 0) ||
                           isLoadingImages
                         }
@@ -1039,7 +1025,7 @@ export default function Nd2ParserPage() {
             </Stack>
           </Box>
         </Stack>
-      </Container>
+      </PageContainer>
     </Box>
   )
 }

@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { BookOpen, ChartNoAxesCombined, Database, Folder, Github, Microscope, ScanLine, Table2 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import ReloadButton, { runGitPullUpdate } from '../components/ReloadButton'
+import ReloadButton from '../components/ReloadButton'
+import PageHeader from '../components/PageHeader'
+import { runGitPullUpdate } from '../utils/appUpdate'
 import ThemeToggleButton from '../components/ThemeToggleButton'
 import { getApiBase } from '../utils/apiBase'
 import './TopPage.css'
@@ -180,18 +182,7 @@ export default function TopPage() {
   return (
     <div className="home-page">
       <a className="home-skip-link" href="#home-main">Skip to content</a>
-      <header className="home-header">
-        <div className="home-header-inner">
-          <Link to="/" className="home-brand" aria-label="PhenoPixel home">
-            <img src="/favicon.png" alt="" width="23" height="23" />
-            <span>PhenoPixel</span>
-          </Link>
-          <div className="home-header-actions">
-            <ReloadButton compact />
-            <ThemeToggleButton compact />
-          </div>
-        </div>
-      </header>
+      <PageHeader actions={<><ReloadButton compact /><ThemeToggleButton compact /></>} />
 
       <main id="home-main" className="home-main" tabIndex={-1}>
         <h1>Home</h1>

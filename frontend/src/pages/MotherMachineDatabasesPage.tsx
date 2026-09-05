@@ -9,7 +9,6 @@ import {
   BreadcrumbRoot,
   BreadcrumbSeparator,
   Button,
-  Container,
   Grid,
   HStack,
   Icon,
@@ -21,6 +20,7 @@ import {
 import { Download, Search, Trash2 } from 'lucide-react'
 import PageBreadcrumb from '../components/PageBreadcrumb'
 import PageHeader from '../components/PageHeader'
+import PageContainer from '../components/PageContainer'
 import MotherMachineHelpDrawer from '../components/MotherMachineHelpDrawer'
 import ReloadButton from '../components/ReloadButton'
 import ThemeToggleButton from '../components/ThemeToggleButton'
@@ -110,12 +110,12 @@ export default function MotherMachineDatabasesPage() {
   return (
     <Box minH="100vh" bg="sand.50" color="ink.900">
       <PageHeader actions={<><ReloadButton /><ThemeToggleButton /><MotherMachineHelpDrawer page="databases" /></>} />
-      <Container maxW="72.5rem" pt={{ base: 4, md: 6 }} pb={{ base: 8, md: 12 }}>
+      <PageContainer>
         <Stack spacing="6">
           <PageBreadcrumb>
             <BreadcrumbRoot fontSize="sm" color="ink.700">
               <BreadcrumbList>
-                <BreadcrumbItem><BreadcrumbLink as={RouterLink} to="/">Dashboard</BreadcrumbLink></BreadcrumbItem>
+                <BreadcrumbItem><BreadcrumbLink as={RouterLink} to="/">Home</BreadcrumbLink></BreadcrumbItem>
                 <BreadcrumbSeparator>/</BreadcrumbSeparator>
                 <BreadcrumbItem><BreadcrumbLink as={RouterLink} to="/mother-machine/nd2files">Mother Machine</BreadcrumbLink></BreadcrumbItem>
                 <BreadcrumbSeparator>/</BreadcrumbSeparator>
@@ -165,11 +165,9 @@ export default function MotherMachineDatabasesPage() {
                 <HStack spacing="2" flexWrap="wrap">
                   <Button
                     size="xs"
-                    bg="tide.500"
-                    color="white"
-                    _hover={{ bg: 'tide.400' }}
                     onClick={() => database.review_filename && navigate(`/mother-machine/cell-extraction?filename=${encodeURIComponent(database.review_filename)}`)}
                     disabled={!database.review_filename || deletingDatabase !== null}
+                    variant="outline"
                   >
                     Review
                   </Button>
@@ -199,7 +197,7 @@ export default function MotherMachineDatabasesPage() {
             ))}
           </Box>
         </Stack>
-      </Container>
+      </PageContainer>
     </Box>
   )
 }

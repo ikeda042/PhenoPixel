@@ -1,12 +1,11 @@
 .home-page {
-  --home-bg: #fff;
-  --home-header: #f5f5f5;
-  --home-fg: #242424;
-  --home-muted: #666;
-  --home-line: #ddd;
-  --home-link: #245b91;
-  --home-hover: #f6f6f6;
-  --home-error: #b42318;
+  --home-bg: var(--app-bg);
+  --home-fg: var(--app-fg);
+  --home-muted: var(--app-muted);
+  --home-line: var(--app-border);
+  --home-link: var(--app-link);
+  --home-hover: var(--app-hover);
+  --home-error: var(--app-error);
   display: flex;
   flex-direction: column;
   min-height: 100vh;
@@ -16,17 +15,6 @@
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans JP', sans-serif;
   font-size: 14px;
   line-height: 1.5;
-}
-
-.dark .home-page {
-  --home-bg: #202020;
-  --home-header: #292929;
-  --home-fg: #e6e6e6;
-  --home-muted: #aaa;
-  --home-line: #414141;
-  --home-link: #9abfe3;
-  --home-hover: #282828;
-  --home-error: #ffaaa3;
 }
 
 .home-page a {
@@ -56,70 +44,6 @@
 
 .home-skip-link:focus {
   top: 8px;
-}
-
-.home-header {
-  flex-shrink: 0;
-  background: var(--home-header);
-  border-bottom: 1px solid var(--home-line);
-}
-
-.home-header-inner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  min-height: 54px;
-  padding: 0 32px;
-}
-
-.home-header .home-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--home-fg);
-  font-size: 17px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.home-header .home-brand:hover {
-  text-decoration: none;
-}
-
-.home-brand img {
-  object-fit: contain;
-}
-
-.home-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.home-header-actions button {
-  min-width: 32px;
-  height: 30px;
-  min-height: 30px;
-  max-height: 30px;
-  padding: 0 9px;
-  border: 1px solid var(--home-line);
-  border-radius: 3px;
-  background: var(--home-bg);
-  color: var(--home-fg);
-  box-shadow: none;
-}
-
-.home-page .home-header-actions button:hover {
-  background: var(--home-hover);
-  color: var(--home-fg);
-}
-
-.home-header-actions button p {
-  font-size: 11px;
-  font-family: inherit;
-  letter-spacing: 0;
-  text-transform: none;
 }
 
 .home-main {
@@ -341,10 +265,6 @@
 }
 
 @media (max-width: 600px) {
-  .home-header-inner {
-    padding: 0 20px;
-  }
-
   .home-main {
     padding: 24px 20px 0;
   }

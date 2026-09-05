@@ -11,7 +11,6 @@ import {
   BreadcrumbRoot,
   BreadcrumbSeparator,
   Button,
-  Container,
   Grid,
   Heading,
   HStack,
@@ -23,6 +22,7 @@ import {
 import { strFromU8, unzipSync } from 'fflate'
 import PageBreadcrumb from '../components/PageBreadcrumb'
 import PageHeader from '../components/PageHeader'
+import PageContainer from '../components/PageContainer'
 import ReloadButton from '../components/ReloadButton'
 import ThemeToggleButton from '../components/ThemeToggleButton'
 import { getApiBase } from '../utils/apiBase'
@@ -153,8 +153,6 @@ export default function BulkEnginePage() {
   const [searchParams] = useSearchParams()
   const dbName = searchParams.get('dbname') ?? ''
   const apiBase = useMemo(() => getApiBase(), [])
-  const bulkZoom = 0.75
-  const scaledViewportHeight = `calc(100dvh / ${bulkZoom})`
   const fitcThreshold = 0.7414
 
   const [cells, setCells] = useState<BulkCell[]>([])
@@ -1969,14 +1967,13 @@ export default function BulkEnginePage() {
 
   return (
     <Box
-      minH={{ base: '100dvh', lg: scaledViewportHeight }}
-      h={{ base: 'auto', lg: scaledViewportHeight }}
+      minH="100dvh"
+      h={{ base: 'auto', lg: '100dvh' }}
       bg="sand.50"
       color="ink.900"
       display="flex"
       flexDirection="column"
       overflow={{ base: 'visible', lg: 'auto' }}
-      style={{ zoom: bulkZoom }}
     >
       <PageHeader
         actions={
@@ -1987,8 +1984,7 @@ export default function BulkEnginePage() {
         }
       />
 
-      <Container
-        maxW="96rem"
+      <PageContainer
         py={{ base: 6, md: 8, lg: 4 }}
         flex="1"
         display="flex"
@@ -2000,7 +1996,7 @@ export default function BulkEnginePage() {
             <BreadcrumbList>
               <BreadcrumbItem>
                 <BreadcrumbLink as={RouterLink} to="/">
-                  Dashboard
+                  Home
                 </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator>/</BreadcrumbSeparator>
@@ -2074,8 +2070,7 @@ export default function BulkEnginePage() {
                       borderRadius="full"
                       px="2"
                       py="1"
-                      fontSize="0.6rem"
-                      letterSpacing="0.18em"
+                      fontSize="11px"
                       textTransform="uppercase"
                     >
                       Cells
@@ -2089,7 +2084,7 @@ export default function BulkEnginePage() {
                   </HStack>
                   <HStack spacing="4" align="flex-start" flexWrap="wrap">
                     <Box minW="12rem">
-                      <Text fontSize="xs" letterSpacing="0.18em" color="ink.700" mb="1">
+                      <Text fontSize="xs" color="ink.700" mb="1">
                         Manual label
                       </Text>
                       <Stack spacing="1">
@@ -2122,7 +2117,7 @@ export default function BulkEnginePage() {
                       </Stack>
                     </Box>
                     <Box minW="10rem">
-                      <Text fontSize="xs" letterSpacing="0.18em" color="ink.700" mb="1">
+                      <Text fontSize="xs" color="ink.700" mb="1">
                         Channel
                       </Text>
                       <Stack spacing="1">
@@ -2155,7 +2150,7 @@ export default function BulkEnginePage() {
                       </Stack>
                     </Box>
                     <Box minW="11rem">
-                      <Text fontSize="xs" letterSpacing="0.18em" color="ink.700" mb="1">
+                      <Text fontSize="xs" color="ink.700" mb="1">
                         Quality (PH)
                       </Text>
                       <Stack spacing="1">
@@ -2170,7 +2165,7 @@ export default function BulkEnginePage() {
                                   : BULK_PREVIEW_DOWNSCALE_DEFAULT,
                               )
                             }}
-                            isDisabled={selectedChannel !== 'ph'}
+                            disabled={selectedChannel !== 'ph'}
                             bg="sand.50"
                             border="1px solid"
                             borderColor="sand.200"
@@ -2200,7 +2195,6 @@ export default function BulkEnginePage() {
                     <Box>
                       <Text
                         fontSize="xs"
-                        letterSpacing="0.18em"
                         color="ink.700"
                         mb="1"
                         visibility="hidden"
@@ -2210,12 +2204,10 @@ export default function BulkEnginePage() {
                       <Button
                         size="sm"
                         h="2.25rem"
-                        bg="tide.500"
-                        color="white"
-                        _hover={{ bg: 'tide.400' }}
                         onClick={handleExport}
-                        isDisabled={filteredCells.length === 0 || isLoading || isExporting}
+                        disabled={filteredCells.length === 0 || isLoading || isExporting}
                         opacity={filteredCells.length === 0 ? 0.5 : 1}
+                        variant="outline"
                       >
                         {isExporting ? 'Exporting...' : 'Export'}
                       </Button>
@@ -2271,7 +2263,7 @@ export default function BulkEnginePage() {
                               borderRadius="sm"
                             />
                           </AspectRatio>
-                          <Text fontSize="0.6rem" mt="1" color="ink.700" textAlign="center">
+                          <Text fontSize="11px" mt="1" color="ink.700" textAlign="center">
                             {cell.cellId}
                           </Text>
                         </Box>
@@ -2298,8 +2290,7 @@ export default function BulkEnginePage() {
                   borderRadius="full"
                   px="2"
                   py="1"
-                  fontSize="0.6rem"
-                  letterSpacing="0.18em"
+                  fontSize="11px"
                   textTransform="uppercase"
                 >
                   Bulk Engine
@@ -2352,7 +2343,7 @@ export default function BulkEnginePage() {
                         Cell length (um)
                       </Text>
                       <Box maxW="12rem">
-                        <Text fontSize="xs" letterSpacing="0.18em" color="ink.700" mb="1">
+                        <Text fontSize="xs" color="ink.700" mb="1">
                           Manual label
                         </Text>
                         <NativeSelect.Root>
@@ -2385,31 +2376,25 @@ export default function BulkEnginePage() {
                       <HStack spacing="3" flexWrap="wrap">
                         <Button
                           size="sm"
-                          bg="tide.500"
-                          color="white"
-                          _hover={{ bg: 'tide.400' }}
                           onClick={handleCalcLength}
-                          isDisabled={!dbName || isLengthLoading}
+                          disabled={!dbName || isLengthLoading}
+                          variant="outline"
                         >
                           {isLengthLoading ? 'Calculating...' : 'Calc length'}
                         </Button>
                         <Button
                           size="sm"
-                          bg="tide.500"
-                          color="white"
-                          _hover={{ bg: 'tide.400' }}
                           onClick={handleExportLengthCsv}
-                          isDisabled={!dbName || isLengthExporting}
+                          disabled={!dbName || isLengthExporting}
+                          variant="outline"
                         >
                           {isLengthExporting ? 'Exporting...' : 'Export CSV'}
                         </Button>
                         <Button
                           size="sm"
-                          bg="tide.500"
-                          color="white"
-                          _hover={{ bg: 'tide.400' }}
                           onClick={handleExportLengthJson}
-                          isDisabled={!dbName || isJsonExporting || isLengthExporting}
+                          disabled={!dbName || isJsonExporting || isLengthExporting}
+                          variant="outline"
                         >
                           {jsonExportMode === 'cell-length' ? 'Exporting...' : 'Export JSON'}
                         </Button>
@@ -2588,7 +2573,7 @@ export default function BulkEnginePage() {
                         Cell width distance (px)
                       </Text>
                       <Box maxW="12rem">
-                        <Text fontSize="xs" letterSpacing="0.18em" color="ink.700" mb="1">
+                        <Text fontSize="xs" color="ink.700" mb="1">
                           Manual label
                         </Text>
                         <NativeSelect.Root>
@@ -2621,21 +2606,17 @@ export default function BulkEnginePage() {
                       <HStack spacing="3" flexWrap="wrap">
                         <Button
                           size="sm"
-                          bg="tide.500"
-                          color="white"
-                          _hover={{ bg: 'tide.400' }}
                           onClick={handleExportWidthCsv}
-                          isDisabled={!dbName || isWidthExporting}
+                          disabled={!dbName || isWidthExporting}
+                          variant="outline"
                         >
                           {isWidthExporting ? 'Exporting...' : 'Export CSV'}
                         </Button>
                         <Button
                           size="sm"
-                          bg="tide.500"
-                          color="white"
-                          _hover={{ bg: 'tide.400' }}
                           onClick={handleExportWidthJson}
-                          isDisabled={!dbName || isJsonExporting || isWidthExporting}
+                          disabled={!dbName || isJsonExporting || isWidthExporting}
+                          variant="outline"
                         >
                           {jsonExportMode === 'cell-width' ? 'Exporting...' : 'Export JSON'}
                         </Button>
@@ -2659,7 +2640,7 @@ export default function BulkEnginePage() {
                         Cell area (px^2)
                       </Text>
                       <Box maxW="12rem">
-                        <Text fontSize="xs" letterSpacing="0.18em" color="ink.700" mb="1">
+                        <Text fontSize="xs" color="ink.700" mb="1">
                           Manual label
                         </Text>
                         <NativeSelect.Root>
@@ -2692,31 +2673,25 @@ export default function BulkEnginePage() {
                       <HStack spacing="3" flexWrap="wrap">
                         <Button
                           size="sm"
-                          bg="tide.500"
-                          color="white"
-                          _hover={{ bg: 'tide.400' }}
                           onClick={handleCalcArea}
-                          isDisabled={!dbName || isAreaLoading}
+                          disabled={!dbName || isAreaLoading}
+                          variant="outline"
                         >
                           {isAreaLoading ? 'Calculating...' : 'Calc area'}
                         </Button>
                         <Button
                           size="sm"
-                          bg="tide.500"
-                          color="white"
-                          _hover={{ bg: 'tide.400' }}
                           onClick={handleExportAreaCsv}
-                          isDisabled={!dbName || isAreaExporting}
+                          disabled={!dbName || isAreaExporting}
+                          variant="outline"
                         >
                           {isAreaExporting ? 'Exporting...' : 'Export CSV'}
                         </Button>
                         <Button
                           size="sm"
-                          bg="tide.500"
-                          color="white"
-                          _hover={{ bg: 'tide.400' }}
                           onClick={handleExportAreaJson}
-                          isDisabled={!dbName || isJsonExporting || isAreaExporting}
+                          disabled={!dbName || isJsonExporting || isAreaExporting}
+                          variant="outline"
                         >
                           {jsonExportMode === 'cell-area' ? 'Exporting...' : 'Export JSON'}
                         </Button>
@@ -2765,7 +2740,7 @@ export default function BulkEnginePage() {
                       </Text>
                       <HStack spacing="4" align="flex-start" flexWrap="wrap">
                         <Box maxW="12rem">
-                          <Text fontSize="xs" letterSpacing="0.18em" color="ink.700" mb="1">
+                          <Text fontSize="xs" color="ink.700" mb="1">
                             Manual label
                           </Text>
                           <NativeSelect.Root>
@@ -2793,7 +2768,7 @@ export default function BulkEnginePage() {
                           </NativeSelect.Root>
                         </Box>
                         <Box maxW="10rem">
-                          <Text fontSize="xs" letterSpacing="0.18em" color="ink.700" mb="1">
+                          <Text fontSize="xs" color="ink.700" mb="1">
                             Channel
                           </Text>
                           <NativeSelect.Root>
@@ -2821,7 +2796,7 @@ export default function BulkEnginePage() {
                           </NativeSelect.Root>
                         </Box>
                         <Box maxW="12rem">
-                          <Text fontSize="xs" letterSpacing="0.18em" color="ink.700" mb="1">
+                          <Text fontSize="xs" color="ink.700" mb="1">
                             Contour intensity
                           </Text>
                           <NativeSelect.Root>
@@ -2856,31 +2831,25 @@ export default function BulkEnginePage() {
                       <HStack spacing="3" flexWrap="wrap">
                         <Button
                           size="sm"
-                          bg="tide.500"
-                          color="white"
-                          _hover={{ bg: 'tide.400' }}
                           onClick={handleCalcNormalizedMedian}
-                          isDisabled={!dbName || isMedianLoading}
+                          disabled={!dbName || isMedianLoading}
+                          variant="outline"
                         >
                           {isMedianLoading ? 'Calculating...' : 'Calc median'}
                         </Button>
                         <Button
                           size="sm"
-                          bg="tide.500"
-                          color="white"
-                          _hover={{ bg: 'tide.400' }}
                           onClick={handleExportNormalizedMedianCsv}
-                          isDisabled={!dbName || isMedianExporting}
+                          disabled={!dbName || isMedianExporting}
+                          variant="outline"
                         >
                           {isMedianExporting ? 'Exporting...' : 'Export CSV'}
                         </Button>
                         <Button
                           size="sm"
-                          bg="tide.500"
-                          color="white"
-                          _hover={{ bg: 'tide.400' }}
                           onClick={handleExportNormalizedMedianJson}
-                          isDisabled={!dbName || isJsonExporting || isMedianExporting}
+                          disabled={!dbName || isJsonExporting || isMedianExporting}
+                          variant="outline"
                         >
                           {jsonExportMode === 'normalized-median'
                             ? 'Exporting...'
@@ -2931,7 +2900,7 @@ export default function BulkEnginePage() {
                       </Text>
                       <HStack spacing="4" align="flex-start" flexWrap="wrap">
                         <Box maxW="12rem">
-                          <Text fontSize="xs" letterSpacing="0.18em" color="ink.700" mb="1">
+                          <Text fontSize="xs" color="ink.700" mb="1">
                             Manual label
                           </Text>
                           <NativeSelect.Root>
@@ -2959,7 +2928,7 @@ export default function BulkEnginePage() {
                           </NativeSelect.Root>
                         </Box>
                         <Box maxW="10rem">
-                          <Text fontSize="xs" letterSpacing="0.18em" color="ink.700" mb="1">
+                          <Text fontSize="xs" color="ink.700" mb="1">
                             Channel
                           </Text>
                           <NativeSelect.Root>
@@ -2996,11 +2965,9 @@ export default function BulkEnginePage() {
                       <HStack spacing="3" flexWrap="wrap">
                         <Button
                           size="sm"
-                          bg="tide.500"
-                          color="white"
-                          _hover={{ bg: 'tide.400' }}
                           onClick={handleCalcFitcAggregation}
-                          isDisabled={!dbName || isFitcLoading}
+                          disabled={!dbName || isFitcLoading}
+                          variant="outline"
                         >
                           {isFitcLoading ? 'Calculating...' : 'Calc ratio'}
                         </Button>
@@ -3044,7 +3011,7 @@ export default function BulkEnginePage() {
                       </Text>
                       <HStack spacing="4" align="flex-start" flexWrap="wrap">
                         <Box maxW="12rem">
-                          <Text fontSize="xs" letterSpacing="0.18em" color="ink.700" mb="1">
+                          <Text fontSize="xs" color="ink.700" mb="1">
                             Manual label
                           </Text>
                           <NativeSelect.Root>
@@ -3072,7 +3039,7 @@ export default function BulkEnginePage() {
                           </NativeSelect.Root>
                         </Box>
                         <Box maxW="10rem">
-                          <Text fontSize="xs" letterSpacing="0.18em" color="ink.700" mb="1">
+                          <Text fontSize="xs" color="ink.700" mb="1">
                             Channel
                           </Text>
                           <NativeSelect.Root>
@@ -3106,31 +3073,25 @@ export default function BulkEnginePage() {
                       <HStack spacing="3" flexWrap="wrap">
                         <Button
                           size="sm"
-                          bg="tide.500"
-                          color="white"
-                          _hover={{ bg: 'tide.400' }}
                           onClick={handleCalcEntropy}
-                          isDisabled={!dbName || isEntropyLoading}
+                          disabled={!dbName || isEntropyLoading}
+                          variant="outline"
                         >
                           {isEntropyLoading ? 'Calculating...' : 'Calc entropy'}
                         </Button>
                         <Button
                           size="sm"
-                          bg="tide.500"
-                          color="white"
-                          _hover={{ bg: 'tide.400' }}
                           onClick={handleExportEntropyCsv}
-                          isDisabled={!dbName || isEntropyExporting}
+                          disabled={!dbName || isEntropyExporting}
+                          variant="outline"
                         >
                           {isEntropyExporting ? 'Exporting...' : 'Export CSV'}
                         </Button>
                         <Button
                           size="sm"
-                          bg="tide.500"
-                          color="white"
-                          _hover={{ bg: 'tide.400' }}
                           onClick={handleExportEntropyJson}
-                          isDisabled={!dbName || isJsonExporting || isEntropyExporting}
+                          disabled={!dbName || isJsonExporting || isEntropyExporting}
+                          variant="outline"
                         >
                           {jsonExportMode === 'entropy' ? 'Exporting...' : 'Export JSON'}
                         </Button>
@@ -3179,7 +3140,7 @@ export default function BulkEnginePage() {
                       </Text>
                       <HStack spacing="4" align="flex-start" flexWrap="wrap">
                         <Box maxW="12rem">
-                          <Text fontSize="xs" letterSpacing="0.18em" color="ink.700" mb="1">
+                          <Text fontSize="xs" color="ink.700" mb="1">
                             Manual label
                           </Text>
                           <NativeSelect.Root>
@@ -3207,7 +3168,7 @@ export default function BulkEnginePage() {
                           </NativeSelect.Root>
                         </Box>
                         <Box maxW="10rem">
-                          <Text fontSize="xs" letterSpacing="0.18em" color="ink.700" mb="1">
+                          <Text fontSize="xs" color="ink.700" mb="1">
                             Channel
                           </Text>
                           <NativeSelect.Root>
@@ -3241,51 +3202,41 @@ export default function BulkEnginePage() {
                       <HStack spacing="3" flexWrap="wrap">
                         <Button
                           size="sm"
-                          bg="tide.500"
-                          color="white"
-                          _hover={{ bg: 'tide.400' }}
                           onClick={handleExportHeatmapCsv}
-                          isDisabled={!dbName || isHeatmapExporting}
+                          disabled={!dbName || isHeatmapExporting}
+                          variant="outline"
                         >
                           {isHeatmapExporting ? 'Exporting...' : 'Export CSV'}
                         </Button>
                         <Button
                           size="sm"
-                          bg="tide.500"
-                          color="white"
-                          _hover={{ bg: 'tide.400' }}
                           onClick={handleExportHeatmapJson}
-                          isDisabled={!dbName || isJsonExporting || isHeatmapExporting}
+                          disabled={!dbName || isJsonExporting || isHeatmapExporting}
+                          variant="outline"
                         >
                           {jsonExportMode === 'heatmap' ? 'Exporting...' : 'Export JSON'}
                         </Button>
                         <Button
                           size="sm"
-                          bg="tide.500"
-                          color="white"
-                          _hover={{ bg: 'tide.400' }}
                           onClick={handleGenerateHeatmapPlot}
-                          isDisabled={!dbName || isHeatmapPlotLoading}
+                          disabled={!dbName || isHeatmapPlotLoading}
+                          variant="outline"
                         >
                           {isHeatmapPlotLoading ? 'Generating...' : 'Bulk heatmap'}
                         </Button>
                         <Button
                           size="sm"
-                          bg="tide.500"
-                          color="white"
-                          _hover={{ bg: 'tide.400' }}
                           onClick={handleGenerateHeatmapRelPlot}
-                          isDisabled={!dbName || isHeatmapRelLoading}
+                          disabled={!dbName || isHeatmapRelLoading}
+                          variant="outline"
                         >
                           {isHeatmapRelLoading ? 'Generating...' : 'Heatmap (rel)'}
                         </Button>
                         <Button
                           size="sm"
-                          bg="tide.500"
-                          color="white"
-                          _hover={{ bg: 'tide.400' }}
                           onClick={handleGenerateHuSeparation}
-                          isDisabled={!dbName || isHuSeparationLoading}
+                          disabled={!dbName || isHuSeparationLoading}
+                          variant="outline"
                         >
                           {isHuSeparationLoading ? 'Generating...' : 'HU Separation'}
                         </Button>
@@ -3378,7 +3329,7 @@ export default function BulkEnginePage() {
                         Contours grid
                       </Text>
                       <Box maxW="12rem">
-                        <Text fontSize="xs" letterSpacing="0.18em" color="ink.700" mb="1">
+                        <Text fontSize="xs" color="ink.700" mb="1">
                           Manual label
                         </Text>
                         <NativeSelect.Root>
@@ -3411,21 +3362,17 @@ export default function BulkEnginePage() {
                       <HStack spacing="3" flexWrap="wrap">
                         <Button
                           size="sm"
-                          bg="tide.500"
-                          color="white"
-                          _hover={{ bg: 'tide.400' }}
                           onClick={handleGenerateContoursGrid}
-                          isDisabled={!dbName || isContoursLoading}
+                          disabled={!dbName || isContoursLoading}
+                          variant="outline"
                         >
                           {isContoursLoading ? 'Generating...' : 'Generate contours'}
                         </Button>
                         <Button
                           size="sm"
-                          bg="tide.500"
-                          color="white"
-                          _hover={{ bg: 'tide.400' }}
                           onClick={handleExportContoursJson}
-                          isDisabled={!dbName || isContoursExporting}
+                          disabled={!dbName || isContoursExporting}
+                          variant="outline"
                         >
                           {isContoursExporting ? 'Exporting...' : 'Export JSON'}
                         </Button>
@@ -3474,7 +3421,7 @@ export default function BulkEnginePage() {
                       </Text>
                       <HStack spacing="4" align="flex-start" flexWrap="wrap">
                         <Box maxW="12rem">
-                          <Text fontSize="xs" letterSpacing="0.18em" color="ink.700" mb="1">
+                          <Text fontSize="xs" color="ink.700" mb="1">
                             Manual label
                           </Text>
                           <NativeSelect.Root>
@@ -3502,7 +3449,7 @@ export default function BulkEnginePage() {
                           </NativeSelect.Root>
                         </Box>
                         <Box maxW="10rem">
-                          <Text fontSize="xs" letterSpacing="0.18em" color="ink.700" mb="1">
+                          <Text fontSize="xs" color="ink.700" mb="1">
                             Channel
                           </Text>
                           <NativeSelect.Root>
@@ -3536,21 +3483,17 @@ export default function BulkEnginePage() {
                       <HStack spacing="3" flexWrap="wrap">
                         <Button
                           size="sm"
-                          bg="tide.500"
-                          color="white"
-                          _hover={{ bg: 'tide.400' }}
                           onClick={handleGenerateMap256}
-                          isDisabled={!dbName || isMap256Loading}
+                          disabled={!dbName || isMap256Loading}
+                          variant="outline"
                         >
                           {isMap256Loading ? 'Generating...' : 'Generate map256'}
                         </Button>
                         <Button
                           size="sm"
-                          bg="tide.500"
-                          color="white"
-                          _hover={{ bg: 'tide.400' }}
                           onClick={handleGenerateMap256Contour}
-                          isDisabled={!dbName || isMap256Loading}
+                          disabled={!dbName || isMap256Loading}
+                          variant="outline"
                         >
                           {isMap256Loading ? 'Generating...' : 'Map256 (contour)'}
                         </Button>
@@ -3597,7 +3540,7 @@ export default function BulkEnginePage() {
                       </Text>
                       <HStack spacing="4" align="flex-start" flexWrap="wrap">
                         <Box maxW="12rem">
-                          <Text fontSize="xs" letterSpacing="0.18em" color="ink.700" mb="1">
+                          <Text fontSize="xs" color="ink.700" mb="1">
                             Manual label
                           </Text>
                           <NativeSelect.Root>
@@ -3625,7 +3568,7 @@ export default function BulkEnginePage() {
                           </NativeSelect.Root>
                         </Box>
                         <Box maxW="10rem">
-                          <Text fontSize="xs" letterSpacing="0.18em" color="ink.700" mb="1">
+                          <Text fontSize="xs" color="ink.700" mb="1">
                             Channel
                           </Text>
                           <NativeSelect.Root>
@@ -3659,21 +3602,17 @@ export default function BulkEnginePage() {
                       <HStack spacing="3" flexWrap="wrap">
                         <Button
                           size="sm"
-                          bg="tide.500"
-                          color="white"
-                          _hover={{ bg: 'tide.400' }}
                           onClick={handleExportRawData}
-                          isDisabled={!dbName || isRawExporting}
+                          disabled={!dbName || isRawExporting}
+                          variant="outline"
                         >
                           {isRawExporting ? 'Exporting...' : 'Export CSV'}
                         </Button>
                         <Button
                           size="sm"
-                          bg="tide.500"
-                          color="white"
-                          _hover={{ bg: 'tide.400' }}
                           onClick={handleExportRawJson}
-                          isDisabled={!dbName || isJsonExporting || isRawExporting}
+                          disabled={!dbName || isJsonExporting || isRawExporting}
+                          variant="outline"
                         >
                           {jsonExportMode === 'raw-data' ? 'Exporting...' : 'Export JSON'}
                         </Button>
@@ -3696,7 +3635,7 @@ export default function BulkEnginePage() {
             </Grid>
           )}
         </Stack>
-      </Container>
+      </PageContainer>
       {previewCell && (
         <Box
           position="fixed"
@@ -3736,10 +3675,6 @@ export default function BulkEnginePage() {
               <Button
                 size="xs"
                 variant="outline"
-                borderColor="tide.500"
-                bg="tide.500"
-                color="white"
-                _hover={{ bg: 'tide.400' }}
                 onClick={() => setPreviewCellId(null)}
               >
                 Close
@@ -3805,10 +3740,6 @@ export default function BulkEnginePage() {
                 <Button
                   size="xs"
                   variant="outline"
-                  borderColor="tide.500"
-                  bg="tide.500"
-                  color="white"
-                  _hover={{ bg: 'tide.400' }}
                   onClick={handleCopyJson}
                 >
                   Copy JSON
@@ -3816,10 +3747,6 @@ export default function BulkEnginePage() {
                 <Button
                   size="xs"
                   variant="outline"
-                  borderColor="tide.500"
-                  bg="tide.500"
-                  color="white"
-                  _hover={{ bg: 'tide.400' }}
                   onClick={closeJsonModal}
                 >
                   Close

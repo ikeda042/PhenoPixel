@@ -11,7 +11,6 @@ import {
   BreadcrumbRoot,
   BreadcrumbSeparator,
   Button,
-  Container,
   Grid,
   Heading,
   HStack,
@@ -22,6 +21,7 @@ import {
 } from '@chakra-ui/react'
 import PageBreadcrumb from '../components/PageBreadcrumb'
 import PageHeader from '../components/PageHeader'
+import PageContainer from '../components/PageContainer'
 import ReloadButton from '../components/ReloadButton'
 import ThemeToggleButton from '../components/ThemeToggleButton'
 import { getApiBase } from '../utils/apiBase'
@@ -264,13 +264,13 @@ export default function GraphEnginePage() {
         }
       />
 
-      <Container maxW="72.5rem" py={{ base: 8, md: 12 }}>
+      <PageContainer>
         <PageBreadcrumb>
           <BreadcrumbRoot fontSize="sm" color="ink.700">
             <BreadcrumbList>
               <BreadcrumbItem>
                 <BreadcrumbLink as={RouterLink} to="/">
-                  Dashboard
+                  Home
                 </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator>/</BreadcrumbSeparator>
@@ -342,7 +342,7 @@ export default function GraphEnginePage() {
                     color="ink.900"
                     _hover={{ bg: 'sand.100' }}
                     onClick={() => ctrlInputRef.current?.click()}
-                    isDisabled={isLoading}
+                    disabled={isLoading}
                     justifyContent="flex-start"
                     textAlign="left"
                     overflow="hidden"
@@ -363,7 +363,7 @@ export default function GraphEnginePage() {
                     color="ink.900"
                     _hover={{ bg: 'sand.100' }}
                     onClick={() => filesInputRef.current?.click()}
-                    isDisabled={isLoading}
+                    disabled={isLoading}
                     justifyContent="flex-start"
                     textAlign="left"
                     overflow="hidden"
@@ -381,12 +381,10 @@ export default function GraphEnginePage() {
                 </Text>
                 <Button
                   size="sm"
-                  bg="tide.500"
-                  color="white"
-                  _hover={{ bg: 'tide.400' }}
                   onClick={handleAnalyze}
                   loading={isLoading}
-                  isDisabled={!files?.length}
+                  disabled={!files?.length}
+                  variant="outline"
                 >
                   Analyze
                 </Button>
@@ -414,7 +412,7 @@ export default function GraphEnginePage() {
               borderColor="sand.200"
               bg="sand.200"
             >
-              <Text fontSize="xs" color="ink.700" letterSpacing="0.18em">
+              <Text fontSize="xs" color="ink.700">
                 Results
               </Text>
             </Box>
@@ -450,25 +448,25 @@ export default function GraphEnginePage() {
                     borderColor="sand.200"
                     gap="4"
                   >
-                    <Text fontSize="xs" color="ink.700" letterSpacing="0.18em">
+                    <Text fontSize="xs" color="ink.700">
                       Filename
                     </Text>
-                    <Text fontSize="xs" color="ink.700" letterSpacing="0.18em">
+                    <Text fontSize="xs" color="ink.700">
                       Mean Length (um)
                     </Text>
-                    <Text fontSize="xs" color="ink.700" letterSpacing="0.18em">
+                    <Text fontSize="xs" color="ink.700">
                       Nagg Rate
                     </Text>
-                    <Text fontSize="xs" color="ink.700" letterSpacing="0.18em">
+                    <Text fontSize="xs" color="ink.700">
                       Heatmap (abs)
                     </Text>
-                    <Text fontSize="xs" color="ink.700" letterSpacing="0.18em">
+                    <Text fontSize="xs" color="ink.700">
                       Heatmap (rel)
                     </Text>
-                    <Text fontSize="xs" color="ink.700" letterSpacing="0.18em">
+                    <Text fontSize="xs" color="ink.700">
                       Distribution
                     </Text>
-                    <Text fontSize="xs" color="ink.700" letterSpacing="0.18em">
+                    <Text fontSize="xs" color="ink.700">
                       Distribution Box
                     </Text>
                   </Grid>
@@ -611,7 +609,7 @@ export default function GraphEnginePage() {
             )}
           </Box>
         </Stack>
-      </Container>
+      </PageContainer>
 
       <input
         ref={ctrlInputRef}

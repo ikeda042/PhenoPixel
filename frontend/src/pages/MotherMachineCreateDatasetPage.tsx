@@ -11,7 +11,6 @@ import {
   BreadcrumbRoot,
   BreadcrumbSeparator,
   Button,
-  Container,
   Flex,
   Grid,
   Heading,
@@ -39,6 +38,7 @@ import {
 } from 'lucide-react'
 import PageBreadcrumb from '../components/PageBreadcrumb'
 import PageHeader from '../components/PageHeader'
+import PageContainer from '../components/PageContainer'
 import ReloadButton from '../components/ReloadButton'
 import ThemeToggleButton from '../components/ThemeToggleButton'
 import { getApiBase } from '../utils/apiBase'
@@ -491,44 +491,44 @@ export default function MotherMachineCreateDatasetPage() {
   return (
     <Box minH="100dvh" h={workspaceActive ? '100dvh' : 'auto'} overflow={workspaceActive ? 'hidden' : 'visible'} bg="sand.50" color="ink.900">
       <PageHeader actions={<><ReloadButton /><ThemeToggleButton /></>} />
-      <Container maxW="90rem" py={workspaceActive ? { base: 2, md: 3 } : { base: 6, md: 8 }} h={workspaceActive ? 'calc(100dvh - 4rem)' : 'auto'} display={workspaceActive ? 'flex' : 'block'} flexDirection="column" overflow={workspaceActive ? 'hidden' : 'visible'}>
+      <PageContainer py={workspaceActive ? { base: 2, md: 3 } : { base: '24px', md: '30px' }} h={workspaceActive ? 'calc(100dvh - var(--app-header-height))' : 'auto'} display={workspaceActive ? 'flex' : 'block'} flexDirection="column" overflow={workspaceActive ? 'hidden' : 'visible'}>
         {!workspaceActive && <PageBreadcrumb><BreadcrumbRoot fontSize="sm" color="ink.700"><BreadcrumbList>
-          <BreadcrumbItem><BreadcrumbLink as={RouterLink} to="/">Dashboard</BreadcrumbLink></BreadcrumbItem><BreadcrumbSeparator>/</BreadcrumbSeparator>
+          <BreadcrumbItem><BreadcrumbLink as={RouterLink} to="/">Home</BreadcrumbLink></BreadcrumbItem><BreadcrumbSeparator>/</BreadcrumbSeparator>
           <BreadcrumbItem><BreadcrumbCurrentLink>Create dataset</BreadcrumbCurrentLink></BreadcrumbItem>
         </BreadcrumbList></BreadcrumbRoot></PageBreadcrumb>}
 
-        {!filename && <Stack spacing="6" maxW="60rem" mx="auto" mt="10">
-          <Stack spacing="2"><Badge alignSelf="flex-start" colorPalette="cyan">Step 1 of 4</Badge><Heading size="xl">Upload Mother Machine ND2</Heading><Text color="ink.700">One self-contained teaching database will be created for this ND2 file.</Text></Stack>
+        {!filename && <Stack spacing="6" w="full">
+          <Stack spacing="2"><Badge alignSelf="flex-start" colorPalette="tide">Step 1 of 4</Badge><Heading as="h1" fontSize="22px" fontWeight="600">Upload Mother Machine ND2</Heading><Text color="ink.700">One self-contained teaching database will be created for this ND2 file.</Text></Stack>
           <Flex minH="18rem" border="2px dashed" borderColor="sand.300" borderRadius="xl" bg="sand.100" align="center" justify="center" direction="column" gap="4" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const file = event.dataTransfer.files[0]; if (file) void upload(file) }}>
-            <Icon as={Upload} boxSize="10" color="tide.400" /><Text fontWeight="600">Drop an ND2 file here</Text><Button bg="tide.500" color="white" onClick={() => fileRef.current?.click()} loading={uploading}>Choose ND2</Button>
+            <Icon as={Upload} boxSize="10" color="tide.400" /><Text fontWeight="600">Drop an ND2 file here</Text><Button onClick={() => fileRef.current?.click()} loading={uploading} variant="outline">Choose ND2</Button>
           </Flex>
           <Input ref={fileRef} type="file" accept=".nd2" display="none" onChange={handleFile} />
-          {uploadConflict && <Box p="4" border="1px solid" borderColor="orange.300" bg="orange.50" borderRadius="lg"><Heading size="sm">Dataset already exists</Heading><Text mt="1" fontSize="sm" color="gray.700">{uploadConflict.filename} is already registered.</Text><HStack mt="3" flexWrap="wrap">{uploadConflict.canResume && <Button bg="tide.500" color="white" onClick={() => void openExisting(uploadConflict)}><Icon as={Play} /> Resume existing dataset</Button>}<Button variant="outline" colorPalette="red" loading={uploading} onClick={() => void replaceExisting()}>Delete and replace</Button></HStack></Box>}
+          {uploadConflict && <Box p="4" border="1px solid" borderColor="orange.300" bg="orange.50" borderRadius="lg"><Heading size="sm">Dataset already exists</Heading><Text mt="1" fontSize="sm" color="gray.700">{uploadConflict.filename} is already registered.</Text><HStack mt="3" flexWrap="wrap">{uploadConflict.canResume && <Button onClick={() => void openExisting(uploadConflict)} variant="outline"><Icon as={Play} /> Resume existing dataset</Button>}<Button variant="outline" colorPalette="red" loading={uploading} onClick={() => void replaceExisting()}>Delete and replace</Button></HStack></Box>}
           {error && <Text color="red.500">{error}</Text>}
           {availableDatasets.length > 0 && <Stack spacing="2"><Heading size="sm">Existing teaching datasets</Heading>{availableDatasets.map((existing) => <Grid key={existing.filename} templateColumns={{ base: '1fr', md: 'minmax(0, 1fr) 180px auto' }} gap="3" alignItems="center" p="3" bg="sand.100" border="1px solid" borderColor="sand.200" borderRadius="md"><Box><Text fontWeight="600" fontSize="sm">{existing.filename}</Text><Text fontSize="xs" color="ink.700">{existing.reviewed_count} / {existing.total_frames} reviewed</Text></Box><Box><Text fontSize="xs" textAlign="right">{existing.progress_percent}% · {existing.status}</Text><Box h="1.5" bg="sand.200" borderRadius="full"><Box h="full" bg="tide.400" borderRadius="full" w={`${existing.progress_percent}%`} /></Box></Box><Button size="sm" variant="outline" onClick={() => void openExisting(existing)}><Icon as={Play} /> {existing.status === 'completed' ? 'Open' : 'Resume'}</Button></Grid>)}</Stack>}
         </Stack>}
 
-        {filename && !dataset && <Flex minH="55vh" align="center" justify="center"><Stack textAlign="center"><Heading size="md">{error ? 'Dataset could not be loaded' : 'Loading dataset…'}</Heading>{error && <Text color="red.500">{error}</Text>}<Button variant="outline" onClick={() => navigate('/')}>Back to dashboard</Button></Stack></Flex>}
+        {filename && !dataset && <Flex minH="55vh" align="center" justify="center"><Stack textAlign="center"><Heading size="md">{error ? 'Dataset could not be loaded' : 'Loading dataset…'}</Heading>{error && <Text color="red.500">{error}</Text>}<Button variant="outline" onClick={() => navigate('/')}>Back to home</Button></Stack></Flex>}
 
-        {filename && dataset?.status === 'preparing' && <Flex minH="55vh" align="center" justify="center"><Stack spacing="4" textAlign="center" maxW="36rem"><Badge alignSelf="center" colorPalette="cyan">Step 2 of 4</Badge><Heading>Preparing ROI images</Heading><Text color="ink.700">{dataset.job?.progress?.message ?? 'Applying drift correction and extracting channel images…'}</Text><Text fontSize="sm" color="ink.700">Cellpose runs only when each ROI frame is opened.</Text><Box h="2" bg="sand.200" borderRadius="full" overflow="hidden"><Box h="full" bg="tide.400" w={`${dataset.job?.progress?.total_frames ? Math.round(100 * (dataset.job.progress.processed_frames ?? 0) / dataset.job.progress.total_frames) : 8}%`} transition="width .3s" /></Box><HStack justify="center"><Button variant="outline" onClick={() => navigate('/')}>Run in background</Button><Button variant="outline" colorPalette="orange" onClick={async () => { await fetch(`${apiBase}/mother-machine/training-datasets/${encodeURIComponent(filename)}/pause`, { method: 'POST' }); navigate('/') }}><Icon as={Pause} /> Stop safely</Button></HStack></Stack></Flex>}
+        {filename && dataset?.status === 'preparing' && <Flex minH="55vh" align="center" justify="center"><Stack spacing="4" textAlign="center" maxW="36rem"><Badge alignSelf="center" colorPalette="tide">Step 2 of 4</Badge><Heading>Preparing ROI images</Heading><Text color="ink.700">{dataset.job?.progress?.message ?? 'Applying drift correction and extracting channel images…'}</Text><Text fontSize="sm" color="ink.700">Cellpose runs only when each ROI frame is opened.</Text><Box h="2" bg="sand.200" borderRadius="full" overflow="hidden"><Box h="full" bg="tide.400" w={`${dataset.job?.progress?.total_frames ? Math.round(100 * (dataset.job.progress.processed_frames ?? 0) / dataset.job.progress.total_frames) : 8}%`} transition="width .3s" /></Box><HStack justify="center"><Button variant="outline" onClick={() => navigate('/')}>Run in background</Button><Button variant="outline" colorPalette="orange" onClick={async () => { await fetch(`${apiBase}/mother-machine/training-datasets/${encodeURIComponent(filename)}/pause`, { method: 'POST' }); navigate('/') }}><Icon as={Pause} /> Stop safely</Button></HStack></Stack></Flex>}
 
         {filename && dataset?.status === 'uploading' && <Flex minH="55vh" align="center" justify="center"><Stack><Heading>Dataset uploaded</Heading><Button onClick={async () => { await fetch(`${apiBase}/mother-machine/training-datasets/${encodeURIComponent(filename)}/prepare`, { method: 'POST' }); setDataset({ ...dataset, status: 'preparing' }) }}>Prepare ROIs</Button></Stack></Flex>}
 
-        {filename && dataset?.status === 'paused' && dataset.total_frames === 0 && <Flex minH="55vh" align="center" justify="center"><Stack spacing="3" maxW="36rem" textAlign="center"><Heading>ROI preparation paused</Heading><Text color="ink.700">{dataset.error || 'Preparation did not finish. You can retry without uploading the ND2 again.'}</Text><HStack justify="center"><Button variant="outline" onClick={() => navigate('/')}>Back</Button><Button bg="tide.500" color="white" onClick={async () => { const response = await fetch(`${apiBase}/mother-machine/training-datasets/${encodeURIComponent(filename)}/prepare`, { method: 'POST' }); if (!response.ok) { setError(await errorMessage(response, 'Retry failed')); return } setDataset({ ...dataset, status: 'preparing', error: null }) }}>Retry preparation</Button></HStack></Stack></Flex>}
+        {filename && dataset?.status === 'paused' && dataset.total_frames === 0 && <Flex minH="55vh" align="center" justify="center"><Stack spacing="3" maxW="36rem" textAlign="center"><Heading>ROI preparation paused</Heading><Text color="ink.700">{dataset.error || 'Preparation did not finish. You can retry without uploading the ND2 again.'}</Text><HStack justify="center"><Button variant="outline" onClick={() => navigate('/')}>Back</Button><Button onClick={async () => { const response = await fetch(`${apiBase}/mother-machine/training-datasets/${encodeURIComponent(filename)}/prepare`, { method: 'POST' }); if (!response.ok) { setError(await errorMessage(response, 'Retry failed')); return } setDataset({ ...dataset, status: 'preparing', error: null }) }} variant="outline">Retry preparation</Button></HStack></Stack></Flex>}
 
         {filename && dataset && (dataset.status === 'annotating' || dataset.status === 'completed' || dataset.status === 'paused') && frame && <Stack spacing="3" flex="1" minH="0" overflow="hidden">
           <Flex justify="space-between" align="center" flexWrap="wrap" gap="3">
-            <Box><HStack><Badge colorPalette="cyan">Step {dataset.status === 'completed' ? '4' : '3'} of 4</Badge><Badge>{dataset.status}</Badge>{dirty && <Badge colorPalette="orange">Unsaved draft</Badge>}{saving && <Badge>Saving…</Badge>}</HStack><Heading size="lg" mt="2">{dataset.filename}</Heading><Text fontSize="sm" color="ink.700">Field {frame.view_index + 1} · ROI {frame.roi_id} · Time {frame.time_frame + 1} · {instances.length} cells</Text></Box>
+            <Box><HStack><Badge colorPalette="tide">Step {dataset.status === 'completed' ? '4' : '3'} of 4</Badge><Badge>{dataset.status}</Badge>{dirty && <Badge colorPalette="orange">Unsaved draft</Badge>}{saving && <Badge>Saving…</Badge>}</HStack><Heading size="lg" mt="2">{dataset.filename}</Heading><Text fontSize="sm" color="ink.700">Field {frame.view_index + 1} · ROI {frame.roi_id} · Time {frame.time_frame + 1} · {instances.length} cells</Text></Box>
             <HStack><Button variant="outline" onClick={() => void stop()}><Icon as={Pause} /> Stop</Button><Button as="a" href={`${apiBase}/mother-machine/training-datasets/${encodeURIComponent(filename)}/download`} download={dataset.database} variant="outline"><Icon as={Download} /> SQLite</Button></HStack>
           </Flex>
           <Box><HStack justify="space-between" mb="1"><Text fontSize="xs">{dataset.reviewed_count} / {dataset.total_frames} reviewed</Text><Text fontSize="xs">{progress}%</Text></HStack><Box h="2" bg="sand.200" borderRadius="full"><Box h="full" bg="tide.400" borderRadius="full" w={`${progress}%`} /></Box></Box>
           {error && <Box p="3" bg="red.50" border="1px solid" borderColor="red.200" borderRadius="md"><Text color="red.700" fontSize="sm">{error}</Text></Box>}
 
-          {dataset.status === 'completed' ? <Flex minH="0" flex="1" align="center" justify="center"><Stack textAlign="center"><Icon as={Check} boxSize="12" color="tide.400" mx="auto" /><Heading>Dataset complete</Heading><Text color="ink.700">Every ROI frame is reviewed and stored in {dataset.database}.</Text><Button as="a" href={`${apiBase}/mother-machine/training-datasets/${encodeURIComponent(filename)}/download`} download={dataset.database} bg="tide.500" color="white"><Icon as={Download} /> Download SQLite</Button></Stack></Flex> : <Stack spacing="3" flex="1" minH="0">
+          {dataset.status === 'completed' ? <Flex minH="0" flex="1" align="center" justify="center"><Stack textAlign="center"><Icon as={Check} boxSize="12" color="tide.400" mx="auto" /><Heading>Dataset complete</Heading><Text color="ink.700">Every ROI frame is reviewed and stored in {dataset.database}.</Text><Button as="a" href={`${apiBase}/mother-machine/training-datasets/${encodeURIComponent(filename)}/download`} download={dataset.database} variant="outline"><Icon as={Download} /> Download SQLite</Button></Stack></Flex> : <Stack spacing="3" flex="1" minH="0">
           <Flex gap="2" flexWrap="nowrap" overflowX="auto" flexShrink="0" p="2" bg="sand.100" border="1px solid" borderColor="sand.200" borderRadius="lg">
             <Button size="sm" variant={tool === 'select' ? 'solid' : 'outline'} onClick={() => { setTool('select'); setDraftPoints([]) }}><Icon as={MousePointer2} /> Select</Button>
             <Button size="sm" variant={tool === 'draw' ? 'solid' : 'outline'} onClick={() => { setTool('draw'); setSelected([]) }}><Icon as={Pencil} /> Trace</Button>
-            {tool === 'draw' && draftPoints.length > 0 && <Button size="sm" colorPalette="cyan" disabled={draftPoints.length < 3} onClick={finishDrawing}><Icon as={Check} /> Finish contour</Button>}
+            {tool === 'draw' && draftPoints.length > 0 && <Button size="sm" colorPalette="tide" disabled={draftPoints.length < 3} onClick={finishDrawing}><Icon as={Check} /> Finish contour</Button>}
             {tool === 'draw' && draftPoints.length > 0 && <Button size="sm" variant="outline" onClick={() => setDraftPoints([])}>Cancel contour</Button>}
             <Button size="sm" variant={tool === 'erase' ? 'solid' : 'outline'} onClick={() => { setTool('erase'); setDraftPoints([]) }}><Icon as={Eraser} /> Delete cell</Button>
             <Button size="sm" variant={tool === 'split' ? 'solid' : 'outline'} disabled={selected.length !== 1} onClick={() => { setTool('split'); setDraftPoints([]) }}><Icon as={Scissors} /> Split at click</Button>
@@ -566,11 +566,11 @@ export default function MotherMachineCreateDatasetPage() {
               <Box minW={{ base: '8rem', xl: 'auto' }}><Text fontSize="xs" fontWeight="600" mb="2">Brightness · {brightness}%</Text><Slider.Root min={25} max={250} value={[brightness]} onValueChange={(details) => setBrightness(details.value[0])}><Slider.Control><Slider.Track><Slider.Range /></Slider.Track><Slider.Thumb index={0} /></Slider.Control></Slider.Root></Box>
               <Box minW={{ base: '8rem', xl: 'auto' }}><Text fontSize="xs" fontWeight="600" mb="2">Contrast · {contrast}%</Text><Slider.Root min={25} max={250} value={[contrast]} onValueChange={(details) => setContrast(details.value[0])}><Slider.Control><Slider.Track><Slider.Range /></Slider.Track><Slider.Thumb index={0} /></Slider.Control></Slider.Root></Box>
               <Text minW={{ base: '13rem', xl: 'auto' }} fontSize="xs" color="ink.700">Trace: click points around the cell, then press Enter or Finish contour. Escape cancels.</Text>
-              <Button flexShrink="0" bg="tide.500" color="white" size="lg" onClick={() => void confirmNext()} loading={saving || frameInferring} disabled={draftPoints.length > 0 || (frame.status !== 'draft' && frame.status !== 'reviewed')}><Icon as={Check} /> Confirm & Next</Button>
+              <Button flexShrink="0" size="lg" onClick={() => void confirmNext()} loading={saving || frameInferring} disabled={draftPoints.length > 0 || (frame.status !== 'draft' && frame.status !== 'reviewed')} variant="outline"><Icon as={Check} /> Confirm & Next</Button>
             </Stack>
           </Grid></Stack>}
         </Stack>}
-      </Container>
+      </PageContainer>
     </Box>
   )
 }

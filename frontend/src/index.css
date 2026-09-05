@@ -1,18 +1,39 @@
 :root {
   color-scheme: light;
-  --app-bg: var(--chakra-colors-sand-50, #ffffff);
-  --app-fg: var(--chakra-colors-ink-900, #0b0d10);
-  --app-accent-ring: rgba(0, 174, 211, 0.6);
-  --app-accent-glow: rgba(0, 174, 211, 0.25);
-  font-size: 138%;
+  --app-bg: #fff;
+  --app-fg: #242424;
+  --app-muted: #666;
+  --app-surface: #f5f5f5;
+  --app-border: #ddd;
+  --app-border-strong: #bcbcbc;
+  --app-link: #245b91;
+  --app-action: #245b91;
+  --app-action-hover: #1b4772;
+  --app-selection: #eaf1f8;
+  --app-hover: #f6f6f6;
+  --app-error: #b42318;
+  --app-accent-ring: rgba(36, 91, 145, 0.45);
+  --app-accent-glow: rgba(36, 91, 145, 0.12);
+  --app-header-height: 54px;
+  font-size: 100%;
 }
 
 :root.dark {
   color-scheme: dark;
-  --app-bg: var(--chakra-colors-sand-50, #0b0d10);
-  --app-fg: var(--chakra-colors-ink-900, #f8fafc);
-  --app-accent-ring: rgba(45, 212, 191, 0.6);
-  --app-accent-glow: rgba(45, 212, 191, 0.25);
+  --app-bg: #202020;
+  --app-fg: #e6e6e6;
+  --app-muted: #aaa;
+  --app-surface: #292929;
+  --app-border: #414141;
+  --app-border-strong: #626262;
+  --app-link: #9abfe3;
+  --app-action: #365e83;
+  --app-action-hover: #294966;
+  --app-selection: #2c3c4c;
+  --app-hover: #282828;
+  --app-error: #ffaaa3;
+  --app-accent-ring: rgba(154, 191, 227, 0.55);
+  --app-accent-glow: rgba(154, 191, 227, 0.12);
 }
 
 *,
@@ -36,8 +57,8 @@ body {
 select,
 option,
 optgroup {
-  background-color: var(--chakra-colors-sand-100, #111318);
-  color: var(--chakra-colors-ink-900, #f8fafc);
+  background-color: var(--app-bg);
+  color: var(--app-fg);
 }
 
 select {
@@ -45,5 +66,57 @@ select {
 }
 
 option:disabled {
-  color: var(--chakra-colors-ink-700, #9aa3af);
+  color: var(--app-muted);
+}
+
+.app-header .app-header-brand {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 8px;
+  color: var(--app-fg);
+  font-size: 17px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.app-header .app-header-brand:hover {
+  text-decoration: none;
+}
+
+.app-header-brand img {
+  width: 23px;
+  height: 23px;
+  object-fit: contain;
+}
+
+.app-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-header-actions .chakra-button {
+  height: 30px;
+  min-height: 30px;
+  max-height: 30px;
+  min-width: 30px;
+}
+
+.app-header-brand:focus-visible {
+  outline: 2px solid var(--app-link);
+  outline-offset: 3px;
+}
+
+.app-breadcrumb a {
+  color: var(--app-link);
+}
+
+.app-breadcrumb a:hover {
+  text-decoration: underline;
+}
+
+.app-breadcrumb [data-part='current-link'] {
+  font-weight: 600;
 }
