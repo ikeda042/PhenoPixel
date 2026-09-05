@@ -83,7 +83,7 @@ class ReplotMeshGeometryTest(unittest.TestCase):
 
 
 class ReplotMeshEndpointTest(unittest.TestCase):
-    def test_mesh_toggle_renders_all_channels_and_defaults_to_off(self):
+    def test_mesh_toggle_renders_all_channels_and_defaults_to_on(self):
         app = FastAPI()
         app.include_router(router_database_manager, prefix="/api/v1")
         image = np.arange(80 * 80, dtype=np.uint16).reshape(80, 80)
@@ -130,7 +130,7 @@ class ReplotMeshEndpointTest(unittest.TestCase):
                                     )
                                     self.assertIsNotNone(decoded)
                                     images.append(decoded)
-                                self.assertTrue(np.array_equal(images[0], images[1]))
+                                self.assertTrue(np.array_equal(images[0], images[2]))
                                 self.assertEqual(images[1].shape, images[2].shape)
                                 self.assertFalse(np.array_equal(images[1], images[2]))
             finally:

@@ -425,7 +425,7 @@ def get_cell_replot_endpoint(
     dark_mode: Annotated[bool, Query()] = False,
     mesh: Annotated[
         bool, Query(description="Draw evenly spaced ribs from the long axis to the contour")
-    ] = False,
+    ] = True,
 ) -> StreamingResponse:
     try:
         image_bytes = DatabaseManagerCrud.get_cell_replot(

@@ -28,6 +28,7 @@ DATABASES_DIR: Path = Path(__file__).resolve().parents[1] / "databases"
 DOWNLOAD_CHUNK_SIZE: int = 1024 * 1024
 ANNOTATION_DOWNSCALE: float = 0.2
 ANNOTATION_CONTOUR_THICKNESS: int = 3
+REPLOT_CONTOUR_COLOR: str = "lime"
 FLUO_COLOR_CHANNELS: dict[str, tuple[int, int, int]] = {
     "blue": (1, 0, 0),
     "green": (0, 1, 0),
@@ -1196,7 +1197,7 @@ def _draw_replot_mesh(
     )
     if not len(centers):
         return
-    color = "white" if dark_mode else "#17212b"
+    color = REPLOT_CONTOUR_COLOR
     outline = "#17212b" if dark_mode else "white"
     ribs = LineCollection(
         segments, colors=color, linewidths=0.8, label="Mesh", zorder=3
@@ -1214,7 +1215,7 @@ def _generate_replot_image(
     contour_raw: bytes,
     degree: int,
     dark_mode: bool = False,
-    mesh: bool = False,
+    mesh: bool = True,
 ) -> bytes:
     image_fluo = _decode_image(image_fluo_raw)
     image_fluo_gray = _as_grayscale(image_fluo)
@@ -1342,7 +1343,7 @@ def _generate_replot_image(
         plt.scatter(
             u1_contour_shifted,
             u2_contour_shifted,
-            color="lime",
+            color=REPLOT_CONTOUR_COLOR,
             s=20,
             label="Contour",
         )
@@ -1365,7 +1366,7 @@ def _generate_replot_overlay_image(
     contour_raw: bytes,
     degree: int,
     dark_mode: bool = False,
-    mesh: bool = False,
+    mesh: bool = True,
 ) -> bytes:
     image_fluo1 = _decode_image(image_fluo1_raw)
     image_fluo2 = _decode_image(image_fluo2_raw)
@@ -1521,7 +1522,7 @@ def _generate_replot_overlay_image(
         plt.scatter(
             u1_contour_shifted,
             u2_contour_shifted,
-            color="lime",
+            color=REPLOT_CONTOUR_COLOR,
             s=20,
             label="Contour",
         )
@@ -2208,7 +2209,7 @@ def get_cell_replot(
     image_type: Literal["fluo1", "fluo2", "ph", "overlay"] = "fluo1",
     degree: int = 4,
     dark_mode: bool = False,
-    mesh: bool = False,
+    mesh: bool = True,
 ) -> bytes:
     if degree < 1:
         raise ValueError("degree must be >= 1")

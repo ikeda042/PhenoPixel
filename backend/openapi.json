@@ -1459,7 +1459,7 @@
             "schema": {
               "type": "boolean",
               "description": "Draw evenly spaced ribs from the long axis to the contour",
-              "default": false,
+              "default": true,
               "title": "Mesh"
             },
             "description": "Draw evenly spaced ribs from the long axis to the contour"

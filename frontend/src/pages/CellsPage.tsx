@@ -204,7 +204,7 @@ export default function CellsPage() {
   const [distributionError, setDistributionError] = useState<string | null>(null)
   const [distributionChannel, setDistributionChannel] = useState<ChannelKey>('fluo1')
   const [replotChannel, setReplotChannel] = useState<ReplotChannel>('fluo1')
-  const [replotMesh, setReplotMesh] = useState(false)
+  const [replotMesh, setReplotMesh] = useState(true)
   const [contourRefreshKey, setContourRefreshKey] = useState(0)
   const [modificationMode, setModificationMode] = useState<
     'elastic' | 'optical-boost' | 'gain'
