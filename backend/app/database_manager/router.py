@@ -423,6 +423,9 @@ def get_cell_replot_endpoint(
     image_type: Annotated[str, Query(description="ph | fluo1 | fluo2 | overlay")] = "fluo1",
     degree: Annotated[int, Query(ge=1)] = 4,
     dark_mode: Annotated[bool, Query()] = False,
+    mesh: Annotated[
+        bool, Query(description="Draw evenly spaced ribs from the long axis to the contour")
+    ] = False,
 ) -> StreamingResponse:
     try:
         image_bytes = DatabaseManagerCrud.get_cell_replot(
@@ -431,6 +434,7 @@ def get_cell_replot_endpoint(
             image_type=image_type,
             degree=degree,
             dark_mode=dark_mode,
+            mesh=mesh,
         )
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Database not found")

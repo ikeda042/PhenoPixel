@@ -1451,6 +1451,18 @@
               "default": false,
               "title": "Dark Mode"
             }
+          },
+          {
+            "name": "mesh",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Draw evenly spaced ribs from the long axis to the contour",
+              "default": false,
+              "title": "Mesh"
+            },
+            "description": "Draw evenly spaced ribs from the long axis to the contour"
           }
         ],
         "responses": {

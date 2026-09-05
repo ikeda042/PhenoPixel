@@ -22,6 +22,7 @@ import {
   Slider,
   Spinner,
   Stack,
+  Switch,
   Text,
 } from '@chakra-ui/react'
 import { ArrowLeft, ArrowRight, Download } from 'lucide-react'
@@ -203,6 +204,7 @@ export default function CellsPage() {
   const [distributionError, setDistributionError] = useState<string | null>(null)
   const [distributionChannel, setDistributionChannel] = useState<ChannelKey>('fluo1')
   const [replotChannel, setReplotChannel] = useState<ReplotChannel>('fluo1')
+  const [replotMesh, setReplotMesh] = useState(false)
   const [contourRefreshKey, setContourRefreshKey] = useState(0)
   const [modificationMode, setModificationMode] = useState<
     'elastic' | 'optical-boost' | 'gain'
@@ -777,6 +779,7 @@ export default function CellsPage() {
           image_type: replotChannel,
           degree: '4',
           dark_mode: 'true',
+          mesh: String(replotMesh),
         })
         const res = await fetch(`${apiBase}/get-cell-replot?${params.toString()}`, {
           headers: { accept: 'image/png' },
@@ -805,7 +808,7 @@ export default function CellsPage() {
     return () => {
       isActive = false
     }
-  }, [apiBase, contourMode, currentCellId, dbName, contourRefreshKey, replotChannel])
+  }, [apiBase, contourMode, currentCellId, dbName, contourRefreshKey, replotChannel, replotMesh])
 
   useEffect(() => {
     const shouldLoadOverlay =
@@ -2212,6 +2215,22 @@ export default function CellsPage() {
                       </NativeSelect.Field>
                       <NativeSelect.Indicator color="ink.700" />
                     </NativeSelect.Root>
+                    <Switch.Root
+                      size="sm"
+                      checked={replotMesh}
+                      onCheckedChange={(details) => setReplotMesh(details.checked)}
+                      ml="auto"
+                      flexShrink={0}
+                    >
+                      <Switch.HiddenInput />
+                      <Switch.Label fontSize="xs" color="ink.700">Mesh</Switch.Label>
+                      <Switch.Control bg="sand.300" _checked={{ bg: 'tide.500' }}>
+                        <Switch.Thumb />
+                      </Switch.Control>
+                      <Text as="span" fontSize="xs" color="ink.700" minW="1.5rem" aria-hidden="true">
+                        {replotMesh ? 'ON' : 'OFF'}
+                      </Text>
+                    </Switch.Root>
                   </HStack>
                 )}
                 <Box
