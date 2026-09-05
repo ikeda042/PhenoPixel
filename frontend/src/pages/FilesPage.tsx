@@ -235,13 +235,13 @@ export default function FilesPage() {
         </PageBreadcrumb>
         <Stack spacing="6">
           <InputGroup
-            size="sm"
             maxW="360px"
             startElement={<SearchGlyph />}
             bg="sand.100"
             borderRadius="md"
           >
             <Input
+              size="sm"
               placeholder="Search files"
               value={searchText}
               onChange={(event) => setSearchText(event.target.value)}

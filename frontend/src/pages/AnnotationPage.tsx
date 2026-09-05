@@ -412,10 +412,10 @@ export default function AnnotationPage() {
             <Text fontSize="sm" color="ink.700">
               Database: {dbName || 'Not selected'}
             </Text>
-            <HStack spacing="4" flexWrap="wrap" align="flex-end">
+            <HStack spacing="4" flexWrap="wrap" align="center">
               {dbName && (
                 <Button
-                  size="xs"
+                  size="sm"
                   variant="outline"
                   as={RouterLink}
                   to={`/bulk-engine?dbname=${encodeURIComponent(dbName)}`}
@@ -424,7 +424,7 @@ export default function AnnotationPage() {
                 </Button>
               )}
               <Box minW="10rem">
-                <NativeSelect.Root>
+                <NativeSelect.Root size="sm">
                   <NativeSelect.Field
                     value={String(downscale)}
                     onChange={(event) => {
@@ -434,8 +434,6 @@ export default function AnnotationPage() {
                     bg="sand.50"
                     border="1px solid"
                     borderColor="sand.200"
-                    fontSize="sm"
-                    h="2.25rem"
                     color="ink.900"
                     _focusVisible={{
                       borderColor: 'tide.400',
@@ -452,7 +450,7 @@ export default function AnnotationPage() {
                 </NativeSelect.Root>
               </Box>
               <Button
-                size="xs"
+                size="sm"
                 onClick={applySelection}
                 disabled={selectedCount === 0 || isUpdating}
                 opacity={selectedCount === 0 ? 0.5 : 1}
@@ -596,7 +594,7 @@ export default function AnnotationPage() {
                       Label {activeLabel}
                     </Badge>
                     <Box minW="4.5rem">
-                      <NativeSelect.Root>
+                      <NativeSelect.Root size="xs">
                         <NativeSelect.Field
                           value={activeLabel}
                           onChange={(event) => {
@@ -605,8 +603,6 @@ export default function AnnotationPage() {
                           bg="sand.50"
                           border="1px solid"
                           borderColor="sand.200"
-                          fontSize="xs"
-                          h="1.75rem"
                           color="ink.900"
                           _focusVisible={{
                             borderColor: 'tide.400',

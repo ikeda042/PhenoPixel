@@ -91,15 +91,12 @@ const DPadButton = ({
   
   return (
     <IconButton
-      size="xs"
+      size="sm"
       variant="outline"
       bg="sand.50"
       borderColor="sand.200"
       color="ink.900"
       borderRadius="md"
-      w="2rem"
-      h="2rem"
-      minW="2rem"
       _hover={{ bg: 'sand.100', borderColor: 'sand.300' }}
       _active={{ bg: 'sand.200' }}
       disabled={isDisabled}
@@ -581,7 +578,7 @@ export default function Nd2ParserPage() {
                   <Text fontSize="xs" color="ink.700">
                     Mode
                   </Text>
-                  <NativeSelect.Root>
+                  <NativeSelect.Root size={{ base: 'md', lg: 'sm' }}>
                     <NativeSelect.Field
                       value={functionMode}
                       onChange={(event) =>
@@ -595,8 +592,6 @@ export default function Nd2ParserPage() {
                       bg="sand.50"
                       border="1px solid"
                       borderColor="sand.200"
-                      fontSize="sm"
-                      h={{ base: '2.25rem', lg: '2rem' }}
                       color="ink.900"
                       _focusVisible={{
                         borderColor: 'tide.400',
@@ -614,7 +609,7 @@ export default function Nd2ParserPage() {
 
               {!metadata && (
                 <Button
-                  size="sm"
+                  size={{ base: 'md', lg: 'sm' }}
                   onClick={handleParse}
                   loading={isParsing}
                   disabled={!nd2file}
@@ -642,6 +637,7 @@ export default function Nd2ParserPage() {
                         Size (px)
                       </Text>
                       <Input
+                        size={{ base: 'md', lg: 'sm' }}
                         type="number"
                         min={1}
                         step={1}
@@ -671,8 +667,6 @@ export default function Nd2ParserPage() {
                         bg="sand.50"
                         border="1px solid"
                         borderColor="sand.200"
-                        fontSize="sm"
-                        h={{ base: '2.25rem', lg: '2rem' }}
                         color="ink.900"
                         _focusVisible={{
                           borderColor: 'tide.400',
@@ -741,6 +735,7 @@ export default function Nd2ParserPage() {
                             Brightness (x)
                           </Text>
                           <Input
+                            size={{ base: 'md', lg: 'sm' }}
                             type="number"
                             min={0.01}
                             step={0.1}
@@ -772,8 +767,6 @@ export default function Nd2ParserPage() {
                             bg="sand.50"
                             border="1px solid"
                             borderColor="sand.200"
-                            fontSize="sm"
-                            h={{ base: '2.25rem', lg: '2rem' }}
                             color="ink.900"
                             _focusVisible={{
                               borderColor: 'tide.400',
@@ -786,7 +779,7 @@ export default function Nd2ParserPage() {
                   </Box>
 
                   <Button
-                    size="sm"
+                    size={{ base: 'md', lg: 'sm' }}
                     onClick={handleExportRegion}
                     loading={isExporting}
                     disabled={!metadata || frameCount <= 0}

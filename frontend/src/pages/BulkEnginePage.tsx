@@ -2088,15 +2088,13 @@ export default function BulkEnginePage() {
                         Manual label
                       </Text>
                       <Stack spacing="1">
-                        <NativeSelect.Root>
+                        <NativeSelect.Root size="sm">
                           <NativeSelect.Field
                             value={selectedLabel}
                             onChange={(event) => setSelectedLabel(event.target.value)}
                             bg="sand.50"
                             border="1px solid"
                             borderColor="sand.200"
-                            fontSize="sm"
-                            h="2.25rem"
                             color="ink.900"
                             _focusVisible={{
                               borderColor: 'tide.400',
@@ -2121,15 +2119,13 @@ export default function BulkEnginePage() {
                         Channel
                       </Text>
                       <Stack spacing="1">
-                        <NativeSelect.Root>
+                        <NativeSelect.Root size="sm">
                           <NativeSelect.Field
                             value={selectedChannel}
                             onChange={(event) => setSelectedChannel(event.target.value)}
                             bg="sand.50"
                             border="1px solid"
                             borderColor="sand.200"
-                            fontSize="sm"
-                            h="2.25rem"
                             color="ink.900"
                             _focusVisible={{
                               borderColor: 'tide.400',
@@ -2154,7 +2150,7 @@ export default function BulkEnginePage() {
                         Quality (PH)
                       </Text>
                       <Stack spacing="1">
-                        <NativeSelect.Root>
+                        <NativeSelect.Root size="sm">
                           <NativeSelect.Field
                             value={String(previewDownscale)}
                             onChange={(event) => {
@@ -2169,8 +2165,6 @@ export default function BulkEnginePage() {
                             bg="sand.50"
                             border="1px solid"
                             borderColor="sand.200"
-                            fontSize="sm"
-                            h="2.25rem"
                             color="ink.900"
                             _focusVisible={{
                               borderColor: 'tide.400',
@@ -2203,7 +2197,6 @@ export default function BulkEnginePage() {
                       </Text>
                       <Button
                         size="sm"
-                        h="2.25rem"
                         onClick={handleExport}
                         disabled={filteredCells.length === 0 || isLoading || isExporting}
                         opacity={filteredCells.length === 0 ? 0.5 : 1}
@@ -2305,15 +2298,13 @@ export default function BulkEnginePage() {
                     Analysis mode
                   </Text>
                   <Stack spacing="3" mt="2">
-                    <NativeSelect.Root>
+                    <NativeSelect.Root size="sm">
                       <NativeSelect.Field
                         value={analysisMode}
                         onChange={(event) => setAnalysisMode(event.target.value)}
                         bg="sand.50"
                         border="1px solid"
                         borderColor="sand.200"
-                        fontSize="sm"
-                        h="2.25rem"
                         color="ink.900"
                         _focusVisible={{
                           borderColor: 'tide.400',
@@ -2346,15 +2337,13 @@ export default function BulkEnginePage() {
                         <Text fontSize="xs" color="ink.700" mb="1">
                           Manual label
                         </Text>
-                        <NativeSelect.Root>
+                        <NativeSelect.Root size="sm">
                           <NativeSelect.Field
                             value={analysisLabel}
                             onChange={(event) => setAnalysisLabel(event.target.value)}
                             bg="sand.50"
                             border="1px solid"
                             borderColor="sand.200"
-                            fontSize="sm"
-                            h="2.25rem"
                             color="ink.900"
                             _focusVisible={{
                               borderColor: 'tide.400',
@@ -2576,15 +2565,13 @@ export default function BulkEnginePage() {
                         <Text fontSize="xs" color="ink.700" mb="1">
                           Manual label
                         </Text>
-                        <NativeSelect.Root>
+                        <NativeSelect.Root size="sm">
                           <NativeSelect.Field
                             value={analysisLabel}
                             onChange={(event) => setAnalysisLabel(event.target.value)}
                             bg="sand.50"
                             border="1px solid"
                             borderColor="sand.200"
-                            fontSize="sm"
-                            h="2.25rem"
                             color="ink.900"
                             _focusVisible={{
                               borderColor: 'tide.400',
@@ -2643,15 +2630,13 @@ export default function BulkEnginePage() {
                         <Text fontSize="xs" color="ink.700" mb="1">
                           Manual label
                         </Text>
-                        <NativeSelect.Root>
+                        <NativeSelect.Root size="sm">
                           <NativeSelect.Field
                             value={analysisLabel}
                             onChange={(event) => setAnalysisLabel(event.target.value)}
                             bg="sand.50"
                             border="1px solid"
                             borderColor="sand.200"
-                            fontSize="sm"
-                            h="2.25rem"
                             color="ink.900"
                             _focusVisible={{
                               borderColor: 'tide.400',
@@ -2743,15 +2728,13 @@ export default function BulkEnginePage() {
                           <Text fontSize="xs" color="ink.700" mb="1">
                             Manual label
                           </Text>
-                          <NativeSelect.Root>
+                          <NativeSelect.Root size="sm">
                             <NativeSelect.Field
                               value={analysisLabel}
                               onChange={(event) => setAnalysisLabel(event.target.value)}
                               bg="sand.50"
                               border="1px solid"
                               borderColor="sand.200"
-                              fontSize="sm"
-                              h="2.25rem"
                               color="ink.900"
                               _focusVisible={{
                                 borderColor: 'tide.400',
@@ -2771,15 +2754,13 @@ export default function BulkEnginePage() {
                           <Text fontSize="xs" color="ink.700" mb="1">
                             Channel
                           </Text>
-                          <NativeSelect.Root>
+                          <NativeSelect.Root size="sm">
                             <NativeSelect.Field
                               value={analysisChannel}
                               onChange={(event) => setAnalysisChannel(event.target.value)}
                               bg="sand.50"
                               border="1px solid"
                               borderColor="sand.200"
-                              fontSize="sm"
-                              h="2.25rem"
                               color="ink.900"
                               _focusVisible={{
                                 borderColor: 'tide.400',
@@ -2799,7 +2780,7 @@ export default function BulkEnginePage() {
                           <Text fontSize="xs" color="ink.700" mb="1">
                             Contour intensity
                           </Text>
-                          <NativeSelect.Root>
+                          <NativeSelect.Root size="sm">
                             <NativeSelect.Field
                               value={map256IntensityMode}
                               onChange={(event) =>
@@ -2810,8 +2791,6 @@ export default function BulkEnginePage() {
                               bg="sand.50"
                               border="1px solid"
                               borderColor="sand.200"
-                              fontSize="sm"
-                              h="2.25rem"
                               color="ink.900"
                               _focusVisible={{
                                 borderColor: 'tide.400',
@@ -2903,15 +2882,13 @@ export default function BulkEnginePage() {
                           <Text fontSize="xs" color="ink.700" mb="1">
                             Manual label
                           </Text>
-                          <NativeSelect.Root>
+                          <NativeSelect.Root size="sm">
                             <NativeSelect.Field
                               value={analysisLabel}
                               onChange={(event) => setAnalysisLabel(event.target.value)}
                               bg="sand.50"
                               border="1px solid"
                               borderColor="sand.200"
-                              fontSize="sm"
-                              h="2.25rem"
                               color="ink.900"
                               _focusVisible={{
                                 borderColor: 'tide.400',
@@ -2931,15 +2908,13 @@ export default function BulkEnginePage() {
                           <Text fontSize="xs" color="ink.700" mb="1">
                             Channel
                           </Text>
-                          <NativeSelect.Root>
+                          <NativeSelect.Root size="sm">
                             <NativeSelect.Field
                               value={analysisChannel}
                               onChange={(event) => setAnalysisChannel(event.target.value)}
                               bg="sand.50"
                               border="1px solid"
                               borderColor="sand.200"
-                              fontSize="sm"
-                              h="2.25rem"
                               color="ink.900"
                               _focusVisible={{
                                 borderColor: 'tide.400',
@@ -3014,15 +2989,13 @@ export default function BulkEnginePage() {
                           <Text fontSize="xs" color="ink.700" mb="1">
                             Manual label
                           </Text>
-                          <NativeSelect.Root>
+                          <NativeSelect.Root size="sm">
                             <NativeSelect.Field
                               value={analysisLabel}
                               onChange={(event) => setAnalysisLabel(event.target.value)}
                               bg="sand.50"
                               border="1px solid"
                               borderColor="sand.200"
-                              fontSize="sm"
-                              h="2.25rem"
                               color="ink.900"
                               _focusVisible={{
                                 borderColor: 'tide.400',
@@ -3042,15 +3015,13 @@ export default function BulkEnginePage() {
                           <Text fontSize="xs" color="ink.700" mb="1">
                             Channel
                           </Text>
-                          <NativeSelect.Root>
+                          <NativeSelect.Root size="sm">
                             <NativeSelect.Field
                               value={analysisChannel}
                               onChange={(event) => setAnalysisChannel(event.target.value)}
                               bg="sand.50"
                               border="1px solid"
                               borderColor="sand.200"
-                              fontSize="sm"
-                              h="2.25rem"
                               color="ink.900"
                               _focusVisible={{
                                 borderColor: 'tide.400',
@@ -3143,15 +3114,13 @@ export default function BulkEnginePage() {
                           <Text fontSize="xs" color="ink.700" mb="1">
                             Manual label
                           </Text>
-                          <NativeSelect.Root>
+                          <NativeSelect.Root size="sm">
                             <NativeSelect.Field
                               value={analysisLabel}
                               onChange={(event) => setAnalysisLabel(event.target.value)}
                               bg="sand.50"
                               border="1px solid"
                               borderColor="sand.200"
-                              fontSize="sm"
-                              h="2.25rem"
                               color="ink.900"
                               _focusVisible={{
                                 borderColor: 'tide.400',
@@ -3171,15 +3140,13 @@ export default function BulkEnginePage() {
                           <Text fontSize="xs" color="ink.700" mb="1">
                             Channel
                           </Text>
-                          <NativeSelect.Root>
+                          <NativeSelect.Root size="sm">
                             <NativeSelect.Field
                               value={analysisChannel}
                               onChange={(event) => setAnalysisChannel(event.target.value)}
                               bg="sand.50"
                               border="1px solid"
                               borderColor="sand.200"
-                              fontSize="sm"
-                              h="2.25rem"
                               color="ink.900"
                               _focusVisible={{
                                 borderColor: 'tide.400',
@@ -3332,15 +3299,13 @@ export default function BulkEnginePage() {
                         <Text fontSize="xs" color="ink.700" mb="1">
                           Manual label
                         </Text>
-                        <NativeSelect.Root>
+                        <NativeSelect.Root size="sm">
                           <NativeSelect.Field
                             value={analysisLabel}
                             onChange={(event) => setAnalysisLabel(event.target.value)}
                             bg="sand.50"
                             border="1px solid"
                             borderColor="sand.200"
-                            fontSize="sm"
-                            h="2.25rem"
                             color="ink.900"
                             _focusVisible={{
                               borderColor: 'tide.400',
@@ -3424,15 +3389,13 @@ export default function BulkEnginePage() {
                           <Text fontSize="xs" color="ink.700" mb="1">
                             Manual label
                           </Text>
-                          <NativeSelect.Root>
+                          <NativeSelect.Root size="sm">
                             <NativeSelect.Field
                               value={analysisLabel}
                               onChange={(event) => setAnalysisLabel(event.target.value)}
                               bg="sand.50"
                               border="1px solid"
                               borderColor="sand.200"
-                              fontSize="sm"
-                              h="2.25rem"
                               color="ink.900"
                               _focusVisible={{
                                 borderColor: 'tide.400',
@@ -3452,15 +3415,13 @@ export default function BulkEnginePage() {
                           <Text fontSize="xs" color="ink.700" mb="1">
                             Channel
                           </Text>
-                          <NativeSelect.Root>
+                          <NativeSelect.Root size="sm">
                             <NativeSelect.Field
                               value={analysisChannel}
                               onChange={(event) => setAnalysisChannel(event.target.value)}
                               bg="sand.50"
                               border="1px solid"
                               borderColor="sand.200"
-                              fontSize="sm"
-                              h="2.25rem"
                               color="ink.900"
                               _focusVisible={{
                                 borderColor: 'tide.400',
@@ -3543,15 +3504,13 @@ export default function BulkEnginePage() {
                           <Text fontSize="xs" color="ink.700" mb="1">
                             Manual label
                           </Text>
-                          <NativeSelect.Root>
+                          <NativeSelect.Root size="sm">
                             <NativeSelect.Field
                               value={analysisLabel}
                               onChange={(event) => setAnalysisLabel(event.target.value)}
                               bg="sand.50"
                               border="1px solid"
                               borderColor="sand.200"
-                              fontSize="sm"
-                              h="2.25rem"
                               color="ink.900"
                               _focusVisible={{
                                 borderColor: 'tide.400',
@@ -3571,15 +3530,13 @@ export default function BulkEnginePage() {
                           <Text fontSize="xs" color="ink.700" mb="1">
                             Channel
                           </Text>
-                          <NativeSelect.Root>
+                          <NativeSelect.Root size="sm">
                             <NativeSelect.Field
                               value={analysisChannel}
                               onChange={(event) => setAnalysisChannel(event.target.value)}
                               bg="sand.50"
                               border="1px solid"
                               borderColor="sand.200"
-                              fontSize="sm"
-                              h="2.25rem"
                               color="ink.900"
                               _focusVisible={{
                                 borderColor: 'tide.400',

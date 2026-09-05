@@ -383,13 +383,13 @@ export default function Nd2FilesPage() {
             gap="3"
           >
             <InputGroup
-              size="sm"
               maxW={{ base: '100%', md: '360px' }}
               startElement={<SearchGlyph />}
               bg="sand.100"
               borderRadius="md"
             >
               <Input
+                size="sm"
                 placeholder="Search ND2 files"
                 value={searchText}
                 onChange={(event) => setSearchText(event.target.value)}

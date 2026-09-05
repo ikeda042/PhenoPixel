@@ -395,7 +395,7 @@ export default function MotherMachineCellExtractionPage() {
           </Stack>
 
           <Box bg="sand.100" border="1px solid" borderColor="sand.200" borderRadius="xl" p="5">
-            <HStack justify="space-between" align="flex-start" gap="4" flexWrap="wrap">
+            <HStack justify="space-between" align="flex-end" gap="4" flexWrap="wrap">
               <HStack align="flex-start" spacing="3">
                 <Flex w="9" h="9" align="center" justify="center" bg="sand.200" borderRadius="md">
                   <Icon as={Settings2} color="tide.400" />

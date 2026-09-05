@@ -330,13 +330,13 @@ export default function DatabasesPage() {
                 gap="3"
               >
                 <InputGroup
-                  size="sm"
                   maxW={{ base: '100%', md: '360px' }}
                   startElement={<SearchGlyph />}
                   bg="sand.100"
                   borderRadius="md"
                 >
                   <Input
+                    size="sm"
                     placeholder="Search databases"
                     value={searchText}
                     onChange={(event) => setSearchText(event.target.value)}
@@ -471,6 +471,7 @@ export default function DatabasesPage() {
                 return (
                   <Grid
                     key={name}
+                    alignItems="center"
                     templateColumns={{
                       base: 'minmax(0, 1fr)',
                       md: 'minmax(0, 1fr) 26rem',
@@ -486,7 +487,7 @@ export default function DatabasesPage() {
                   >
                     {isEditing ? (
                       <Input
-                        size="sm"
+                        size="xs"
                         value={renameValue}
                         onChange={(event) => setRenameValue(event.target.value)}
                         onKeyDown={(event) => {

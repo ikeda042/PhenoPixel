@@ -307,7 +307,7 @@ export default function GraphEnginePage() {
                   <Text fontSize="sm" color="ink.700">
                     Graph mode
                   </Text>
-                  <NativeSelect.Root>
+                  <NativeSelect.Root size="sm">
                     <NativeSelect.Field
                       value={graphMode}
                       onChange={(event) => setGraphMode(event.target.value)}

@@ -1,6 +1,13 @@
-import { createSystem, defaultConfig, defineConfig, defineRecipe, defineSemanticTokens } from '@chakra-ui/react'
+import { createSystem, defaultConfig, defineConfig, defineRecipe, defineSemanticTokens, defineSlotRecipe } from '@chakra-ui/react'
 
 const appFont = '-apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans JP", sans-serif'
+
+// Use the same size scale for buttons, inputs, and native selects.
+const controlSizes = {
+  xs: { height: '30px', fontSize: '12px' },
+  sm: { height: '32px', fontSize: '13px' },
+  md: { height: '36px', fontSize: '14px' },
+} as const
 
 const semanticColors = defineSemanticTokens.colors({
   gray: {
@@ -69,17 +76,24 @@ const customConfig = defineConfig({
         base: { fontWeight: '500', borderRadius: '3px', boxShadow: 'none' },
         variants: {
           variant: { outline: { bg: 'sand.50' } },
-          size: {
-            xs: { h: '30px', fontSize: '12px', gap: '6px' },
-            sm: { h: '32px', fontSize: '13px', gap: '6px' },
-            md: { h: '36px', fontSize: '14px', gap: '8px' },
-          },
+          size: Object.fromEntries(
+            Object.entries(controlSizes).map(([size, { height, fontSize }]) => [
+              size,
+              { h: height, minW: height, fontSize, gap: size === 'md' ? '8px' : '6px' },
+            ]),
+          ),
         },
         defaultVariants: { variant: 'outline' },
       }),
       input: {
-        base: { borderRadius: '3px' },
+        base: { borderRadius: '3px', minH: 'var(--input-height)' },
         variants: {
+          size: Object.fromEntries(
+            Object.entries(controlSizes).map(([size, { height, fontSize }]) => [
+              size,
+              { '--input-height': height, fontSize },
+            ]),
+          ),
           variant: {
             outline: {
               bg: 'sand.50',
@@ -89,6 +103,25 @@ const customConfig = defineConfig({
           },
         },
       },
+    },
+    slotRecipes: {
+      nativeSelect: defineSlotRecipe({
+        slots: ['root', 'field', 'indicator'],
+        base: {
+          field: { borderRadius: '3px', minH: 'var(--select-field-height)' },
+        },
+        variants: {
+          size: Object.fromEntries(
+            Object.entries(controlSizes).map(([size, { height, fontSize }]) => [
+              size,
+              {
+                root: { '--select-field-height': height },
+                field: { fontSize },
+              },
+            ]),
+          ),
+        },
+      }),
     },
   },
   globalCss: {

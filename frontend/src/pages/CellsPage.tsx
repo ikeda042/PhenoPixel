@@ -1465,15 +1465,13 @@ export default function CellsPage() {
                         <Text fontSize="xs" color="ink.700" mb="1">
                           Label Filter
                         </Text>
-                        <NativeSelect.Root>
+                        <NativeSelect.Root size={{ base: 'md', lg: 'sm' }}>
                           <NativeSelect.Field
                             value={selectedLabel}
                             onChange={(event) => setSelectedLabel(event.target.value)}
                             bg="sand.50"
                             border="1px solid"
                             borderColor="sand.200"
-                            fontSize="sm"
-                            h={{ base: '2.25rem', lg: '2rem' }}
                             w="7rem"
                             color="ink.900"
                             _focusVisible={{
@@ -1494,15 +1492,13 @@ export default function CellsPage() {
                         <Text fontSize="xs" color="ink.700" mb="1">
                           Manual label
                         </Text>
-                        <NativeSelect.Root>
+                        <NativeSelect.Root size={{ base: 'md', lg: 'sm' }}>
                           <NativeSelect.Field
                             value={manualLabel ?? ''}
                             onChange={(event) => updateManualLabel(event.target.value)}
                             bg="sand.50"
                             border="1px solid"
                             borderColor="sand.200"
-                            fontSize="sm"
-                            h={{ base: '2.25rem', lg: '2rem' }}
                             w="8rem"
                             color="ink.900"
                             disabled={
@@ -1706,7 +1702,7 @@ export default function CellsPage() {
                         <Text fontSize="xs" color="ink.700">
                           Mode
                         </Text>
-                        <NativeSelect.Root>
+                        <NativeSelect.Root size={{ base: 'md', lg: 'sm' }}>
                           <NativeSelect.Field
                             value={modificationMode}
                             onChange={(event) =>
@@ -1717,8 +1713,6 @@ export default function CellsPage() {
                             bg="sand.50"
                             border="1px solid"
                             borderColor="sand.200"
-                            fontSize="sm"
-                            h={{ base: '2.25rem', lg: '2rem' }}
                             color="ink.900"
                             _focusVisible={{
                               borderColor: 'tide.400',
@@ -1741,6 +1735,7 @@ export default function CellsPage() {
                               Elastic Δ
                             </Text>
                             <Input
+                              size={{ base: 'md', lg: 'sm' }}
                               type="number"
                               value={elasticDelta}
                               onChange={(event) => {
@@ -1753,8 +1748,6 @@ export default function CellsPage() {
                               bg="sand.50"
                               border="1px solid"
                               borderColor="sand.200"
-                              fontSize="sm"
-                              h={{ base: '2.25rem', lg: '2rem' }}
                               color="ink.900"
                               _focusVisible={{
                                 borderColor: 'tide.400',
@@ -1765,8 +1758,7 @@ export default function CellsPage() {
                         </Box>
                         <Box minW="6rem" display="flex" alignItems="center">
                           <Button
-                            size="sm"
-                            h={{ base: '2.25rem', lg: '2rem' }}
+                            size={{ base: 'md', lg: 'sm' }}
                             onClick={handleApplyModification}
                             disabled={!dbName || !currentCellId || isApplyingAnyModification}
                             variant="outline"
@@ -1776,8 +1768,7 @@ export default function CellsPage() {
                         </Box>
                         <Box minW="8rem" display="flex" alignItems="center">
                           <Button
-                            size="sm"
-                            h={{ base: '2.25rem', lg: '2rem' }}
+                            size={{ base: 'md', lg: 'sm' }}
                             variant="outline"
                             onClick={handleApplyBulkModification}
                             disabled={
@@ -1800,6 +1791,7 @@ export default function CellsPage() {
                               Gain (x)
                             </Text>
                             <Input
+                              size={{ base: 'md', lg: 'sm' }}
                               type="number"
                               min={0.01}
                               step={0.1}
@@ -1830,8 +1822,6 @@ export default function CellsPage() {
                               bg="sand.50"
                               border="1px solid"
                               borderColor="sand.200"
-                              fontSize="sm"
-                              h={{ base: '2.25rem', lg: '2rem' }}
                               color="ink.900"
                               _focusVisible={{
                                 borderColor: 'tide.400',
@@ -1842,8 +1832,7 @@ export default function CellsPage() {
                         </Box>
                         <Box minW="6rem" display="flex" alignItems="center">
                           <Button
-                            size="sm"
-                            h={{ base: '2.25rem', lg: '2rem' }}
+                            size={{ base: 'md', lg: 'sm' }}
                             onClick={handleApplyModification}
                             disabled={
                               !dbName ||
@@ -1911,7 +1900,7 @@ export default function CellsPage() {
                         <Download size={14} />
                       </IconButton>
                       {channel.key !== 'ph' && (
-                        <NativeSelect.Root w={{ base: '4.25rem', lg: '4.75rem' }} flexShrink={0}>
+                        <NativeSelect.Root size="xs" w={{ base: '4.25rem', lg: '4.75rem' }} flexShrink={0}>
                           <NativeSelect.Field
                             value={fluoColors[channel.key]}
                             onChange={(event) => {
@@ -1922,7 +1911,6 @@ export default function CellsPage() {
                             border="1px solid"
                             borderColor="sand.200"
                             fontSize="11px"
-                            h="1.5rem"
                             color="ink.900"
                             pl="1.5"
                             pr="1.75rem"
@@ -2050,7 +2038,7 @@ export default function CellsPage() {
                     <Text fontSize="xs" color="ink.700" whiteSpace="nowrap">
                       Draw mode
                     </Text>
-                    <NativeSelect.Root>
+                    <NativeSelect.Root size="sm">
                       <NativeSelect.Field
                         value={contourMode}
                         onChange={(event) =>
@@ -2070,8 +2058,6 @@ export default function CellsPage() {
                         bg="sand.50"
                         border="1px solid"
                         borderColor="sand.200"
-                        fontSize="xs"
-                        h="2rem"
                         color="ink.900"
                         _focusVisible={{
                           borderColor: 'tide.400',
@@ -2097,7 +2083,7 @@ export default function CellsPage() {
                     <Text fontSize="xs" color="ink.700" whiteSpace="nowrap">
                       Channel
                     </Text>
-                    <NativeSelect.Root w="6rem" flexShrink={0}>
+                    <NativeSelect.Root size="sm" w="6rem" flexShrink={0}>
                       <NativeSelect.Field
                         value={heatmapChannel}
                         onChange={(event) =>
@@ -2106,8 +2092,6 @@ export default function CellsPage() {
                         bg="sand.50"
                         border="1px solid"
                         borderColor="sand.200"
-                        fontSize="xs"
-                        h="2rem"
                         color="ink.900"
                         _focusVisible={{
                           borderColor: 'tide.400',
@@ -2126,7 +2110,7 @@ export default function CellsPage() {
                     <Text fontSize="xs" color="ink.700" whiteSpace="nowrap">
                       Channel
                     </Text>
-                    <NativeSelect.Root w="6rem" flexShrink={0}>
+                    <NativeSelect.Root size="sm" w="6rem" flexShrink={0}>
                       <NativeSelect.Field
                         value={map256Channel}
                         onChange={(event) =>
@@ -2137,8 +2121,6 @@ export default function CellsPage() {
                         bg="sand.50"
                         border="1px solid"
                         borderColor="sand.200"
-                        fontSize="xs"
-                        h="2rem"
                         color="ink.900"
                         _focusVisible={{
                           borderColor: 'tide.400',
@@ -2158,7 +2140,7 @@ export default function CellsPage() {
                     <Text fontSize="xs" color="ink.700" whiteSpace="nowrap">
                       Channel
                     </Text>
-                    <NativeSelect.Root w="6rem" flexShrink={0}>
+                    <NativeSelect.Root size="sm" w="6rem" flexShrink={0}>
                       <NativeSelect.Field
                         value={distributionChannel}
                         onChange={(event) =>
@@ -2167,8 +2149,6 @@ export default function CellsPage() {
                         bg="sand.50"
                         border="1px solid"
                         borderColor="sand.200"
-                        fontSize="xs"
-                        h="2rem"
                         color="ink.900"
                         _focusVisible={{
                           borderColor: 'tide.400',
@@ -2190,7 +2170,7 @@ export default function CellsPage() {
                     <Text fontSize="xs" color="ink.700" whiteSpace="nowrap">
                       Channel
                     </Text>
-                    <NativeSelect.Root w="6rem" flexShrink={0}>
+                    <NativeSelect.Root size="sm" w="6rem" flexShrink={0}>
                       <NativeSelect.Field
                         value={replotChannel}
                         onChange={(event) =>
@@ -2199,8 +2179,6 @@ export default function CellsPage() {
                         bg="sand.50"
                         border="1px solid"
                         borderColor="sand.200"
-                        fontSize="xs"
-                        h="2rem"
                         color="ink.900"
                         _focusVisible={{
                           borderColor: 'tide.400',
