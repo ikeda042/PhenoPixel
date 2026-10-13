@@ -24,7 +24,23 @@ http://<host>:<port>/api/v1
   Large Image metadata is missing. Set the mode to `none` to keep each frame
   intact.
 - When ND2 pixel calibration is available, `pixel_microns` is used for the
-  database `pixel_size_um` value instead of the UI objective default.
+  database `pixel_size_um` value and the minimum contour area instead of the
+  UI objective default.
+
+## Contour Detection
+
+Both the initial frame detection and the cropped-cell detection use a minimum
+contour area that preserves the physical area of 300 pixels squared at 100x
+(0.065 um/px):
+
+$$
+A_{\min,\mathrm{px}^2} = 300 \left(\frac{0.065}{s_{\mathrm{um/px}}}\right)^2
+$$
+
+Here, `s` is the ND2 pixel calibration when available, otherwise the selected
+objective's pixel size. This keeps the minimum at 300 px² for 100x and about
+108.67 px² for 60x (0.108 um/px), allowing smaller cell contours at 60x while
+continuing to exclude small noise contours.
 
 ## Concurrency
 
@@ -60,6 +76,8 @@ Parameters:
     `triple`, `quad` (case-insensitive)
 - `param1` (optional): threshold for binarization, integer >= 0 (default: 130)
 - `image_size` (optional): crop size in pixels, integer >= 1 (default: 200)
+- `objective_magnification` (optional): `100x | 60x` (default: `100x`); supplies
+  pixel calibration when it is unavailable in the ND2 metadata.
 - `auto_annotation` (optional): when true, assigns `manual_label` with the
   bundled supervised annotator; falls back to the contour heuristic if the model
   cannot be loaded.
