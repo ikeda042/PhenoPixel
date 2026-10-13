@@ -26,6 +26,7 @@ from autoannotation.models import AutoAnnotator, load_model
 
 from app.shared.objective_scale import (
     DEFAULT_OBJECTIVE_MAGNIFICATION,
+    DEFAULT_PIXEL_SIZE_UM,
     OBJECTIVE_PIXEL_SIZE_UM,
     ObjectiveMagnification,
     pixel_size_for_objective,
@@ -41,10 +42,16 @@ AUTOANNOTATION_MODEL_PATH: Path = (
 )
 LOGGER: logging.Logger = logging.getLogger("uvicorn.error")
 LargeImageSplitMode = Literal["auto", "manual", "none"]
+MIN_CONTOUR_AREA_100X_PX2: float = 300.0
 
 
 def _get_temp_dir(ulid: str) -> str:
     return str(TEMPDATA_DIR / f"TempData{ulid}")
+
+
+def _minimum_contour_area_px2(pixel_size_um: float) -> float:
+    """Preserve the physical area of the 300 px² minimum at 100x."""
+    return MIN_CONTOUR_AREA_100X_PX2 * (DEFAULT_PIXEL_SIZE_UM / pixel_size_um) ** 2
 
 
 def second_pca_variance_from_blob(contour_blob: bytes) -> Optional[float]:
@@ -1000,8 +1007,10 @@ class SyncChores:
             "quad_layer",
         ] = "dual_layer",
         contour_dir: str | None = None,
+        pixel_size_um: float = DEFAULT_PIXEL_SIZE_UM,
     ) -> int:
         temp_dir = _get_temp_dir(ulid)
+        minimum_contour_area = _minimum_contour_area_px2(pixel_size_um)
         print(f"Initializing {temp_dir}")
         print("}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}")
         if mode == "quad_layer":
@@ -1090,7 +1099,7 @@ class SyncChores:
             filtered_contours = []
             contour_centers: list[tuple[int, int]] = []
             for contour in contours:
-                if cv2.contourArea(contour) < 300:
+                if cv2.contourArea(contour) < minimum_contour_area:
                     continue
                 moments = cv2.moments(contour)
                 if moments["m00"] == 0:
@@ -1234,8 +1243,9 @@ class ExtractionCrudBase:
         contours = []
         image_center_x = img_ph.shape[1] // 2
         image_center_y = img_ph.shape[0] // 2
+        minimum_contour_area = _minimum_contour_area_px2(self.pixel_size_um)
         for contour_candidate in contours_raw:
-            if cv2.contourArea(contour_candidate) < 300:
+            if cv2.contourArea(contour_candidate) < minimum_contour_area:
                 continue
             cx, cy = SyncChores.get_contour_center(contour_candidate)
             if abs(cx - image_center_x) < 3 and abs(cy - image_center_y) < 3:
@@ -1487,6 +1497,7 @@ class ExtractionCrudBase:
             self.image_size,
             self.mode,
             contour_dir=self.contour_dir,
+            pixel_size_um=self.pixel_size_um,
         )
 
         iter_n = {
