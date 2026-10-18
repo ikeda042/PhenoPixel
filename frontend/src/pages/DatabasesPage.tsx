@@ -9,6 +9,7 @@ import {
   BreadcrumbList,
   BreadcrumbRoot,
   BreadcrumbSeparator,
+  Checkbox,
   Grid,
   HStack,
   Icon,
@@ -40,10 +41,12 @@ export default function DatabasesPage() {
   const apiBase = useMemo(() => getApiBase(), [])
   const inputRef = useRef<HTMLInputElement | null>(null)
   const [databases, setDatabases] = useState<string[]>([])
+  const [selectedDatabases, setSelectedDatabases] = useState<Set<string>>(new Set())
   const [searchText, setSearchText] = useState(() => searchParams.get('search_dbname') ?? '')
   const [isLoading, setIsLoading] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [downloadingDatabase, setDownloadingDatabase] = useState<string | null>(null)
+  const [isBulkDownloading, setIsBulkDownloading] = useState(false)
   const [deletingDatabase, setDeletingDatabase] = useState<string | null>(null)
   const [renamingDatabase, setRenamingDatabase] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
@@ -62,7 +65,11 @@ export default function DatabasesPage() {
         throw new Error(`Request failed (${res.status})`)
       }
       const data = (await res.json()) as string[]
-      setDatabases(Array.isArray(data) ? data : [])
+      const available = Array.isArray(data) ? data : []
+      setDatabases(available)
+      setSelectedDatabases((prev) =>
+        new Set([...prev].filter((name) => available.includes(name))),
+      )
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load databases')
       setDatabases([])
@@ -90,6 +97,39 @@ export default function DatabasesPage() {
     return databases.filter((name) => name.toLowerCase().includes(query))
   }, [databases, searchText])
 
+  const selectedCount = selectedDatabases.size
+  const filteredSelectedCount = filteredDatabases.filter((name) =>
+    selectedDatabases.has(name),
+  ).length
+  const allFilteredSelected =
+    filteredDatabases.length > 0 && filteredSelectedCount === filteredDatabases.length
+  const isDatabaseActionBusy = Boolean(
+    isBulkDownloading ||
+      downloadingDatabase ||
+      deletingDatabase ||
+      renamingDatabase ||
+      isRenaming,
+  )
+
+  const handleSelectionChange = (name: string, checked: boolean) => {
+    setSelectedDatabases((prev) => {
+      const next = new Set(prev)
+      if (checked) next.add(name)
+      else next.delete(name)
+      return next
+    })
+  }
+
+  const handleSelectAll = (checked: boolean) => {
+    setSelectedDatabases((prev) => {
+      const next = new Set(prev)
+      filteredDatabases.forEach((name) => {
+        if (checked) next.add(name)
+        else next.delete(name)
+      })
+      return next
+    })
+  }
 
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(filteredDatabases.length / PAGE_SIZE)),
@@ -140,8 +180,7 @@ export default function DatabasesPage() {
 
   const handleDownload = useCallback(
     async (dbName: string) => {
-      if (downloadingDatabase || deletingDatabase || isRenaming || renamingDatabase)
-        return
+      if (isDatabaseActionBusy) return
       setDownloadingDatabase(dbName)
       setError(null)
       try {
@@ -167,13 +206,45 @@ export default function DatabasesPage() {
         setDownloadingDatabase(null)
       }
     },
-    [apiBase, deletingDatabase, downloadingDatabase, isRenaming, renamingDatabase],
+    [apiBase, isDatabaseActionBusy],
   )
+
+  const handleBulkDownload = async () => {
+    if (isDatabaseActionBusy || selectedDatabases.size === 0) return
+    setIsBulkDownloading(true)
+    setError(null)
+    try {
+      const res = await fetch(`${apiBase}/database_files/bulk-download`, {
+        method: 'POST',
+        headers: {
+          accept: 'application/zip',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ dbnames: Array.from(selectedDatabases) }),
+      })
+      if (!res.ok) {
+        const data = (await res.json()) as { detail?: string }
+        throw new Error(data.detail || `Download failed (${res.status})`)
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'databases.zip'
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to download databases')
+    } finally {
+      setIsBulkDownloading(false)
+    }
+  }
 
   const handleDelete = useCallback(
     async (dbName: string) => {
-      if (downloadingDatabase || deletingDatabase || isRenaming || renamingDatabase)
-        return
+      if (isDatabaseActionBusy) return
       const confirmed = window.confirm(`Delete ${dbName}?`)
       if (!confirmed) return
       setDeletingDatabase(dbName)
@@ -194,14 +265,7 @@ export default function DatabasesPage() {
         setDeletingDatabase(null)
       }
     },
-    [
-      apiBase,
-      deletingDatabase,
-      downloadingDatabase,
-      fetchDatabases,
-      isRenaming,
-      renamingDatabase,
-    ],
+    [apiBase, fetchDatabases, isDatabaseActionBusy],
   )
 
   const beginRename = useCallback((dbName: string) => {
@@ -356,12 +420,64 @@ export default function DatabasesPage() {
                   size="sm"
                   onClick={handleUploadClick}
                   loading={isUploading}
+                  disabled={isDatabaseActionBusy}
                   alignSelf={{ base: 'flex-start', md: 'center' }}
                   variant="outline"
                 >
                   Upload DB
                 </Button>
               </Stack>
+
+              <HStack justify="space-between" flexWrap="wrap" gap="3">
+                <HStack gap="3" flexWrap="wrap">
+                  <Checkbox.Root
+                    checked={
+                      allFilteredSelected ? true : filteredSelectedCount > 0 ? 'indeterminate' : false
+                    }
+                    onCheckedChange={(details) =>
+                      handleSelectAll(details.checked === true)
+                    }
+                    disabled={
+                      isLoading || filteredDatabases.length === 0 || isDatabaseActionBusy
+                    }
+                    colorPalette="tide"
+                  >
+                    <Checkbox.HiddenInput />
+                    <Checkbox.Control>
+                      <Checkbox.Indicator />
+                    </Checkbox.Control>
+                    <Checkbox.Label fontSize="sm" color="ink.700">
+                      Select all matching
+                    </Checkbox.Label>
+                  </Checkbox.Root>
+                  <Text fontSize="xs" color="ink.700" aria-live="polite">
+                    Selected: {selectedCount}
+                  </Text>
+                </HStack>
+                <HStack gap="2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setSelectedDatabases(new Set())}
+                    disabled={selectedCount === 0 || isDatabaseActionBusy}
+                  >
+                    Clear
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void handleBulkDownload()}
+                    loading={isBulkDownloading}
+                    loadingText="Preparing ZIP..."
+                    disabled={
+                      selectedCount === 0 || isLoading || isDatabaseActionBusy || isUploading
+                    }
+                  >
+                    <Icon as={Download} boxSize={3.5} />
+                    Download ZIP
+                  </Button>
+                </HStack>
+              </HStack>
 
               <HStack justify="space-between" flexWrap="wrap" gap="3">
                 <Text fontSize="xs" color="ink.700">
@@ -460,14 +576,15 @@ export default function DatabasesPage() {
               )}
 
             {!isLoading &&
-              !error &&
               pagedDatabases.map((name, index) => {
                 const isEditing = renamingDatabase === name
-                const disableActions =
+                const disableActions = Boolean(
                   isRenaming ||
+                  isBulkDownloading ||
                   downloadingDatabase ||
                   deletingDatabase ||
-                  (renamingDatabase !== null && !isEditing)
+                  (renamingDatabase !== null && !isEditing),
+                )
                 return (
                   <Grid
                     key={name}
@@ -485,34 +602,49 @@ export default function DatabasesPage() {
                     _hover={{ bg: 'sand.200' }}
                     transition="background 0.2s ease"
                   >
-                    {isEditing ? (
-                      <Input
-                        size="xs"
-                        value={renameValue}
-                        onChange={(event) => setRenameValue(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter') {
-                            event.preventDefault()
-                            void confirmRename()
-                          }
-                          if (event.key === 'Escape') {
-                            cancelRename()
-                          }
-                        }}
-                        border="1px solid"
-                        borderColor="sand.200"
-                        color="ink.900"
-                        _focusVisible={{
-                          borderColor: 'tide.400',
-                          boxShadow: '0 0 0 1px var(--app-accent-ring)',
-                        }}
-                        autoFocus
-                      />
-                    ) : (
-                      <Text fontSize="sm" fontWeight="500">
-                        {name}
-                      </Text>
-                    )}
+                    <HStack minW="0" gap="3">
+                      <Checkbox.Root
+                        checked={selectedDatabases.has(name)}
+                        onCheckedChange={(details) =>
+                          handleSelectionChange(name, details.checked === true)
+                        }
+                        disabled={isDatabaseActionBusy}
+                        colorPalette="tide"
+                      >
+                        <Checkbox.HiddenInput aria-label={`Select ${name}`} />
+                        <Checkbox.Control>
+                          <Checkbox.Indicator />
+                        </Checkbox.Control>
+                      </Checkbox.Root>
+                      {isEditing ? (
+                        <Input
+                          size="xs"
+                          value={renameValue}
+                          onChange={(event) => setRenameValue(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter') {
+                              event.preventDefault()
+                              void confirmRename()
+                            }
+                            if (event.key === 'Escape') {
+                              cancelRename()
+                            }
+                          }}
+                          border="1px solid"
+                          borderColor="sand.200"
+                          color="ink.900"
+                          _focusVisible={{
+                            borderColor: 'tide.400',
+                            boxShadow: '0 0 0 1px var(--app-accent-ring)',
+                          }}
+                          autoFocus
+                        />
+                      ) : (
+                        <Text fontSize="sm" fontWeight="500" minW="0" overflowWrap="anywhere">
+                          {name}
+                        </Text>
+                      )}
+                    </HStack>
                     <HStack
                       spacing="2"
                       justify={{ base: 'flex-start', md: 'flex-end' }}

@@ -1,7 +1,10 @@
 import io
 import json
+from contextlib import closing
 from pathlib import Path
 import pickle
+import sqlite3
+from tempfile import TemporaryDirectory
 from typing import AsyncIterator, Literal, Sequence
 import zipfile
 
@@ -132,6 +135,38 @@ class _DatabaseFileCrud(DirectoryStorageCrud):
         chunk_size: int = DOWNLOAD_CHUNK_SIZE,
     ) -> AsyncIterator[bytes]:
         return cls.read_chunks(path, chunk_size)
+
+    @classmethod
+    def create_database_archive(cls, db_names: Sequence[str], output_path: Path) -> None:
+        if not db_names:
+            raise ValueError("No database names provided")
+        db_paths: list[Path] = []
+        for db_name in dict.fromkeys(db_names):
+            if cls.sanitize_db_name(db_name) != db_name or "\\" in db_name:
+                raise ValueError("Invalid database name")
+            db_path = cls.resolve_database_path(db_name)
+            if db_path.resolve().parent != cls.STORAGE_DIR.resolve():
+                raise ValueError("Invalid database path")
+            if not db_path.is_file():
+                raise FileNotFoundError(f"Database not found: {db_name}")
+            db_paths.append(db_path)
+
+        with TemporaryDirectory(prefix="phenopixel-db-snapshot-") as snapshot_dir:
+            with zipfile.ZipFile(
+                output_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=1
+            ) as archive:
+                for db_path in db_paths:
+                    snapshot_path = Path(snapshot_dir) / db_path.name
+                    # Include committed WAL changes in a consistent, standalone DB.
+                    with (
+                        closing(
+                            sqlite3.connect(f"{db_path.resolve().as_uri()}?mode=ro", uri=True)
+                        ) as source,
+                        closing(sqlite3.connect(snapshot_path)) as snapshot,
+                    ):
+                        source.backup(snapshot, pages=1024)
+                    archive.write(snapshot_path, arcname=db_path.name)
+                    snapshot_path.unlink()
 
     @classmethod
     async def delete_database(cls, db_name: str) -> str:

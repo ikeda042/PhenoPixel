@@ -2,10 +2,14 @@ import asyncio
 import io
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
+from pathlib import Path as FilePath
+from tempfile import TemporaryDirectory
 from typing import Annotated, AsyncIterator, Literal
 
 from fastapi import APIRouter, File, HTTPException, Path, Query, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
+from pydantic import BaseModel
+from starlette.background import BackgroundTask
 
 from app.database_manager.crud import DatabaseManagerCrud
 
@@ -14,6 +18,10 @@ router_database_manager: APIRouter = APIRouter(tags=["database_manager"])
 annotation_executor: ProcessPoolExecutor = ProcessPoolExecutor()
 heatmap_executor: ProcessPoolExecutor = ProcessPoolExecutor(max_workers=1)
 UPLOAD_CHUNK_SIZE: int = 1024 * 1024 * 100
+
+
+class DatabaseBulkDownloadRequest(BaseModel):
+    dbnames: list[str]
 
 
 async def _iter_upload(file: UploadFile) -> AsyncIterator[bytes]:
@@ -44,6 +52,39 @@ async def upload_database(file: Annotated[UploadFile, File()] = ...) -> dict:
     finally:
         await file.close()
     return payload
+
+
+@router_database_manager.post(
+    "/database_files/bulk-download",
+    response_class=FileResponse,
+    responses={
+        200: {
+            "content": {
+                "application/zip": {"schema": {"type": "string", "format": "binary"}}
+            }
+        }
+    },
+)
+def download_databases_endpoint(payload: DatabaseBulkDownloadRequest) -> FileResponse:
+    archive_dir = TemporaryDirectory(prefix="phenopixel-db-download-")
+    archive_path = FilePath(archive_dir.name) / "databases.zip"
+    try:
+        DatabaseManagerCrud.create_database_archive(payload.dbnames, archive_path)
+    except ValueError as exc:
+        archive_dir.cleanup()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        archive_dir.cleanup()
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception:
+        archive_dir.cleanup()
+        raise
+    return FileResponse(
+        archive_path,
+        media_type="application/zip",
+        filename="databases.zip",
+        background=BackgroundTask(archive_dir.cleanup),
+    )
 
 
 @router_database_manager.get("/database_files/{dbname}")
