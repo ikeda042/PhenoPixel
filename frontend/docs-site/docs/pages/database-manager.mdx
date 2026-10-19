@@ -15,8 +15,9 @@ Database Console は、Cell Extraction で生成された SQLite database を一
 1. database 一覧から対象の `.db` を検索する。
 2. `Access` で Cell Viewer に移動し、細胞ごとの画像・輪郭・解析表示を確認する。
 3. `Download` で database をローカルへ保存する。
-4. `Upload` で別の `.db` を取り込む。
-5. 必要に応じて rename/delete で整理する。
+4. 複数の database にチェックを入れ、上部の `Download ZIP` で選択した `.db` を `databases.zip` として一括保存する。選択は検索・ページ切り替え後も保持され、`Selected` に全選択件数が表示される。`Select all matching` は検索結果の全ページを対象とし、`Clear` で全選択を解除する。
+5. `Upload` で別の `.db` を取り込む。
+6. 必要に応じて rename/delete で整理する。
 
 ![Database access](/img/screenshots/database_manager2.png)
 
@@ -26,12 +27,15 @@ database は `backend/app/databases/` に保存されます。アップロード
 
 rename 時は SQLite の sidecar ファイルも考慮します。`-wal`, `-shm`, `-journal` が存在する場合は同時に rename し、同名の sidecar がある場合は衝突として扱います。
 
+ZIP 一括ダウンロードでは SQLite の backup 機能で各 database のスナップショットを作成します。WAL にあるコミット済みの変更も `.db` に含まれます。選択した database が存在しない場合はエラーを表示し、一部だけの ZIP はダウンロードしません。
+
 ## 関連 API
 
 ```bash
 GET    /api/v1/get-databases
 POST   /api/v1/database_files
 GET    /api/v1/database_files/{dbname}
+POST   /api/v1/database_files/bulk-download
 PATCH  /api/v1/database_files/{dbname}
 DELETE /api/v1/database_files/{dbname}
 ```

@@ -15,25 +15,31 @@ Graph Engine は、Bulk Engine などから得た CSV を複数まとめて読�
 3. 解析対象 CSV を 1 つ以上アップロードする。
 4. `Analyze` を実行すると、平均細胞長、aggregation rate、heatmap、relative heatmap、distribution、box plot が生成される。
 
+1 回の解析では、1 つの control CSV をすべての解析対象に適用します。同じ株・処理・日付の control と 30・60・90・120 min の CSV を 1 セットとして指定してください。
+
 ## 裏側の処理
 
-CSV は 2 行 1 細胞の形式として解釈されます。1 行目は細胞軸方向の座標、2 行目はピークベクトルです。座標数が `35` 点でない行はスキップされます。
+CSV は 2 行 1 細胞の形式として解釈されます。1 行目は細胞軸方向の座標 u1、2 行目は蛍光輝度のピークベクトル G です。点数は固定せず、各細胞の u1 と G が同じ点数で 2 点以上の有限値を持つものを使います。u1 は昇順で端点差が正である必要があります。末尾の空欄はパディングとして無視します。
 
-細胞長は座標の端点差から計算し、ピクセルサイズ `0.065 um/px` を掛けます。
+細胞長は座標の端点差に、CSV の `pixel_size_um` メタデータを掛けて計算します。メタデータがない場合の既定値は `0.065 um/px` です。
 
 $$
-L = (u_{1,\max} - u_{1,\min}) \times 0.065
+L = (u_{1,\max} - u_{1,\min}) \times \mathrm{pixel\_size\_um}
 $$
 
 ピークベクトルは細胞ごとに min-max normalize し、平均値を phenotype score として使います。
 
 $$
-s(C) = \frac{1}{35}\sum_{j=1}^{35} g_j
+s(C) = \frac{1}{N_C}\sum_{j=1}^{N_C} \hat{g}_j
 $$
 
-control CSV がある場合は、control score を降順に並べ、`int(len(data) * 0.95)` の位置をしきい値として使います。解析対象では、そのしきい値を下回る細胞の割合を `nagg_rate` として返します。
+ここで $N_C$ はその細胞のベクトルの点数、$\hat{g}_j$ は min-max normalize 後の値です。control CSV も G 行だけから同じ score を求め、u1 の座標行は含めません。
 
-heatmap は raw matrix、relative heatmap は行ごとに normalize した matrix を `viridis` で描画します。distribution は全値の histogram、box plot は行平均の分布を描画します。
+control score を降順に並べ、`int(len(data) * 0.95)` の位置（概ね下位 5%）をしきい値として使います。解析対象では、そのしきい値を下回る細胞の割合を `nagg_rate` として返します。
+
+有効な細胞が 0 個の場合は、0% の結果ではなくエラーを表示します。u1/G をペアにできない奇数行のデータもエラーです。
+
+heatmap は有効な細胞の G の raw matrix、relative heatmap は行ごとに normalize した matrix を `viridis` で描画します。distribution は G の全値の histogram、box plot は G の行平均の分布を描画します。
 
 ## 関連 API
 

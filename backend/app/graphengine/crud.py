@@ -1,3 +1,4 @@
+import csv
 import io
 from dataclasses import dataclass
 
@@ -11,7 +12,6 @@ import numpy as np
 from app.shared.objective_scale import DEFAULT_PIXEL_SIZE_UM, normalize_pixel_size_um
 
 PIXEL_SIZE_UM: float = DEFAULT_PIXEL_SIZE_UM
-EXPECTED_POINTS_PER_CELL: int = 35
 DEFAULT_MODE: str = "HU_aggregation_ratio"
 
 
@@ -66,67 +66,64 @@ class GraphEngineCrud:
                 return normalize_pixel_size_um(value.strip())
         return DEFAULT_PIXEL_SIZE_UM
 
-    @staticmethod
-    def _parse_ctrl(text: str) -> float:
-        rows: list[list[float]] = [
-            [float(x) for x in line.split(',') if x]
-            for line in GraphEngineCrud._data_lines(text)
-        ]
-        normalized_rows: list[list[float]] = []
-        for arr in rows:
-            if not arr:
+    @classmethod
+    def _parse_heatmap_cells(cls, text: str) -> list[tuple[np.ndarray, np.ndarray]]:
+        try:
+            rows = list(csv.reader(cls._data_lines(text), strict=True))
+        except csv.Error as exc:
+            raise ValueError(f"Invalid heatmap CSV: {exc}") from exc
+        if len(rows) % 2:
+            raise ValueError("Heatmap CSV must contain paired u1 and G rows")
+
+        cells: list[tuple[np.ndarray, np.ndarray]] = []
+        for index in range(0, len(rows), 2):
+            vectors: list[np.ndarray] = []
+            for row in rows[index : index + 2]:
+                # Bulk exports pad shorter vectors with trailing empty fields.
+                while row and not row[-1].strip():
+                    row = row[:-1]
+                try:
+                    vector = np.array(row, dtype=float)
+                except ValueError:
+                    break
+                if vector.size < 2 or not np.all(np.isfinite(vector)):
+                    break
+                vectors.append(vector)
+            if len(vectors) != 2:
                 continue
-            values: np.ndarray = np.array(arr, dtype=float)
-            if values.max() - values.min() != 0:
-                values = (values - values.min()) / (values.max() - values.min())
-            normalized_rows.append(values.tolist())
-        data: list[float] = [
-            float(np.sum(row) / len(row)) for row in normalized_rows if row
-        ]
+            u1, peaks = vectors
+            if u1.size != peaks.size or np.any(np.diff(u1) < 0) or u1[-1] <= u1[0]:
+                continue
+            cells.append((u1, peaks))
+
+        if not cells:
+            raise ValueError("No valid heatmap vector pairs found in CSV")
+        return cells
+
+    @staticmethod
+    def _mean_peak_score(values: np.ndarray) -> float:
+        span = values.max() - values.min()
+        if span != 0:
+            values = (values - values.min()) / span
+        return float(np.mean(values))
+
+    @classmethod
+    def _parse_ctrl(cls, text: str) -> float:
+        data = [cls._mean_peak_score(peaks) for _, peaks in cls._parse_heatmap_cells(text)]
         data.sort(reverse=True)
-        if not data:
-            return 0.0
         index: int = int(len(data) * 0.95)
         return data[index]
 
-    @staticmethod
-    def _analyze_csv(text: str, ctrl: float | None) -> tuple[float, float | None]:
-        pixel_size_um = GraphEngineCrud._extract_pixel_size_um(text)
-        lines = GraphEngineCrud._data_lines(text)
-        cells: list[tuple[float, float]] = []
-        for i in range(0, len(lines), 2):
-            if i + 1 >= len(lines):
-                break
-            values: list[str] = [
-                value.strip() for value in lines[i].split(",") if value.strip()
-            ]
-            if len([j for j in values if j != ""]) != EXPECTED_POINTS_PER_CELL:
-                continue
-            if len(values) < 2:
-                continue
-            try:
-                length: float = round(
-                    (float(values[-1]) - float(values[0])) * pixel_size_um, 2
-                )
-            except ValueError:
-                continue
-            try:
-                peak_points: np.ndarray = np.array(
-                    [float(x) for x in lines[i + 1].split(',') if x.strip()],
-                    dtype=float,
-                )
-            except ValueError:
-                continue
-            if peak_points.size == 0:
-                continue
-            if peak_points.max() - peak_points.min() != 0:
-                peak_points = (peak_points - peak_points.min()) / (
-                    peak_points.max() - peak_points.min()
-                )
-            peak_data: float = float(np.sum(peak_points) / len(peak_points))
-            cells.append((length, peak_data))
-        if not cells:
-            return 0.0, None if ctrl is None else 0.0
+    @classmethod
+    def _analyze_csv(cls, text: str, ctrl: float | None) -> tuple[float, float | None]:
+        pixel_size_um = cls._extract_pixel_size_um(text)
+        cells = [
+            (
+                round(float(u1[-1] - u1[0]) * pixel_size_um, 2),
+                cls._mean_peak_score(peaks),
+            )
+            for u1, peaks in cls._parse_heatmap_cells(text)
+        ]
         mean_length: float = float(np.mean([length for length, _ in cells]))
         if ctrl is None:
             return mean_length, None
@@ -136,25 +133,7 @@ class GraphEngineCrud:
 
     @classmethod
     def _extract_peak_vectors(cls, text: str) -> list[list[float]]:
-        lines = cls._data_lines(text)
-        vectors: list[list[float]] = []
-        for i in range(0, len(lines), 2):
-            if i + 1 >= len(lines):
-                break
-            values: list[str] = [
-                value.strip() for value in lines[i].split(",") if value.strip()
-            ]
-            if len(values) != EXPECTED_POINTS_PER_CELL:
-                continue
-            try:
-                vector: list[float] = [
-                    float(x) for x in lines[i + 1].split(',') if x.strip()
-                ]
-            except ValueError:
-                continue
-            if vector:
-                vectors.append(vector)
-        return vectors
+        return [peaks.tolist() for _, peaks in cls._parse_heatmap_cells(text)]
 
     @staticmethod
     def _parse_numeric_rows(text: str) -> list[list[float]]:
@@ -173,10 +152,10 @@ class GraphEngineCrud:
     @classmethod
     def _get_matrix_for_mode(cls, mode: str, text: str) -> np.ndarray:
         vectors: list[list[float]] = (
-            cls._extract_peak_vectors(text) if mode == DEFAULT_MODE else []
+            cls._extract_peak_vectors(text)
+            if mode == DEFAULT_MODE
+            else cls._parse_numeric_rows(text)
         )
-        if not vectors:
-            vectors = cls._parse_numeric_rows(text)
         if not vectors:
             raise ValueError("No numeric data found in CSV")
         max_len: int = max(len(row) for row in vectors)
@@ -273,13 +252,19 @@ class GraphEngineCrud:
         ctrl_value: float | None = None
         if ctrl_bytes is not None:
             ctrl_text: str = cls._safe_decode(ctrl_bytes)
-            ctrl_value = cls._parse_ctrl(ctrl_text)
+            try:
+                ctrl_value = cls._parse_ctrl(ctrl_text)
+            except ValueError as exc:
+                raise ValueError(f"Invalid control CSV: {exc}") from exc
         results: list[GraphEngineResult] = []
         for name, content in files:
             text: str = cls._safe_decode(content)
             mean_length: float
             nagg_rate: float | None
-            mean_length, nagg_rate = cls._analyze_csv(text, ctrl_value)
+            try:
+                mean_length, nagg_rate = cls._analyze_csv(text, ctrl_value)
+            except ValueError as exc:
+                raise ValueError(f"{name}: {exc}") from exc
             results.append(
                 GraphEngineResult(
                     filename=name,

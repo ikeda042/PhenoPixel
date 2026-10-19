@@ -3010,6 +3010,48 @@
           }
         }
       }
+    },
+    "/api/v1/database_files/bulk-download": {
+      "post": {
+        "tags": [
+          "database_manager"
+        ],
+        "summary": "Download Databases Endpoint",
+        "operationId": "download_databases_endpoint_api_v1_database_files_bulk_download_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DatabaseBulkDownloadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/zip": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3265,6 +3307,22 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "DatabaseBulkDownloadRequest": {
+        "properties": {
+          "dbnames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Dbnames"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dbnames"
+        ],
+        "title": "DatabaseBulkDownloadRequest"
       }
     }
   }

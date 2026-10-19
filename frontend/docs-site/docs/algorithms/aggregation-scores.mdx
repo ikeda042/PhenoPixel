@@ -42,10 +42,12 @@ HU-GFP 系の Graph Engine では、CSV の peak vector を細胞ごとに min-m
 
 $$
 s(C) =
-\frac{1}{35}\sum_{j=1}^{35}\hat{g}_j
+\frac{1}{N_C}\sum_{j=1}^{N_C}\hat{g}_j
 $$
 
-control CSV がある場合は control score を降順に並べ、`int(len(data) * 0.95)` の位置をしきい値にします。解析対象では、その値を下回る細胞の割合を `nagg_rate` として返します。
+$N_C$ は細胞ごとのベクトルの点数です。35 点に固定せず、u1 と G が同じ点数で 2 点以上の有効なペアを使います。
+
+control CSV も各細胞の G 行だけから同じ score を求めます。位置 u1 の行は含めません。control score を降順に並べ、`int(len(data) * 0.95)` の位置（概ね下位 5%）をしきい値にします。解析対象では、その値を下回る細胞の割合を `nagg_rate` として返します。有効な細胞が 0 個の場合は計算せずエラーを返します。
 
 ## PI permeability
 

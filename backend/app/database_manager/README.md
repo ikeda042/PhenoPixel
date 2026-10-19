@@ -42,6 +42,17 @@ Response: `{ "filename": "example.db" }`
 Download a database file.  
 Response: `application/octet-stream`
 
+**POST** `/database_files/bulk-download`
+
+Download selected databases in a single `databases.zip` archive.
+
+JSON body: `{ "dbnames": ["first.db", "second.db"] }`
+
+Response: `application/zip` (attachment). Each database is exported using a SQLite
+backup, including committed WAL changes. Duplicate names are included once.
+An empty selection or invalid filename returns 400; any missing database returns
+404 without a partial download. Temporary files are removed after the response.
+
 **DELETE** `/database_files/{dbname}`  
 Delete a database file.  
 Response: `{ "deleted": true, "filename": "example.db" }`
