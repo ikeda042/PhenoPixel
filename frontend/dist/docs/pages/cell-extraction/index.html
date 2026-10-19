@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.0">
 <title data-rh="true">Cell Extraction | PhenoPixel Docs</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="http://localhost:3000/docs/img/screen-records/cell-extraction.preview.gif"><meta data-rh="true" name="twitter:image" content="http://localhost:3000/docs/img/screen-records/cell-extraction.preview.gif"><meta data-rh="true" property="og:url" content="http://localhost:3000/docs/pages/cell-extraction/"><meta data-rh="true" property="og:locale" content="ja"><meta data-rh="true" name="docusaurus_locale" content="ja"><meta data-rh="true" name="docsearch:language" content="ja"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Cell Extraction | PhenoPixel Docs"><meta data-rh="true" name="description" content="ND2 から細胞輪郭と cropped cell database を生成する手順と Canny/Auto Annotation の仕組み。"><meta data-rh="true" property="og:description" content="ND2 から細胞輪郭と cropped cell database を生成する手順と Canny/Auto Annotation の仕組み。"><link data-rh="true" rel="icon" href="/docs/img/images/method-centerline-fit.png"><link data-rh="true" rel="canonical" href="http://localhost:3000/docs/pages/cell-extraction/"><link data-rh="true" rel="alternate" href="http://localhost:3000/docs/pages/cell-extraction/" hreflang="ja"><link data-rh="true" rel="alternate" href="http://localhost:3000/docs/pages/cell-extraction/" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Cell Extraction","item":"http://localhost:3000/docs/pages/cell-extraction"}]}</script><link rel="stylesheet" href="/docs/assets/css/styles.8a16c6dc.css">
-<script src="/docs/assets/js/runtime~main.0ed5daaa.js" defer="defer"></script>
-<script src="/docs/assets/js/main.fc18ded7.js" defer="defer"></script>
+<script src="/docs/assets/js/runtime~main.8ea7cdbe.js" defer="defer"></script>
+<script src="/docs/assets/js/main.bf12788d.js" defer="defer"></script>
 </head>
 <body>
 <svg style="display: none;"><defs>
@@ -24,6 +24,7 @@
 <li class="">右側の抽出画像を確認し、必要ならパラメータを変えて再抽出する。</li>
 <li class="">生成された database を開くか、Annotation へ進む。</li>
 </ol>
+<p><code>Go to annotation</code> を押すと、抽出元のアップロード済み ND2 ファイルを自動削除してから Annotation へ移動します。必要な再抽出は、このボタンを押す前に完了してください。削除に失敗した場合はエラーを表示し、同じボタンから再試行できます。</p>
 <p><img decoding="async" loading="lazy" alt="Extraction results" src="/docs/assets/images/cell_extraction3-bd6479996a17ef8ee5975f05acacbe6b.png" width="2714" height="1680" class="img_ev3q"></p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="輪郭抽出アルゴリズム">輪郭抽出アルゴリズム<a href="#輪郭抽出アルゴリズム" class="hash-link" aria-label="輪郭抽出アルゴリズム への直接リンク" title="輪郭抽出アルゴリズム への直接リンク" translate="no">​</a></h2>
 <p>バックエンドは ND2 を一時 TIFF に変換し、フレームとチャンネルを <code>PH</code>, <code>Fluo1</code>, <code>Fluo2</code> へ分けます。各 PH フレームに対して次の処理を行います。</p>

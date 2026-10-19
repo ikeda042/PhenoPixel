@@ -10,6 +10,7 @@
     "docs:dev": "docusaurus start docs-site --host 0.0.0.0 --port 3002",
     "docs:build": "docusaurus build docs-site --out-dir ../dist/docs",
     "lint": "eslint .",
+    "test:e2e": "playwright test",
     "preview": "vite preview",
     "storybook": "storybook dev -p 6006",
     "storybook:build": "storybook build",

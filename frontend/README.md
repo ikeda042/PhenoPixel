@@ -57,6 +57,16 @@ npm run preview
 npm run lint
 ```
 
+## Browser Tests
+
+```sh
+npm exec playwright install chromium
+npm run test:e2e
+```
+
+The tests start a Vite server and mock API responses. To use an installed Google
+Chrome instead, run `PLAYWRIGHT_CHANNEL=chrome npm run test:e2e`.
+
 ## Project Layout
 
 - `frontend/src/pages` routes and page-level views

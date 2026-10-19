@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link as RouterLink, useSearchParams } from 'react-router-dom'
+import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   AspectRatio,
   Box,
@@ -161,6 +161,7 @@ const parseOverlayManifestEntries = (payload: unknown): OverlayManifestEntry[] =
 }
 
 export default function CellExtractionPage() {
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const queryFilename = searchParams.get('filename') ?? ''
   const apiBase = useMemo(() => getApiBase(), [])
@@ -181,6 +182,7 @@ export default function CellExtractionPage() {
   const [imageSizeInput, setImageSizeInput] = useState(String(DEFAULT_IMAGE_SIZE))
   const [autoAnnotation, setAutoAnnotation] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isDeletingSource, setIsDeletingSource] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [jobId, setJobId] = useState<string | null>(null)
   const [jobStatus, setJobStatus] = useState<'idle' | 'running' | 'completed' | 'failed'>(
@@ -397,6 +399,7 @@ export default function CellExtractionPage() {
   )
 
   const handleSubmit = useCallback(async () => {
+    if (isSubmitting || isDeletingSource) return
     if (!filename.trim()) {
       setError('Filename is required')
       return
@@ -479,6 +482,8 @@ export default function CellExtractionPage() {
     closeOverlay,
     filename,
     imageSizeInput,
+    isDeletingSource,
+    isSubmitting,
     largeImageColumnsInput,
     largeImageRowsInput,
     largeImageSplitMode,
@@ -539,6 +544,28 @@ export default function CellExtractionPage() {
       window.clearInterval(intervalId)
     }
   }, [apiBase, jobId, jobStatus, startOverlayPreview])
+
+  const handleGoToAnnotation = useCallback(async () => {
+    if (!extractedDbName || !extractionStem || jobStatus !== 'completed' || isDeletingSource) {
+      return
+    }
+    setIsDeletingSource(true)
+    setError(null)
+    try {
+      const res = await fetch(
+        `${apiBase}/nd2_files/${encodeURIComponent(`${extractionStem}.nd2`)}`,
+        { method: 'DELETE', headers: { accept: 'application/json' } },
+      )
+      if (!res.ok && res.status !== 404) {
+        throw new Error(`Failed to delete source ND2 (${res.status}). Please try again.`)
+      }
+      navigate(`/annotation?dbname=${encodeURIComponent(extractedDbName)}`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete source ND2. Please try again.')
+    } finally {
+      setIsDeletingSource(false)
+    }
+  }, [apiBase, extractedDbName, extractionStem, isDeletingSource, jobStatus, navigate])
 
   const fetchImageCount = useCallback(
     async (stem: string) => {
@@ -993,8 +1020,10 @@ export default function CellExtractionPage() {
                       </Button>
                       <Button
                         size="sm"
-                        as={RouterLink}
-                        to={`/annotation?dbname=${encodeURIComponent(extractedDbName)}`}
+                        onClick={handleGoToAnnotation}
+                        loading={isDeletingSource}
+                        loadingText="Deleting ND2..."
+                        disabled={isSubmitting || jobStatus !== 'completed' || !extractionStem}
                         variant="outline"
                       >
                         Go to annotation
@@ -1005,6 +1034,7 @@ export default function CellExtractionPage() {
                     size="sm"
                     onClick={handleSubmit}
                     loading={isSubmitting}
+                    disabled={isDeletingSource}
                     variant="outline"
                   >
                     {isSubmitting ? 'Extracting...' : hasExtracted ? 'Re-extract' : 'Extract Cells'}

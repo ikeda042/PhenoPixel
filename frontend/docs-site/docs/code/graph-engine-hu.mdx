@@ -46,10 +46,11 @@ curl -X POST "http://localhost:3000/api/v1/graph_engine/HU_aggregation_ratio" \
 ```
 
 `ctrl_file` がない場合、`nagg_rate` は `null` です。
+1 回の解析では、指定した 1 つの control をすべての `files` に適用します。同じ株・処理・日付の control と処理サンプルを 1 セットとして送信してください。
 
 ## CSV format
 
-Graph Engine は 2 行 1 細胞の heatmap CSV を優先して解釈します。
+Graph Engine は 2 行 1 細胞の heatmap CSV を読み込みます。
 
 ```csv
 u1_1,u1_2,u1_3
@@ -58,7 +59,9 @@ u1_1,u1_2,u1_3
 g_1,g_2,g_3
 ```
 
-`35` 点ではない細胞行は HU aggregation ratio の解析から除外されます。
+点数は固定せず、35 点・36 点を含む可変長のベクトルを扱います。各細胞の u1 と G は、同じ点数で 2 点以上の有限値を持つ必要があります。u1 は昇順で、端点の差が正であることを確認します。末尾の空欄はパディングとして無視します。
+
+条件を満たさない細胞ペアは除外します。有効な細胞が 0 個の場合や、データ行が奇数でペアを作れない場合は HTTP 400 を返します。解析対象がないときに `nagg_rate=0` を返すことはありません。
 
 ## 実装の芯
 
@@ -81,7 +84,9 @@ async def analyze_graph_engine(
     )
 ```
 
-control CSV は各行を min-max normalize し、行平均を降順に並べてしきい値を取ります。
+control CSV は各細胞の G 行だけから score を求めます。u1 の座標行はしきい値計算に含めません。control と解析対象の両方で、G を細胞ごとに min-max normalize した平均値を使います。
+
+control score を降順に並べ、従来と同じ `int(len(data) * 0.95)` の位置をしきい値とします。降順の 95% の位置なので、概ね下位 5% に相当します。
 
 ```python title="backend/app/graphengine/crud.py"
 data.sort(reverse=True)
@@ -89,17 +94,17 @@ index: int = int(len(data) * 0.95)
 return data[index]
 ```
 
-解析対象 CSV では、細胞ごとの peak vector を min-max normalize して平均値を score にします。
+score の計算は control と解析対象で共通です。最大値と最小値が同じ G ベクトルは、従来どおり元の値の平均を使います。
 
 ```python title="backend/app/graphengine/crud.py"
-if peak_points.max() - peak_points.min() != 0:
-    peak_points = (peak_points - peak_points.min()) / (
-        peak_points.max() - peak_points.min()
-    )
-peak_data: float = float(np.sum(peak_points) / len(peak_points))
+span = values.max() - values.min()
+if span != 0:
+    values = (values - values.min()) / span
+return float(np.mean(values))
 ```
 
 control しきい値を下回る細胞の割合が `nagg_rate` です。
+分母は、解析対象 CSV から読み込んだ有効な細胞数です。
 
 ```python title="backend/app/graphengine/crud.py"
 count_below: int = sum(1 for _, peak in cells if peak < ctrl)
@@ -114,5 +119,7 @@ nagg_rate: float = count_below / len(cells)
 | `POST /api/v1/graph_engine/heatmap_rel` | `file`, `mode` | row-normalized heatmap PNG |
 | `POST /api/v1/graph_engine/distribution` | `file`, `mode` | histogram PNG |
 | `POST /api/v1/graph_engine/distribution_box` | `file`, `mode` | row mean boxplot PNG |
+
+これらの plot も、解析と同じ有効な u1/G ペアから G 行だけを取り出して生成します。
 
 アルゴリズムの背景は [正規化と凝集スコア](/docs/algorithms/aggregation-scores/) を参照してください。
