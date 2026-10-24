@@ -98,7 +98,8 @@ Format: `{ "cell_id": [[u1, u2], ...], ... }`
 ### Measurements
 
 **GET** `/get-cell-lengths`  
-Cell lengths (um) using PCA over contour.  
+Cell lengths (px) using PCA over contour.
+
 Params: `dbname`, `label`  
 Response: JSON array of `{ "cell_id": string, "length": number }`
 
@@ -118,7 +119,8 @@ Params: `dbname`, `label`
 Response: `image/png`
 
 **GET** `/get-cell-widths`  
-Mean and median centerline-to-contour distances (px) per cell.  
+Mean and median full-width estimates (px) per cell, calculated as twice the centerline-to-contour distance.
+
 Params: `dbname`, `label`, `degree`  
 Response: JSON array of `{ "cell_id": string, "width_mean": number, "width_median": number }`
 

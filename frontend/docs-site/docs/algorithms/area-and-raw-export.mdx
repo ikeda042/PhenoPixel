@@ -16,7 +16,7 @@ $$
 A(C) = \iint_{\Omega_C} 1\,dA
 $$
 
-実装では抽出時に `cv2.contourArea(contour)` を計算し、database の `cells.area` に保存します。Bulk Engine の `Cell area` は、この保存値をラベルで絞り込んで返します。
+実装では抽出時に `cv2.contourArea(contour)` を計算し、database の `cells.area` に px² 単位で保存します。Bulk Engine の `Cell area` は、この保存値をラベルで絞り込んで返します。
 
 ## raw pixel export
 

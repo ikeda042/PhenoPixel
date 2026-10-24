@@ -31,11 +31,11 @@ curl "http://localhost:3000/api/v1/get-cell-lengths?dbname=sample.db&label=1"
 [
   {
     "cell_id": "F0C12",
-    "length": 6.305
+    "length": 97.0
   },
   {
     "cell_id": "F0C13",
-    "length": 5.9475
+    "length": 91.5
   }
 ]
 ```
@@ -57,7 +57,7 @@ async def get_cell_lengths(
     return [CellLength(cell_id=cell_id, length=length) for cell_id, length in lengths]
 ```
 
-PCA 主軸方向の extent を px 単位で出し、`0.065 um/px` を掛けます。
+PCA 主軸方向の extent を px 単位で返します。
 
 ```python title="backend/app/bulk_engine/crud.py"
 def _pca_length(points: np.ndarray) -> float:
@@ -73,7 +73,7 @@ def _pca_length(points: np.ndarray) -> float:
 
 ```python title="backend/app/bulk_engine/crud.py"
 length_px = _pca_length(coords_inside[:, ::-1])
-return round(length_px * PIXEL_SIZE_UM, 4)
+return round(length_px, 4)
 ```
 
 ## エラー

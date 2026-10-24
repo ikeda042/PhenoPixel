@@ -7,9 +7,14 @@ import pickle
 from pathlib import Path
 from uuid import uuid4
 
+import cv2
 import numpy as np
 
-from app.bulk_engine.crud import _calc_cell_length_um
+from app.bulk_engine.crud import (
+    _calc_cell_length_px,
+    get_cell_areas_by_label,
+    get_cell_lengths_by_label,
+)
 from app.bulk_engine.heatmap_bulk_core import (
     build_heatmap_vectors_csv,
     calculate_cell_width_metrics,
@@ -68,17 +73,49 @@ class ObjectiveScaleSupportTest(unittest.TestCase):
         self.assertIn("objective_magnification", columns)
         self.assertIn("pixel_size_um", columns)
 
-    def test_cell_length_uses_supplied_pixel_size_um(self):
-        contour = np.array([[[0, 0]], [[10, 0]]], dtype=np.int32)
+    def test_cell_length_is_in_pixels_with_or_without_image(self):
+        contour = np.array(
+            [[[0, 0]], [[10, 0]], [[10, 4]], [[0, 4]]], dtype=np.int32
+        )
         contour_blob = pickle.dumps(contour)
+        success, encoded_image = cv2.imencode(".png", np.zeros((5, 11), dtype=np.uint8))
+        self.assertTrue(success)
 
         self.assertAlmostEqual(
-            _calc_cell_length_um(None, contour_blob, 0.065),
-            0.65,
+            _calc_cell_length_px(None, contour_blob),
+            10.0,
         )
         self.assertAlmostEqual(
-            _calc_cell_length_um(None, contour_blob, 0.108),
-            1.08,
+            _calc_cell_length_px(encoded_image.tobytes(), contour_blob),
+            10.0,
+        )
+
+    def test_exported_lengths_and_areas_use_pixel_units_for_any_objective(self):
+        db_name = f"objective-scale-test-{uuid4().hex}.db"
+        db_path = DATABASES_DIR / db_name
+        engine = create_database(str(db_path))
+        engine.dispose()
+        contour = np.array(
+            [[[0, 0]], [[10, 0]], [[10, 4]], [[0, 4]]], dtype=np.int32
+        )
+        contour_blob = pickle.dumps(contour)
+        with sqlite3.connect(db_path) as conn:
+            conn.executemany(
+                "INSERT INTO cells (cell_id, contour, area, manual_label, pixel_size_um) "
+                "VALUES (?, ?, ?, ?, ?)",
+                [
+                    ("F0C0", contour_blob, 40.0, 1, 0.065),
+                    ("F0C1", contour_blob, 40.0, 1, 0.108),
+                ],
+            )
+
+        self.assertEqual(
+            get_cell_lengths_by_label(db_name, label="1"),
+            [("F0C0", 10.0), ("F0C1", 10.0)],
+        )
+        self.assertEqual(
+            get_cell_areas_by_label(db_name, label="1"),
+            [("F0C0", 40.0), ("F0C1", 40.0)],
         )
 
     def test_scale_bar_length_uses_pixel_size_um(self):
@@ -102,7 +139,7 @@ class ObjectiveScaleSupportTest(unittest.TestCase):
         self.assertAlmostEqual(mean_length, 3.67)
         self.assertAlmostEqual(old_mean_length, 2.21)
 
-    def test_cell_width_metrics_use_contour_to_centerline_distances(self):
+    def test_cell_width_metrics_return_full_width_from_centerline_distances(self):
         contour = np.array(
             [[[0, 0]], [[10, 0]], [[10, 4]], [[0, 4]]],
             dtype=np.int32,
@@ -111,8 +148,8 @@ class ObjectiveScaleSupportTest(unittest.TestCase):
 
         mean_width, median_width = calculate_cell_width_metrics(contour_blob, degree=1)
 
-        self.assertAlmostEqual(mean_width, 2.0)
-        self.assertAlmostEqual(median_width, 2.0)
+        self.assertAlmostEqual(mean_width, 4.0)
+        self.assertAlmostEqual(median_width, 4.0)
 
 
 if __name__ == "__main__":

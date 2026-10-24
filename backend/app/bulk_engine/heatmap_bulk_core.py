@@ -314,8 +314,8 @@ def calculate_cell_width_metrics(
 
         distances_arr = np.asarray(distances, dtype=float)
     return (
-        round(float(np.mean(distances_arr)), 4),
-        round(float(np.median(distances_arr)), 4),
+        round(float(2 * np.mean(distances_arr)), 4),
+        round(float(2 * np.median(distances_arr)), 4),
     )
 
 

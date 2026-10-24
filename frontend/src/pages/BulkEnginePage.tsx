@@ -847,7 +847,7 @@ export default function BulkEnginePage() {
       if (rows.length === 0) {
         throw new Error('No lengths found for this label.')
       }
-      const csvHeader = `cell_id,cell_length(\u03bcm)`
+      const csvHeader = 'cell_id,cell_length(px)'
       const lines = [
         csvHeader,
         ...rows.map((row) => `${escapeCsvValue(row.cell_id)},${row.length}`),
@@ -892,7 +892,7 @@ export default function BulkEnginePage() {
         throw new Error('No lengths found for this label.')
       }
       const labelDescriptor = analysisLabel === 'All' ? 'all labels' : `label ${analysisLabel}`
-      openJsonModal(`Cell length JSON (${labelDescriptor})`, rows)
+      openJsonModal(`Cell length (px) JSON (${labelDescriptor})`, rows)
     } catch (err) {
       setLengthExportError(err instanceof Error ? err.message : 'Failed to export JSON')
     } finally {
@@ -965,7 +965,7 @@ export default function BulkEnginePage() {
         throw new Error('No widths found for this label.')
       }
       const labelDescriptor = analysisLabel === 'All' ? 'all labels' : `label ${analysisLabel}`
-      openJsonModal(`Cell width JSON (${labelDescriptor})`, rows)
+      openJsonModal(`Cell width (px) JSON (${labelDescriptor})`, rows)
     } catch (err) {
       setWidthExportError(err instanceof Error ? err.message : 'Failed to export JSON')
     } finally {
@@ -1831,7 +1831,7 @@ export default function BulkEnginePage() {
         throw new Error('No areas found for this label.')
       }
       const labelDescriptor = analysisLabel === 'All' ? 'all labels' : `label ${analysisLabel}`
-      openJsonModal(`Cell area JSON (${labelDescriptor})`, rows)
+      openJsonModal(`Cell area (px^2) JSON (${labelDescriptor})`, rows)
     } catch (err) {
       setAreaExportError(err instanceof Error ? err.message : 'Failed to export JSON')
     } finally {
@@ -2331,7 +2331,7 @@ export default function BulkEnginePage() {
                   {analysisMode === 'cell-length' && (
                     <Stack spacing="3" mt="2">
                       <Text fontSize="sm" fontWeight="600" color="ink.900">
-                        Cell length (um)
+                        Cell length (px)
                       </Text>
                       <Box maxW="12rem">
                         <Text fontSize="xs" color="ink.700" mb="1">
@@ -2536,7 +2536,7 @@ export default function BulkEnginePage() {
                                     fontSize="13"
                                     fill="var(--chakra-colors-ink-700)"
                                   >
-                                    Cell length (um)
+                                    Cell length (px)
                                   </text>
                                   <text
                                     x={14}
@@ -2559,7 +2559,7 @@ export default function BulkEnginePage() {
                   {analysisMode === 'cell-width' && (
                     <Stack spacing="3" mt="2">
                       <Text fontSize="sm" fontWeight="600" color="ink.900">
-                        Cell width distance (px)
+                        Cell width (px)
                       </Text>
                       <Box maxW="12rem">
                         <Text fontSize="xs" color="ink.700" mb="1">
@@ -2617,7 +2617,7 @@ export default function BulkEnginePage() {
                         Output
                       </Text>
                       <Text fontSize="sm" color="ink.700">
-                        CSV columns: cell_id, mean width distance (px), median width distance (px).
+                        CSV columns: cell_id, mean full width (px), median full width (px).
                       </Text>
                     </Stack>
                   )}

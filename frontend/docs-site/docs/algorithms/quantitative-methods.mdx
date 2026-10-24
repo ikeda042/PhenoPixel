@@ -15,7 +15,7 @@ PhenoPixel の定量処理は、位相差画像から輪郭を検出し、細胞
 | セクション | 読む内容 | 主な実装 |
 | --- | --- | --- |
 | [輪郭と主軸](/docs/algorithms/contour-and-pca/) | 輪郭、mask、PCA 主軸、細胞座標系 | `cellextraction`, `bulk_engine`, `database_manager` |
-| [中心線と細胞長](/docs/algorithms/centerline-and-length/) | 中心線フィッティング、PCA extent、um 換算 | `bulk_engine.crud._calc_cell_length_um` |
+| [中心線と細胞長](/docs/algorithms/centerline-and-length/) | 中心線フィッティング、PCA extent、px 単位の細胞長 | `bulk_engine.crud._calc_cell_length_px` |
 | [面積と raw pixel export](/docs/algorithms/area-and-raw-export/) | 輪郭面積、内部 pixel の抽出 | `get-cell-areas`, `get-raw-intensities` |
 | [蛍光ベクトル化](/docs/algorithms/fluorescence-vectorization/) | 中心線への投影、35 点ピークベクトル、CSV | `heatmap_bulk_core.calculate_heatmap_path_vector` |
 | [正規化と凝集スコア](/docs/algorithms/aggregation-scores/) | normalized median、FITC/HU 系スコア | `bulk_engine`, `graphengine` |

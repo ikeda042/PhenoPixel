@@ -43,12 +43,7 @@ L_{\mathrm{px}} =
 \max_i \pi_i - \min_i \pi_i
 $$
 
-固定 pixel size は `0.065 um/px` です。
-
-$$
-L_{\mathrm{API}} =
-L_{\mathrm{px}} \times 0.065
-$$
+API はこの長さを px 単位で返します。
 
 内部 pixel が取れない場合は contour 点の PCA extent にフォールバックします。
 
@@ -57,7 +52,7 @@ $$
 | 役割 | 実装 |
 | --- | --- |
 | PCA extent を計算する | `backend/app/bulk_engine/crud.py` の `_pca_length` |
-| um に換算する | `backend/app/bulk_engine/crud.py` の `_calc_cell_length_um` |
+| px 単位の細胞長を返す | `backend/app/bulk_engine/crud.py` の `_calc_cell_length_px` |
 | 中心線多項式を作る | `backend/app/bulk_engine/heatmap_bulk_core.py` の `_poly_fit` |
 | 中心線へ最近点投影する | `backend/app/bulk_engine/heatmap_bulk_core.py` の `_find_minimum_distance_point` |
 
