@@ -97,6 +97,43 @@ Format: `{ "cell_id": [[u1, u2], ...], ... }`
 
 ### Measurements
 
+**GET** `/get-phenotype-features`
+
+Per-cell measurements for the interactive Phenotype map. Params: `dbname`,
+optional `label` (default: all), and `degree` (default: 4, >= 1).
+The response contains `dbname`, `feature_version`, `source_fingerprint`,
+`degree`, `units`, and `cells`. Each cell contains:
+
+| Field | Definition |
+| --- | --- |
+| `cell_id`, `manual_label` | Cell identity and normalized annotation label (`N/A` for missing/1000). |
+| `length_px` | PCA extent of pixels inside the contour, falling back to contour points (px). |
+| `width_mean_px`, `width_median_px` | Twice the mean/median shortest contour-to-centerline distance (px); full-width estimates. |
+| `area_px2` | Stored contour area (px²). |
+| `fluo1_normalized_median`, `fluo2_normalized_median` | Median intracellular intensity divided by its maximum for each channel (dimensionless). An all-zero channel returns 0. |
+
+Missing images, invalid contours, or unavailable measurements produce `null`
+for the affected fields; the cell stays in the response. Empty populations
+return an empty `cells` array. Cell IDs associate all measurements directly.
+Numeric results are cached in a bounded worker-local cache keyed by image,
+contour and area content, polynomial degree, and feature version. Refreshing
+after source edits recomputes changed cells; annotation labels are read anew.
+
+In the UI, choose **Phenotype map** to change axes, fluorescence channel and
+color without another feature request. Click/Shift-click points or drag a
+rectangle from an empty plot area to select cells. Selection follows cell IDs
+across axis changes. A label change clears selection. Zoom affects the view,
+and **Select all visible** selects only points in that view. The gallery loads
+PH thumbnails in pages of 24, and Cell details links to the original Cell Viewer.
+Cells missing either axis are counted and omitted from the plot.
+
+Selected CSV exports contain `dbname`, `cell_id`, `manual_label` and all six
+measurement fields above. Missing measurements are empty CSV fields. Selection
+JSON preserves nulls, selected rows, axis/color/channel/filter/view settings,
+selection bounds (if any), units, source fingerprint, feature version and
+polynomial degree. It records the selection for downstream analysis; it does
+not modify annotation labels.
+
 **GET** `/get-cell-lengths`  
 Cell lengths (px) using PCA over contour.
 

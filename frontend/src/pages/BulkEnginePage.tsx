@@ -25,6 +25,7 @@ import PageHeader from '../components/PageHeader'
 import PageContainer from '../components/PageContainer'
 import ReloadButton from '../components/ReloadButton'
 import ThemeToggleButton from '../components/ThemeToggleButton'
+import PhenotypeMapPanel from '../components/PhenotypeMapPanel'
 import { getApiBase } from '../utils/apiBase'
 
 type BulkCell = {
@@ -169,7 +170,10 @@ export default function BulkEnginePage() {
   const [isExporting, setIsExporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
-  const [analysisMode, setAnalysisMode] = useState('cell-length')
+  const [analysisMode, setAnalysisMode] = useState(() =>
+    searchParams.get('mode') === 'phenotype-map' ? 'phenotype-map' : 'cell-length',
+  )
+  const showPhenotypeMap = analysisMode === 'phenotype-map'
   const [analysisLabel, setAnalysisLabel] = useState('1')
   const [analysisChannel, setAnalysisChannel] = useState('ph')
   const [lengthPlotUrl, setLengthPlotUrl] = useState<string | null>(null)
@@ -258,6 +262,7 @@ export default function BulkEnginePage() {
       setPreviewCellId(null)
       return
     }
+    if (showPhenotypeMap) return
 
     let isActive = true
     const controller = new AbortController()
@@ -323,7 +328,7 @@ export default function BulkEnginePage() {
       isActive = false
       controller.abort()
     }
-  }, [apiBase, dbName, selectedChannel, previewDownscale])
+  }, [apiBase, dbName, selectedChannel, previewDownscale, showPhenotypeMap])
 
   useEffect(() => {
     const nextUrls = new Set(cells.map((cell) => cell.url))
@@ -2017,33 +2022,33 @@ export default function BulkEnginePage() {
             <Text fontSize="sm" color="ink.700">
               Database: {dbName || 'Not selected'}
             </Text>
-            <Text fontSize="xs" color="ink.700">
+            {!showPhenotypeMap && <Text fontSize="xs" color="ink.700">
               Showing {filteredCells.length} / {cells.length}
-            </Text>
+            </Text>}
           </HStack>
 
-          {isLoading && (
+          {!showPhenotypeMap && isLoading && (
             <HStack spacing="3" color="ink.700">
               <Spinner size="sm" />
               <Text fontSize="sm">Generating images...</Text>
             </HStack>
           )}
 
-          {!isLoading && error && (
+          {!showPhenotypeMap && !isLoading && error && (
             <Text fontSize="sm" color="violet.300">
               {error}
             </Text>
           )}
 
-          {!isLoading && !error && cells.length === 0 && (
+          {!showPhenotypeMap && !isLoading && !error && cells.length === 0 && (
             <Text fontSize="sm" color="ink.700">
               No annotation images found.
             </Text>
           )}
 
-          {!isLoading && !error && cells.length > 0 && (
+          {dbName && (
             <Grid
-              templateColumns={{ base: 'minmax(0, 1fr)', lg: 'repeat(2, minmax(0, 1fr))' }}
+              templateColumns={{ base: 'minmax(0, 1fr)', lg: showPhenotypeMap ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))' }}
               templateRows={{ base: 'auto', lg: 'minmax(0, 1fr)' }}
               gap="6"
               alignItems="start"
@@ -2051,7 +2056,7 @@ export default function BulkEnginePage() {
               minH="0"
               h={{ base: 'auto', lg: '100%' }}
             >
-              <Box
+              {!showPhenotypeMap && <Box
                 bg="sand.100"
                 border="1px solid"
                 borderColor="sand.200"
@@ -2264,7 +2269,7 @@ export default function BulkEnginePage() {
                     </Grid>
                   )}
                 </Box>
-              </Box>
+              </Box>}
 
               <Box
                 bg="sand.100"
@@ -2301,6 +2306,7 @@ export default function BulkEnginePage() {
                     <NativeSelect.Root size="sm">
                       <NativeSelect.Field
                         value={analysisMode}
+                        aria-label="Analysis mode"
                         onChange={(event) => setAnalysisMode(event.target.value)}
                         bg="sand.50"
                         border="1px solid"
@@ -2311,6 +2317,7 @@ export default function BulkEnginePage() {
                           boxShadow: '0 0 0 1px var(--app-accent-ring)',
                         }}
                       >
+                        <option value="phenotype-map">Phenotype map</option>
                         <option value="cell-length">Cell length</option>
                         <option value="cell-width">Cell width</option>
                         <option value="cell-area">Cell area</option>
@@ -2326,8 +2333,9 @@ export default function BulkEnginePage() {
                     </NativeSelect.Root>
                   </Stack>
                   <Text fontSize="xs" color="ink.700" mt="4">
-                    Parameter settings
+                    {showPhenotypeMap ? 'Explore cell phenotypes' : 'Parameter settings'}
                   </Text>
+                  {showPhenotypeMap && <PhenotypeMapPanel key={dbName} apiBase={apiBase} dbName={dbName} />}
                   {analysisMode === 'cell-length' && (
                     <Stack spacing="3" mt="2">
                       <Text fontSize="sm" fontWeight="600" color="ink.900">

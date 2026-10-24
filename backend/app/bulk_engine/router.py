@@ -10,6 +10,7 @@ from fastapi.responses import StreamingResponse
 
 from app.activity_tracker.crud import ACTION_BULK_ENGINE, record_activity
 from app.bulk_engine.crud import BulkEngineCrud
+from app.bulk_engine.phenotype_features import get_phenotype_features
 from app.slack.notifier import build_bulk_engine_completed_message, notify_slack
 
 
@@ -29,6 +30,7 @@ router_bulk_engine: APIRouter = APIRouter(
 )
 bulk_executor: ProcessPoolExecutor = ProcessPoolExecutor()
 heatmap_bulk_executor: ProcessPoolExecutor = ProcessPoolExecutor(max_workers=1)
+phenotype_executor: ProcessPoolExecutor = ProcessPoolExecutor(max_workers=1)
 
 
 async def _notify_bulk_engine_completed(
@@ -89,6 +91,46 @@ class HeatmapVector(BaseModel):
     cell_id: str
     u1: list[float]
     g: list[float]
+
+
+class CellPhenotype(BaseModel):
+    cell_id: str
+    manual_label: str
+    length_px: float | None
+    width_mean_px: float | None
+    width_median_px: float | None
+    area_px2: float | None
+    fluo1_normalized_median: float | None
+    fluo2_normalized_median: float | None
+
+
+class PhenotypeFeatures(BaseModel):
+    dbname: str
+    feature_version: str
+    source_fingerprint: str
+    degree: int
+    units: dict[str, str]
+    cells: list[CellPhenotype]
+
+
+@router_bulk_engine.get("/get-phenotype-features", response_model=PhenotypeFeatures)
+async def get_phenotype_features_endpoint(
+    dbname: Annotated[str, Query()] = ...,
+    label: Annotated[str | None, Query()] = None,
+    degree: Annotated[int, Query(ge=1)] = 4,
+) -> PhenotypeFeatures:
+    try:
+        loop = asyncio.get_running_loop()
+        payload = await loop.run_in_executor(
+            phenotype_executor, get_phenotype_features, dbname, label, degree
+        )
+        return PhenotypeFeatures(**payload)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Database not found")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 @router_bulk_engine.get("/get-heatmap-vectors-csv")

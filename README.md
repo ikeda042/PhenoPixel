@@ -200,8 +200,9 @@ Bulk Engine modes:
 
 | Mode | Description |
 | --- | --- |
-| `Cell length` | Measure cell length in micrometers from contour geometry and stored pixel size. |
-| `Cell width` | Export mean and median centerline-to-contour distances in pixels. |
+| `Phenotype map` | Explore per-cell shape and fluorescence measurements with selectable scatter axes, linked images, and selected-cell CSV/JSON exports. |
+| `Cell length` | Measure cell length in pixels from contour geometry. |
+| `Cell width` | Export mean and median full-width estimates in pixels. |
 | `Cell area` | Export cell area in pixels squared. |
 | `Normalized median` | Compute cellwise median intensity after max normalization. |
 | `FITC aggregation ratio` | Report the fraction of cells below the configured normalized-median threshold. |
@@ -413,12 +414,11 @@ $$
 
 ![Centerline fitting](docs/images/method-centerline-fit.png)
 
-In the current backend implementation, `Cell length` is returned as a robust PCA
-major-axis extent of pixels inside the contour and converted with the stored
-pixel size. For the 100x preset, this is:
+In the current backend implementation, `Cell length` is returned as the PCA
+major-axis extent of pixels inside the contour, in pixels:
 
 $$
-L_{\mathrm{API}} \approx (\max_i \pi_i - \min_i \pi_i) \times 0.065.
+L_{\mathrm{px}} \approx \max_i \pi_i - \min_i \pi_i.
 $$
 
 ### 3. Cell Area and Raw Pixel Export

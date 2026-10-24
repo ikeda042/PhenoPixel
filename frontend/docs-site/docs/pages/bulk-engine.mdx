@@ -17,7 +17,7 @@ Bulk Engine は、Annotation 後の database からラベル別の細胞集団�
 1. database を指定して Bulk Engine を開く。
 2. preview channel と label を選び、解析対象の細胞集団を確認する。
 3. `Analysis mode` で指標を選ぶ。
-4. `Cell length`, `Cell width`, `Cell area`, `Normalized median`, `FITC aggregation ratio`, `Entropy`, `Heatmap`, `Contours`, `Map256`, `Raw data` を実行する。
+4. `Phenotype map`, `Cell length`, `Cell width`, `Cell area`, `Normalized median`, `FITC aggregation ratio`, `Entropy`, `Heatmap`, `Contours`, `Map256`, `Raw data` を実行する。
 5. plot を確認し、必要に応じて JSON/CSV を export する。
 
 ![Bulk engine modes](/img/screenshots/bulk3.png)
@@ -25,6 +25,33 @@ Bulk Engine は、Annotation 後の database からラベル別の細胞集団�
 ![Bulk engine heatmap](/img/screenshots/bulk4.png)
 
 ## 主要な解析
+
+### Phenotype map
+
+`Phenotype map` は 1 点を 1 細胞として、形状と蛍光指標を探索する散布図です。
+X/Y 軸には細胞長（px）、平均・中央全幅（px）、面積（px²）、選択チャンネルの
+normalized median を指定できます。色は manual label または数値指標で切り替えます。
+FLUO1/FLUO2 の値はまとめて取得するため、軸やチャンネルの変更では再計算しません。
+
+1. 点をクリックして細胞を選ぶ。Shift-click で選択を追加・解除する。
+2. プロットの空白からドラッグして、矩形内の細胞を選ぶ。
+3. `Cell details` で PH/蛍光画像と値を確認し、`Open Cell Viewer` で元の細胞を開く。
+4. `Zoom to selection` で選択集団を拡大し、`Reset view` で全体へ戻る。
+5. `Export selected CSV` で選択細胞の全指標を、`Export selection JSON` で指標と表示条件を保存する。
+
+選択は軸を切り替えても細胞 ID に対応します。manual label の絞り込みを変えると
+選択は解除されます。`Select all visible` は現在の表示範囲内の点を選びます。
+元画像は選択した細胞から読み込み、一覧は 24 細胞ずつ表示します。
+
+欠損を 0 に置き換えず、軸の値がない細胞は欠損件数として表示します。
+CSV では空欄、JSON では `null` です。全画素が 0 の蛍光画像の normalized median は 0 です。
+輪郭・画像の編集後は `Refresh measurements` で再取得できます。
+JSON には DB 名、元データの識別値、指標の単位・バージョン、中心線次数、
+選択細胞と軸・色・チャンネル・絞り込み・表示範囲を記録します。
+
+直接開く場合は `/bulk-engine?dbname=sample.db&mode=phenotype-map` を使えます。
+
+### 個別の指標
 
 `Cell length` は、輪郭内部ピクセルを PCA 主軸へ射影し、最大射影値と最小射影値の差を px 単位で返します。
 
@@ -54,6 +81,7 @@ $$
 
 ```bash
 GET /api/v1/get-cell-lengths
+GET /api/v1/get-phenotype-features
 GET /api/v1/get-cell-widths
 GET /api/v1/get-cell-areas
 GET /api/v1/get-normalized-medians
