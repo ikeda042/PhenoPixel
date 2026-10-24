@@ -26,15 +26,15 @@ Bulk Engine は、Annotation 後の database からラベル別の細胞集団�
 
 ## 主要な解析
 
-`Cell length` は、輪郭内部ピクセルを PCA 主軸へ射影し、最大射影値と最小射影値の差にピクセルサイズ `0.065 um/px` を掛けます。
+`Cell length` は、輪郭内部ピクセルを PCA 主軸へ射影し、最大射影値と最小射影値の差を px 単位で返します。
 
 $$
-L \approx (\max_i \pi_i - \min_i \pi_i) \times 0.065
+L_{\mathrm{px}} \approx \max_i \pi_i - \min_i \pi_i
 $$
 
-`Cell area` は抽出時に保存された輪郭面積を返します。
+`Cell area` は抽出時に保存された輪郭面積を px² 単位で返します。
 
-`Cell width` は、細胞中心線の多項式に対する各輪郭座標の最短距離を求め、細胞ごとに平均値と中央値を px 単位で返します。
+`Cell width` は、細胞中心線の多項式に対する各輪郭座標の最短距離を求め、距離の平均値と中央値をそれぞれ 2 倍して全幅の推定値（px）として返します。
 
 `Normalized median` は輪郭内の強度値を細胞ごとの最大値で割り、中央値を取ります。
 

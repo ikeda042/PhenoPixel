@@ -52,16 +52,14 @@ def _pca_length(points: np.ndarray) -> float:
     return float(proj.max() - proj.min())
 
 
-def _calc_cell_length_um(
+def _calc_cell_length_px(
     image_ph: bytes | None,
     contour_raw: bytes,
-    pixel_size_um: object = DEFAULT_PIXEL_SIZE_UM,
 ) -> float:
     """
-    Calculate the major-axis length (um) using PCA.
+    Calculate the major-axis length (px) using PCA.
     Prefer pixels inside the contour; fall back to contour points.
     """
-    pixel_size = normalize_pixel_size_um(pixel_size_um)
     try:
         contour = pickle.loads(contour_raw)
     except Exception:
@@ -80,10 +78,10 @@ def _calc_cell_length_um(
             if coords_inside.size > 0:
                 length_px = _pca_length(coords_inside[:, ::-1])
                 if length_px > 0:
-                    return round(length_px * pixel_size, 4)
+                    return round(length_px, 4)
 
     length_px = _pca_length(contour_pts)
-    return round(length_px * pixel_size, 4) if length_px > 0 else 0.0
+    return round(length_px, 4) if length_px > 0 else 0.0
 
 
 def _get_database_pixel_size_um(db_name: str) -> float:
@@ -152,7 +150,7 @@ def get_cell_lengths_by_label(
     db_name: str, label: str | None = None
 ) -> list[tuple[str, float]]:
     """
-    Return cell lengths (um) for cells matching the manual_label.
+    Return cell lengths (px) for cells matching the manual_label.
     """
     label_str = str(label).strip() if label is not None else ""
     apply_filter = bool(label_str) and label_str.lower() != "all"
@@ -167,7 +165,6 @@ def get_cell_lengths_by_label(
                 cells.c.img_ph,
                 cells.c.contour,
                 cells.c.manual_label,
-                cells.c.pixel_size_um,
             )
             .where(cells.c.contour.is_not(None))
             .where(cells.c.cell_id.is_not(None))
@@ -185,16 +182,12 @@ def get_cell_lengths_by_label(
 
         result = session.execute(stmt)
         lengths: list[tuple[str, float]] = []
-        for cell_id, image_ph, contour_raw, _, pixel_size_um in result.fetchall():
+        for cell_id, image_ph, contour_raw, _ in result.fetchall():
             if cell_id is None or contour_raw is None:
                 continue
             image_bytes = bytes(image_ph) if image_ph is not None else None
             contour_bytes = bytes(contour_raw)
-            length_val = _calc_cell_length_um(
-                image_bytes,
-                contour_bytes,
-                pixel_size_um,
-            )
+            length_val = _calc_cell_length_px(image_bytes, contour_bytes)
             if length_val > 0:
                 lengths.append((str(cell_id), length_val))
         return lengths
@@ -251,7 +244,7 @@ def get_cell_widths_by_label(
     db_name: str, label: str | None = None, degree: int = 4
 ) -> list[tuple[str, float, float]]:
     """
-    Return centerline-to-contour width distance summaries (px) per cell.
+    Return full-width estimates (px) from centerline-to-contour distances per cell.
     """
     if degree < 1:
         raise ValueError("degree must be >= 1")
@@ -1192,7 +1185,7 @@ def create_cell_length_boxplot(
     return _build_boxplot_image(
         data=[values],
         labels=[label_text],
-        ylabel="Cell length (um)",
+        ylabel="Cell length (px)",
         title=f"{db_name} | label {label_text}",
         point_color="#2c7a7b",
         median_color="#2f855a",
