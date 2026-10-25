@@ -28,10 +28,38 @@ Bulk Engine は、Annotation 後の database からラベル別の細胞集団�
 
 ### Phenotype map
 
-`Phenotype map` は 1 点を 1 細胞として、形状と蛍光指標を探索する散布図です。
-X/Y 軸には細胞長（px）、平均・中央全幅（px）、面積（px²）、選択チャンネルの
-normalized median を指定できます。色は manual label または数値指標で切り替えます。
+`Phenotype map` は 1 点を 1 細胞として、蛍光局在パターンを複数の指標で探索する散布図です。
+初期表示は X = Intensity entropy、Y = Polar enrichment、色 = Axial centroid offset です。
+X/Y 軸と色を切り替えて、以下の指標を比較できます。細胞長・全幅・面積は参照用の指標として選択できます。
 FLUO1/FLUO2 の値はまとめて取得するため、軸やチャンネルの変更では再計算しません。
+
+| 指標 | 数値の意味 |
+| --- | --- |
+| Intensity entropy | 0 に近いほど少数画素へ集中、1 に近いほど細胞内で均一。 |
+| Hoyer sparsity | 0 で均一、1 に近いほど少数画素への強い集中。 |
+| Top 10% signal fraction | 明るい上位 10%（画素数は切り上げ）が占める総シグナルの割合。 |
+| Polar enrichment | 両端それぞれ 20% の平均強度 / 細胞全体の平均強度。均一なら 1。 |
+| Midcell enrichment | 中央 40–60% の平均強度 / 細胞全体の平均強度。均一なら 1。 |
+| Relative axial spread | 中心線上の相対位置を強度で重み付けした標準偏差（0–0.5）。局所的なスポットでは小さく、両極へ分かれた分布では大きい。 |
+| Axial centroid offset | シグナル重心の中央からのずれ。0 で中央、1 で極。向きを反転しても同じ値。 |
+| Axial asymmetry | 二つの半分の平均強度差の絶対値 / 和。0 で対称、1 で片側のみ。 |
+
+`Concentration × poles`、`Poles × midcell`、`Spread × offset` のプリセットを利用できます。
+例えば両極に集中した分布は Polar enrichment と axial spread が高く、重心の offset は小さくなります。
+片極へ集中した分布は Polar enrichment と offset が高くなります。
+各軸の説明はプロット下に表示されます。
+
+背景補正の既定値は、輪郭の外側 3 px のリング領域の中央値を引き、負値を 0 にする方法です。
+`None (raw intensity)` で保存画像の強度をそのまま使うこともできます。補正条件を変えると再計算し、選択を解除します。
+リングが取得できない場合や、補正後に正のシグナルが残らない場合、局在指標は欠損になります。
+`Normalized median (raw)` は常に保存画像の生強度から計算します。
+
+集中度の 3 指標は、明るい画素の場所を入れ替えても同じ値です。
+極・中央への濃縮度や長軸方向の指標と組み合わせて、位置も含めた分布を比較します。
+長軸位置は、輪郭内の画素から求めた中心線への投影位置を弧長 0–1 に正規化します。
+極の向きは符号を持たないため、新極・旧極の判定には使いません。
+
+Hoyer sparsity の定義は [Hoyer (2004)](https://www.jmlr.org/papers/v5/hoyer04a.html) を参照してください。
 
 1. 点をクリックして細胞を選ぶ。Shift-click で選択を追加・解除する。
 2. プロットの空白からドラッグして、矩形内の細胞を選ぶ。
@@ -47,7 +75,7 @@ FLUO1/FLUO2 の値はまとめて取得するため、軸やチャンネルの�
 CSV では空欄、JSON では `null` です。全画素が 0 の蛍光画像の normalized median は 0 です。
 輪郭・画像の編集後は `Refresh measurements` で再取得できます。
 JSON には DB 名、元データの識別値、指標の単位・バージョン、中心線次数、
-選択細胞と軸・色・チャンネル・絞り込み・表示範囲を記録します。
+選択細胞と軸・色・チャンネル・背景補正・領域の定義・絞り込み・表示範囲を記録します。
 
 直接開く場合は `/bulk-engine?dbname=sample.db&mode=phenotype-map` を使えます。
 

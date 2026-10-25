@@ -3,6 +3,14 @@ import { expect, test, type Page } from 'playwright/test'
 
 const dbName = 'sample #1.db'
 const mapUrl = `/bulk-engine?${new URLSearchParams({ dbname: dbName, mode: 'phenotype-map' })}`
+const localizationKeys = ['entropy_norm', 'hoyer_sparsity', 'top10_fraction', 'polar_enrichment',
+  'midcell_enrichment', 'axial_spread', 'axial_offset', 'axial_asymmetry', 'background_intensity'] as const
+const patterns = [
+  [0.2, 0.8, 0.9, 0.5, 0.8, 0.15, 0.2, 0.1, 100],
+  [0.4, 0.6, 0.7, 2.0, 0.0, 0.12, 0.8, 0.9, 100],
+  [0.7, 0.3, 0.3, 1.5, 0.6, 0.30, 0.1, 0.1, 100],
+  [0.8, 0.2, 0.2, 1.0, 1.2, 0.27, 0.0, 0.0, 100],
+]
 const cells = [
   { cell_id: 'F0C0', manual_label: '1', length_px: 10, width_mean_px: 2, width_median_px: 2,
     area_px2: 20, fluo1_normalized_median: 0.2, fluo2_normalized_median: 0.3 },
@@ -12,7 +20,11 @@ const cells = [
     area_px2: 180, fluo1_normalized_median: null, fluo2_normalized_median: 0.8 },
   { cell_id: 'F0C3', manual_label: 'N/A', length_px: null, width_mean_px: null, width_median_px: null,
     area_px2: 40, fluo1_normalized_median: 0.4, fluo2_normalized_median: 0.5 },
-]
+].map((cell, index) => ({ ...cell, ...Object.fromEntries(
+  (['fluo1', 'fluo2'] as const).flatMap((channel) => localizationKeys.map((key, metricIndex) =>
+    [`${channel}_${key}`, cell[`${channel}_normalized_median`] === null ? null : patterns[index][metricIndex]],
+  )),
+) }))
 
 async function openMap(page: Page, failFirst = false, empty = false) {
   const state = { featureRequests: 0, imageRequests: [] as URL[], zipRequests: 0, failRequests: failFirst }
@@ -23,7 +35,10 @@ async function openMap(page: Page, failFirst = false, empty = false) {
       state.featureRequests += 1
       expect(url.searchParams.get('dbname')).toBe(dbName)
       await route.fulfill({ status: state.failRequests ? 500 : 200, headers, json: {
-        dbname: dbName, feature_version: '1', source_fingerprint: 'test-source', degree: 4,
+        dbname: dbName, feature_version: '2', source_fingerprint: `test-source-${url.searchParams.get('background_mode')}`, degree: 4,
+        localization: { background_mode: url.searchParams.get('background_mode'), background_ring_px: 3,
+          pole_fraction: 0.2, midcell_start: 0.4, midcell_end: 0.6, top_fraction: 0.1,
+          coordinate: 'normalized_centerline_arc_length' },
         units: { length_px: 'px', width_mean_px: 'px', width_median_px: 'px', area_px2: 'px^2',
           fluo1_normalized_median: 'dimensionless', fluo2_normalized_median: 'dimensionless' },
         cells: empty ? [] : cells,
@@ -61,23 +76,56 @@ test('links points to cells and exports exactly the selected IDs with nulls inta
   await page.getByRole('button', { name: 'Export selected CSV' }).click()
   const csv = await csvPromise
   const csvText = await readFile((await csv.path())!, 'utf8')
-  expect(csvText.split('\r\n')).toEqual([
-    'dbname,cell_id,manual_label,length_px,width_mean_px,width_median_px,area_px2,fluo1_normalized_median,fluo2_normalized_median',
-    `${dbName},F0C0,1,10,2,2,20,0.2,0.3`,
-    `${dbName},F0C1,1,20,4,4,80,0.6,`,
-  ])
+  const [headers, ...csvRows] = csvText.split('\r\n').map((line) => line.split(','))
+  expect(csvRows.map((row) => row[headers.indexOf('cell_id')])).toEqual(['F0C0', 'F0C1'])
+  expect(csvRows[0][headers.indexOf('fluo1_polar_enrichment')]).toBe('0.5')
+  expect(csvRows[1][headers.indexOf('fluo1_entropy_norm')]).toBe('0.4')
+  expect(csvRows[1][headers.indexOf('fluo2_normalized_median')]).toBe('')
+  expect(csvRows[1][headers.indexOf('fluo2_polar_enrichment')]).toBe('')
+  expect(headers).toContain('area_px2')
   const jsonPromise = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Export selection JSON' }).click()
   const json = JSON.parse(await readFile((await (await jsonPromise).path())!, 'utf8'))
   expect(json.cells.map((cell: { cell_id: string }) => cell.cell_id)).toEqual(['F0C0', 'F0C1'])
-  expect(json.source_fingerprint).toBe('test-source')
-  expect(json.settings.x_metric).toBe('length_px')
+  expect(json.source_fingerprint).toBe('test-source-local_ring')
+  expect(json.settings.x_metric).toBe('entropy_norm')
+  expect(json.localization.background_mode).toBe('local_ring')
+  expect(json.localization.pole_fraction).toBe(0.2)
   expect(json.units.area_px2).toBe('px^2')
   expect(json.cells[1].fluo2_normalized_median).toBeNull()
   await page.getByLabel('Fluorescence channel').selectOption('fluo2')
   await page.getByRole('button', { name: 'Inspect cell F0C1', exact: true }).click()
   await expect(page.getByText('No FLUO2 image')).toBeVisible()
   expect(state.zipRequests).toBe(0)
+})
+
+test('compares localization descriptors and records the selected background correction', async ({ page }) => {
+  const state = await openMap(page)
+  await expect(page.getByLabel('X axis', { exact: true })).toHaveValue('entropy_norm')
+  await expect(page.getByLabel('Y axis', { exact: true })).toHaveValue('polar_enrichment')
+  await expect(page.getByRole('button', { name: 'Select cell F0C0', exact: true })).toBeVisible()
+  const initialRequests = state.featureRequests
+  for (const key of localizationKeys.filter((key) => key !== 'background_intensity')) {
+    await page.getByLabel('X axis', { exact: true }).selectOption(key)
+    await expect(page.getByRole('button', { name: 'Select cell F0C0', exact: true })).toBeVisible()
+  }
+  await page.getByRole('button', { name: 'Poles × midcell', exact: true }).click()
+  await expect(page.getByLabel('X axis', { exact: true })).toHaveValue('polar_enrichment')
+  await expect(page.getByLabel('Y axis', { exact: true })).toHaveValue('midcell_enrichment')
+  await page.getByRole('button', { name: 'Spread × offset', exact: true }).click()
+  await expect(page.getByLabel('X axis', { exact: true })).toHaveValue('axial_spread')
+  await expect(page.getByLabel('Y axis', { exact: true })).toHaveValue('axial_offset')
+  expect(state.featureRequests).toBe(initialRequests)
+  await page.getByRole('button', { name: 'Select cell F0C0', exact: true }).click()
+  await page.getByLabel('Background correction').selectOption('none')
+  await expect(page.getByTestId('phenotype-counts')).toContainText('Selected: 0')
+  expect(state.featureRequests).toBe(initialRequests + 1)
+  await page.getByRole('button', { name: 'Select cell F0C0', exact: true }).click()
+  const downloadPromise = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Export selection JSON' }).click()
+  const json = JSON.parse(await readFile((await (await downloadPromise).path())!, 'utf8'))
+  expect(json.localization.background_mode).toBe('none')
+  expect(json.settings.background_mode).toBe('none')
 })
 
 test('opens from the Analysis mode selector even when preview images are unavailable', async ({ page }) => {

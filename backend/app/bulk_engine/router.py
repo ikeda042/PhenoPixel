@@ -2,7 +2,7 @@ import asyncio
 import io
 import logging
 from concurrent.futures import ProcessPoolExecutor
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -102,6 +102,24 @@ class CellPhenotype(BaseModel):
     area_px2: float | None
     fluo1_normalized_median: float | None
     fluo2_normalized_median: float | None
+    fluo1_entropy_norm: float | None
+    fluo1_hoyer_sparsity: float | None
+    fluo1_top10_fraction: float | None
+    fluo1_polar_enrichment: float | None
+    fluo1_midcell_enrichment: float | None
+    fluo1_axial_spread: float | None
+    fluo1_axial_offset: float | None
+    fluo1_axial_asymmetry: float | None
+    fluo1_background_intensity: float | None
+    fluo2_entropy_norm: float | None
+    fluo2_hoyer_sparsity: float | None
+    fluo2_top10_fraction: float | None
+    fluo2_polar_enrichment: float | None
+    fluo2_midcell_enrichment: float | None
+    fluo2_axial_spread: float | None
+    fluo2_axial_offset: float | None
+    fluo2_axial_asymmetry: float | None
+    fluo2_background_intensity: float | None
 
 
 class PhenotypeFeatures(BaseModel):
@@ -110,6 +128,7 @@ class PhenotypeFeatures(BaseModel):
     source_fingerprint: str
     degree: int
     units: dict[str, str]
+    localization: dict[str, str | int | float]
     cells: list[CellPhenotype]
 
 
@@ -118,11 +137,12 @@ async def get_phenotype_features_endpoint(
     dbname: Annotated[str, Query()] = ...,
     label: Annotated[str | None, Query()] = None,
     degree: Annotated[int, Query(ge=1)] = 4,
+    background_mode: Annotated[Literal["local_ring", "none"], Query()] = "local_ring",
 ) -> PhenotypeFeatures:
     try:
         loop = asyncio.get_running_loop()
         payload = await loop.run_in_executor(
-            phenotype_executor, get_phenotype_features, dbname, label, degree
+            phenotype_executor, get_phenotype_features, dbname, label, degree, background_mode
         )
         return PhenotypeFeatures(**payload)
     except FileNotFoundError:

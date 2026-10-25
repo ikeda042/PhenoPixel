@@ -79,6 +79,11 @@ class PhenotypeFeaturesTest(unittest.TestCase):
         self.assertEqual(first["area_px2"], 40)
         self.assertEqual(first["fluo1_normalized_median"], 0.2)
         self.assertEqual(first["fluo2_normalized_median"], 0.0)
+        self.assertAlmostEqual(first["fluo1_entropy_norm"], 0)
+        self.assertAlmostEqual(first["fluo1_hoyer_sparsity"], 1)
+        self.assertGreater(first["fluo1_polar_enrichment"], 1)
+        self.assertEqual(first["fluo1_background_intensity"], 200)
+        self.assertIsNone(first["fluo2_entropy_norm"])
         self.assertIsNone(second["fluo1_normalized_median"])
         self.assertEqual(second["fluo2_normalized_median"], 0.5)
         self.assertEqual(broken["manual_label"], "N/A")
@@ -89,6 +94,14 @@ class PhenotypeFeaturesTest(unittest.TestCase):
         self.assertEqual(missing["manual_label"], "N/A")
         self.assertTrue(all(missing[key] is None for key in phenotype_features.FEATURE_UNITS))
         json.dumps(payload, allow_nan=False)
+
+    def test_background_mode_is_exported_and_invalidates_cached_localization(self):
+        corrected = phenotype_features.get_phenotype_features("features.db", "1", degree=1)
+        raw = phenotype_features.get_phenotype_features("features.db", "1", degree=1, background_mode="none")
+        self.assertEqual(corrected["localization"]["background_mode"], "local_ring")
+        self.assertEqual(raw["localization"]["background_mode"], "none")
+        self.assertNotEqual(raw["source_fingerprint"], corrected["source_fingerprint"])
+        self.assertGreater(raw["cells"][0]["fluo1_entropy_norm"], corrected["cells"][0]["fluo1_entropy_norm"])
 
     def test_label_filters_and_empty_results(self):
         self.assertEqual(
@@ -132,6 +145,8 @@ class PhenotypeFeaturesTest(unittest.TestCase):
                 self.assertIsNone(response.json()["cells"][1]["fluo1_normalized_median"])
                 invalid = client.get("/api/v1/get-phenotype-features", params={"dbname": "features.db", "degree": 0})
                 self.assertEqual(invalid.status_code, 422)
+                invalid_mode = client.get("/api/v1/get-phenotype-features", params={"dbname": "features.db", "background_mode": "invalid"})
+                self.assertEqual(invalid_mode.status_code, 422)
                 with patch.object(router, "get_phenotype_features", side_effect=FileNotFoundError):
                     missing = client.get("/api/v1/get-phenotype-features", params={"dbname": "missing.db"})
                 self.assertEqual(missing.status_code, 404)

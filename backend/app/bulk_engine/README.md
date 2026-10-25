@@ -100,9 +100,11 @@ Format: `{ "cell_id": [[u1, u2], ...], ... }`
 **GET** `/get-phenotype-features`
 
 Per-cell measurements for the interactive Phenotype map. Params: `dbname`,
-optional `label` (default: all), and `degree` (default: 4, >= 1).
+optional `label` (default: all), `degree` (default: 4, >= 1), and
+`background_mode` (`local_ring`, default; or `none`).
 The response contains `dbname`, `feature_version`, `source_fingerprint`,
-`degree`, `units`, and `cells`. Each cell contains:
+`degree`, `units`, `localization` settings, and `cells`. Feature version 2 adds
+the fluorescence localization descriptors below for both channels. Each cell contains:
 
 | Field | Definition |
 | --- | --- |
@@ -112,14 +114,56 @@ The response contains `dbname`, `feature_version`, `source_fingerprint`,
 | `area_px2` | Stored contour area (px²). |
 | `fluo1_normalized_median`, `fluo2_normalized_median` | Median intracellular intensity divided by its maximum for each channel (dimensionless). An all-zero channel returns 0. |
 
+For the following fields, replace `{channel}` with `fluo1` or `fluo2`:
+
+| Field suffix | Definition / interpretation |
+| --- | --- |
+| `{channel}_entropy_norm` | `-sum(p_i log(p_i)) / log(N)`. 0 for a single bright pixel; 1 for uniform intensity. |
+| `{channel}_hoyer_sparsity` | `(sqrt(N) - 1 / sqrt(sum(p_i²))) / (sqrt(N) - 1)`. 0 for uniform intensity; 1 for a single bright pixel. |
+| `{channel}_top10_fraction` | Sum of `p_i` over the brightest `ceil(0.1 N)` pixels. |
+| `{channel}_polar_enrichment` | Mean corrected intensity at `t <= 0.2` or `t >= 0.8`, divided by whole-cell mean corrected intensity. Uniform signal = 1. |
+| `{channel}_midcell_enrichment` | Same ratio for `0.4 <= t <= 0.6`. Uniform signal = 1. |
+| `{channel}_axial_spread` | Signal-weighted standard deviation of `t`, in relative cell length (0–0.5). |
+| `{channel}_axial_offset` | `2 abs(sum(p_i t_i) - 0.5)`. 0 at midcell; 1 at a pole. |
+| `{channel}_axial_asymmetry` | Absolute difference between the two halves' mean corrected intensities divided by their sum (0–1). Midline pixels contribute half to each side. |
+| `{channel}_background_intensity` | Estimated background in saved-image intensity units; 0 in `none` mode. |
+
+Here `N` is the number of pixels inside the contour, `w_i = max(I_i - B, 0)`
+and `p_i = w_i / sum(w_i)`. In `local_ring` mode, `B` is the median saved-image
+intensity in the 3 px morphological dilation ring outside the contour, clipped
+to the crop. In `none` mode, `B = 0`. The existing normalized-median field
+always uses raw saved intensities, independently of this setting. All-zero
+corrected signal, fewer than two mask pixels, or an unavailable background
+ring produces missing localization values. The background estimate itself
+is retained when available.
+
+For positional descriptors, fit an unweighted polynomial centerline to the
+PCA-aligned mask pixels (degree capped by available longitudinal coordinates),
+project mask pixels with the existing vectorized polynomial projection, and
+integrate centerline arc length on a 257–4097 sample grid. Normalize that arc
+length to `t` in [0, 1]. Invalid geometry leaves positional fields null while
+retaining intensity-concentration fields. Regional means account for region
+pixel counts. Orientation is unsigned: offset/asymmetry do not identify an
+old/new pole. PCA orientation can be unstable for nearly round contours.
+Entropy, sparsity and top-10% fraction measure concentration and are invariant
+to permutations of pixel intensities; enrichment/spread/offset add positional
+information. These are descriptors, not automatic biological phenotype calls.
+
+Sparsity follows [Hoyer (2004)](https://www.jmlr.org/papers/v5/hoyer04a.html).
+Cell-coordinate fluorescence analysis is also described in
+[ColiCoords (Smit et al., 2019)](https://doi.org/10.1371/journal.pone.0217524).
+The positional formulas and regional cutoffs above define this application's implementation.
+
 Missing images, invalid contours, or unavailable measurements produce `null`
 for the affected fields; the cell stays in the response. Empty populations
 return an empty `cells` array. Cell IDs associate all measurements directly.
 Numeric results are cached in a bounded worker-local cache keyed by image,
-contour and area content, polynomial degree, and feature version. Refreshing
+contour and area content, background mode, polynomial degree, and feature version. Refreshing
 after source edits recomputes changed cells; annotation labels are read anew.
 
-In the UI, choose **Phenotype map** to change axes, fluorescence channel and
+In the UI, choose **Phenotype map**. The defaults plot intensity entropy against
+polar enrichment, colored by axial centroid offset. Presets also show poles
+versus midcell, or axial spread versus offset. Change axes, fluorescence channel and
 color without another feature request. Click/Shift-click points or drag a
 rectangle from an empty plot area to select cells. Selection follows cell IDs
 across axis changes. A label change clears selection. Zoom affects the view,
@@ -127,11 +171,13 @@ and **Select all visible** selects only points in that view. The gallery loads
 PH thumbnails in pages of 24, and Cell details links to the original Cell Viewer.
 Cells missing either axis are counted and omitted from the plot.
 
-Selected CSV exports contain `dbname`, `cell_id`, `manual_label` and all six
-measurement fields above. Missing measurements are empty CSV fields. Selection
+Changing background correction recalculates the descriptors and clears the selection.
+Selected CSV exports contain `dbname`, `cell_id`, `manual_label` and all 24
+numeric measurement fields. Missing measurements are empty CSV fields. Selection
 JSON preserves nulls, selected rows, axis/color/channel/filter/view settings,
 selection bounds (if any), units, source fingerprint, feature version and
-polynomial degree. It records the selection for downstream analysis; it does
+polynomial degree plus background/region/coordinate definitions in `localization`.
+It records the selection for downstream analysis; it does
 not modify annotation labels.
 
 **GET** `/get-cell-lengths`  

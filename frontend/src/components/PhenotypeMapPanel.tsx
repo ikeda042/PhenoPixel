@@ -2,9 +2,9 @@ import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
 import { Box, Button, Grid, HStack, NativeSelect, Spinner, Stack, Text } from '@chakra-ui/react'
 import {
-  metricLabel, metricValue, paddedDomain, parsePhenotypeFeatures,
+  isShapeMetric, metricDescription, metricLabel, metricValue, paddedDomain, parsePhenotypeFeatures,
   phenotypeCsv, phenotypeMetrics,
-  type Bounds, type FluoChannel, type MetricKey, type PhenotypeCell, type PhenotypeFeatures,
+  type BackgroundMode, type Bounds, type FluoChannel, type MetricKey, type PhenotypeCell, type PhenotypeFeatures,
 } from '../utils/phenotypeMap'
 
 const PALETTE = ['#168477', '#8b5bb5', '#cc6b36', '#327fba', '#bd4d75', '#8c791e', '#5d8390']
@@ -48,10 +48,11 @@ export default function PhenotypeMapPanel({ apiBase, dbName }: { apiBase: string
   const [error, setError] = useState<string | null>(null)
   const [reload, setReload] = useState(0)
   const [label, setLabel] = useState('All')
-  const [xMetric, setXMetric] = useState<MetricKey>('length_px')
-  const [yMetric, setYMetric] = useState<MetricKey>('width_mean_px')
-  const [colorMetric, setColorMetric] = useState<MetricKey | 'manual_label'>('manual_label')
+  const [xMetric, setXMetric] = useState<MetricKey>('entropy_norm')
+  const [yMetric, setYMetric] = useState<MetricKey>('polar_enrichment')
+  const [colorMetric, setColorMetric] = useState<MetricKey | 'manual_label'>('axial_offset')
   const [channel, setChannel] = useState<FluoChannel>('fluo1')
+  const [backgroundMode, setBackgroundMode] = useState<BackgroundMode>('local_ring')
   const [selection, setSelection] = useState<Selection | null>(null)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [drag, setDrag] = useState<{ start: ScreenPoint; end: ScreenPoint } | null>(null)
@@ -75,7 +76,7 @@ export default function PhenotypeMapPanel({ apiBase, dbName }: { apiBase: string
       setView(null)
       setGalleryPage(0)
       try {
-        const params = new URLSearchParams({ dbname: dbName })
+        const params = new URLSearchParams({ dbname: dbName, background_mode: backgroundMode })
         const response = await fetch(`${apiBase}/get-phenotype-features?${params}`, {
           signal: controller.signal, headers: { accept: 'application/json' },
         })
@@ -90,7 +91,7 @@ export default function PhenotypeMapPanel({ apiBase, dbName }: { apiBase: string
     }
     void load()
     return () => controller.abort()
-  }, [apiBase, dbName, reload])
+  }, [apiBase, dbName, backgroundMode, reload])
 
   useEffect(() => {
     const element = chartRef.current
@@ -191,8 +192,8 @@ export default function PhenotypeMapPanel({ apiBase, dbName }: { apiBase: string
     if (!data || !selected.length) return
     downloadFile(JSON.stringify({
       dbname: dbName, feature_version: data.feature_version, source_fingerprint: data.source_fingerprint,
-      degree: data.degree, units: data.units, exported_at: new Date().toISOString(),
-      settings: { label, x_metric: xMetric, y_metric: yMetric, color_metric: colorMetric, channel, view,
+      degree: data.degree, units: data.units, localization: data.localization, exported_at: new Date().toISOString(),
+      settings: { label, x_metric: xMetric, y_metric: yMetric, color_metric: colorMetric, channel, background_mode: backgroundMode, view,
         selection_rectangle: selection?.rectangle ?? null },
       cells: selected,
     }, null, 2), `phenotype-${safeName}-selection.json`, 'application/json')
@@ -204,16 +205,23 @@ export default function PhenotypeMapPanel({ apiBase, dbName }: { apiBase: string
   const visiblePoints = points.filter(({ x, y }) => x >= xDomain[0] && x <= xDomain[1] && y >= yDomain[0] && y <= yDomain[1])
   const galleryCount = Math.ceil(selected.length / 24)
   const currentPage = Math.min(galleryPage, Math.max(0, galleryCount - 1))
-  const axisOptions = phenotypeMetrics.map((metric) => (
-    <option key={metric.key} value={metric.key}>{metricLabel(metric.key, channel)}</option>
-  ))
+  const axisOptions = [
+    <optgroup key="fluorescence" label="Fluorescence localization">
+      {phenotypeMetrics.filter(({ key }) => !isShapeMetric(key)).map(({ key, description }) =>
+        <option key={key} value={key} title={description}>{metricLabel(key, channel)}</option>)}
+    </optgroup>,
+    <optgroup key="shape" label="Cell shape (reference)">
+      {phenotypeMetrics.filter(({ key }) => isShapeMetric(key)).map(({ key, description }) =>
+        <option key={key} value={key} title={description}>{metricLabel(key, channel)}</option>)}
+    </optgroup>,
+  ]
 
   return (
     <Stack gap="4" mt="3" data-testid="phenotype-map">
       <HStack justify="space-between" flexWrap="wrap" gap="3">
         <Box>
-          <Text fontWeight="600" color="ink.900">Phenotype exploration map</Text>
-          <Text fontSize="sm" color="ink.700">Compare measurements and inspect the cells behind each point.</Text>
+          <Text fontWeight="600" color="ink.900">Fluorescence localization map</Text>
+          <Text fontSize="sm" color="ink.700">Compare signal concentration, polar/midcell enrichment and axial distribution for each cell.</Text>
         </Box>
         <Button size="sm" variant="outline" onClick={() => setReload((value) => value + 1)} disabled={loading}>
           {loading ? 'Calculating...' : 'Refresh measurements'}
@@ -223,7 +231,7 @@ export default function PhenotypeMapPanel({ apiBase, dbName }: { apiBase: string
       {error && <Text role="alert" color="violet.300">{error} Use Refresh measurements to retry.</Text>}
       {data && (
         <>
-          <Grid templateColumns={{ base: '1fr', md: 'repeat(3, minmax(0, 1fr))', xl: 'repeat(5, minmax(0, 1fr))' }} gap="3">
+          <Grid templateColumns={{ base: '1fr', md: 'repeat(3, minmax(0, 1fr))', xl: 'repeat(6, minmax(0, 1fr))' }} gap="3">
             <Box><label htmlFor="phenotype-label" style={{ fontSize: '0.75rem' }}>Manual label</label>
               <NativeSelect.Root size="sm"><NativeSelect.Field id="phenotype-label" value={label}
                 onChange={(event) => { setLabel(event.target.value); setSelection(null); setActiveId(null); setView(null); setGalleryPage(0) }}>
@@ -245,7 +253,18 @@ export default function PhenotypeMapPanel({ apiBase, dbName }: { apiBase: string
                 onChange={(event) => { setChannel(event.target.value as FluoChannel); setView(null) }}>
                 <option value="fluo1">FLUO1</option><option value="fluo2">FLUO2</option>
               </NativeSelect.Field><NativeSelect.Indicator /></NativeSelect.Root></Box>
+            <Box><label htmlFor="phenotype-background" style={{ fontSize: '0.75rem' }}>Background correction</label>
+              <NativeSelect.Root size="sm"><NativeSelect.Field id="phenotype-background" value={backgroundMode}
+                onChange={(event) => setBackgroundMode(event.target.value as BackgroundMode)}>
+                <option value="local_ring">Local ring median (3 px)</option><option value="none">None (raw intensity)</option>
+              </NativeSelect.Field><NativeSelect.Indicator /></NativeSelect.Root></Box>
           </Grid>
+          <HStack gap="2" flexWrap="wrap" aria-label="Localization plot presets">
+            <Text fontSize="xs" color="ink.700">Plot presets</Text>
+            <Button size="xs" variant="outline" onClick={() => { setXMetric('entropy_norm'); setYMetric('polar_enrichment'); setView(null) }}>Concentration × poles</Button>
+            <Button size="xs" variant="outline" onClick={() => { setXMetric('polar_enrichment'); setYMetric('midcell_enrichment'); setView(null) }}>Poles × midcell</Button>
+            <Button size="xs" variant="outline" onClick={() => { setXMetric('axial_spread'); setYMetric('axial_offset'); setView(null) }}>Spread × offset</Button>
+          </HStack>
           <HStack justify="space-between" flexWrap="wrap" gap="2">
             <Text fontSize="sm" aria-live="polite" data-testid="phenotype-counts">
               Plotted {points.length} / {filtered.length} cells · Missing axis measurements: {filtered.length - points.length} · Selected: {selected.length}
@@ -312,6 +331,8 @@ export default function PhenotypeMapPanel({ apiBase, dbName }: { apiBase: string
                   <Box w="24" h="2" borderRadius="full" background="linear-gradient(to right, #168477, #8b5bb5)" />
                   <Text fontSize="xs">{Number.isFinite(colorMin) ? `${formatNumber(colorMin)} – ${formatNumber(colorMax)}` : 'No values'} · Gray: missing</Text></>}
               </HStack>
+              <Text fontSize="xs" color="ink.700" mt="3">X: {metricDescription(xMetric)}</Text>
+              <Text fontSize="xs" color="ink.700" mt="1">Y: {metricDescription(yMetric)}</Text>
             </Box>
             <Box border="1px solid" borderColor="sand.200" borderRadius="lg" p="3" minW="0">
               <Text fontWeight="600" fontSize="sm">Cell details</Text>
@@ -326,6 +347,7 @@ export default function PhenotypeMapPanel({ apiBase, dbName }: { apiBase: string
                 {phenotypeMetrics.map(({ key }) => <HStack key={key} justify="space-between" gap="2">
                   <Text fontSize="xs">{metricLabel(key, channel)}</Text><Text fontSize="xs" fontWeight="600">{formatNumber(metricValue(active, key, channel))}</Text>
                 </HStack>)}
+                <Text fontSize="xs" color="ink.700">Estimated background: {formatNumber(active[`${channel}_background_intensity`])} image intensity units</Text>
                 <RouterLink to={`/cells?${new URLSearchParams({ db: dbName, cell_id: active.cell_id })}`}>
                   <Text fontSize="sm" color="tide.600" textDecoration="underline">Open Cell Viewer</Text>
                 </RouterLink>
@@ -360,7 +382,7 @@ export default function PhenotypeMapPanel({ apiBase, dbName }: { apiBase: string
             <Text fontSize="xs">Page {currentPage + 1} / {galleryCount}</Text>
             <Button size="xs" variant="outline" disabled={currentPage + 1 >= galleryCount} onClick={() => setGalleryPage(currentPage + 1)}>Next cells</Button>
           </HStack>}
-          <Text fontSize="xs" color="ink.700">Widths are full-width estimates. Normalized median is median intracellular intensity divided by its maximum. Selection JSON includes measurements, units and plot settings.</Text>
+          <Text fontSize="xs" color="ink.700">Localization metrics use nonnegative signal after the selected background correction. No remaining signal or no available background ring gives missing localization values. Pole regions are the terminal 20% at each end; midcell is 40–60% of centerline arc length. Axial orientation is unsigned. Selection JSON records these definitions and correction settings.</Text>
         </>
       )}
     </Stack>

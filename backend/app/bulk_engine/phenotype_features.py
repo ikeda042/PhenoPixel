@@ -16,13 +16,19 @@ from app.bulk_engine.crud import (
     _calc_normalized_median_intensity,
 )
 from app.bulk_engine.heatmap_bulk_core import calculate_cell_width_metrics
+from app.bulk_engine.fluorescence_localization import (
+    BackgroundMode,
+    LOCALIZATION_PARAMETERS,
+    LOCALIZATION_UNITS,
+    calculate_localization_metrics,
+)
 from app.database_manager.crud import (
     DatabaseManagerCrud,
     _normalize_annotation_label,
     get_cells_table,
 )
 
-FEATURE_VERSION = "1"
+FEATURE_VERSION = "2"
 FEATURE_UNITS = {
     "length_px": "px",
     "width_mean_px": "px",
@@ -30,6 +36,8 @@ FEATURE_UNITS = {
     "area_px2": "px^2",
     "fluo1_normalized_median": "dimensionless",
     "fluo2_normalized_median": "dimensionless",
+    **{f"{channel}_{key}": unit for channel in ("fluo1", "fluo2")
+       for key, unit in LOCALIZATION_UNITS.items()},
 }
 _CACHE_LIMIT = 4096
 _cache: OrderedDict[bytes, dict[str, float | None]] = OrderedDict()
@@ -54,11 +62,12 @@ def _cell_features(
     image_fluo2: bytes | None,
     area: float | None,
     degree: int,
+    background_mode: BackgroundMode,
 ) -> tuple[bytes, dict[str, float | None]]:
     # Cache only small numeric results. Content hashes invalidate results after
     # contour/image edits, including edits made outside this application.
     digest = hashlib.blake2b(digest_size=20)
-    digest.update(f"{FEATURE_VERSION}:{degree}:{area}".encode())
+    digest.update(f"{FEATURE_VERSION}:{degree}:{area}:{background_mode}".encode())
     for blob in (contour, image_ph, image_fluo1, image_fluo2):
         digest.update((-1 if blob is None else len(blob)).to_bytes(8, "big", signed=True))
         if blob is not None:
@@ -93,6 +102,12 @@ def _cell_features(
                     )
                 except Exception:
                     logger.debug("Could not calculate phenotype fluorescence", exc_info=True)
+                try:
+                    localization = calculate_localization_metrics(image, contour, degree, background_mode)
+                    features.update({f"{channel}_{key}": _finite_number(value)
+                                     for key, value in localization.items()})
+                except Exception:
+                    logger.debug("Could not calculate fluorescence localization", exc_info=True)
 
     with _cache_lock:
         _cache[fingerprint] = features.copy()
@@ -103,11 +118,14 @@ def _cell_features(
 
 
 def get_phenotype_features(
-    db_name: str, label: str | None = None, degree: int = 4
+    db_name: str, label: str | None = None, degree: int = 4,
+    background_mode: BackgroundMode = "local_ring",
 ) -> dict[str, Any]:
     """Read cells once and retain missing/invalid measurements as JSON nulls."""
     if degree < 1:
         raise ValueError("degree must be >= 1")
+    if background_mode not in ("local_ring", "none"):
+        raise ValueError("Invalid background mode")
     label_text = str(label).strip() if label is not None else ""
     session = DatabaseManagerCrud.get_database_session(db_name)
     try:
@@ -138,6 +156,7 @@ def get_phenotype_features(
                   for blob in (contour, image_ph, fluo1, fluo2)),
                 area=_finite_number(area, positive=True),
                 degree=degree,
+                background_mode=background_mode,
             )
             normalized_label = _normalize_annotation_label(manual_label)
             source_digest.update(fingerprint)
@@ -153,6 +172,7 @@ def get_phenotype_features(
             "source_fingerprint": source_digest.hexdigest(),
             "degree": degree,
             "units": FEATURE_UNITS.copy(),
+            "localization": {"background_mode": background_mode, **LOCALIZATION_PARAMETERS},
             "cells": rows,
         }
     finally:

@@ -200,7 +200,7 @@ Bulk Engine modes:
 
 | Mode | Description |
 | --- | --- |
-| `Phenotype map` | Explore per-cell shape and fluorescence measurements with selectable scatter axes, linked images, and selected-cell CSV/JSON exports. |
+| `Phenotype map` | Compare eight fluorescence localization descriptors (concentration, polar/midcell enrichment and axial distribution), with selectable background correction, linked cell images and CSV/JSON exports. |
 | `Cell length` | Measure cell length in pixels from contour geometry. |
 | `Cell width` | Export mean and median full-width estimates in pixels. |
 | `Cell area` | Export cell area in pixels squared. |
