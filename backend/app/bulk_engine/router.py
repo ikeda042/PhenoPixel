@@ -2,14 +2,15 @@ import asyncio
 import io
 import logging
 from concurrent.futures import ProcessPoolExecutor
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from fastapi.responses import StreamingResponse
 
 from app.activity_tracker.crud import ACTION_BULK_ENGINE, record_activity
 from app.bulk_engine.crud import BulkEngineCrud
+from app.bulk_engine.phenotype_features import get_phenotype_comparison, get_phenotype_features
 from app.slack.notifier import build_bulk_engine_completed_message, notify_slack
 
 
@@ -29,6 +30,7 @@ router_bulk_engine: APIRouter = APIRouter(
 )
 bulk_executor: ProcessPoolExecutor = ProcessPoolExecutor()
 heatmap_bulk_executor: ProcessPoolExecutor = ProcessPoolExecutor(max_workers=1)
+phenotype_executor: ProcessPoolExecutor = ProcessPoolExecutor(max_workers=1)
 
 
 async def _notify_bulk_engine_completed(
@@ -89,6 +91,108 @@ class HeatmapVector(BaseModel):
     cell_id: str
     u1: list[float]
     g: list[float]
+
+
+class CellPhenotype(BaseModel):
+    cell_id: str
+    manual_label: str
+    length_px: float | None
+    width_mean_px: float | None
+    width_median_px: float | None
+    area_px2: float | None
+    fluo1_normalized_median: float | None
+    fluo2_normalized_median: float | None
+    fluo1_entropy_norm: float | None
+    fluo1_hoyer_sparsity: float | None
+    fluo1_top10_fraction: float | None
+    fluo1_polar_enrichment: float | None
+    fluo1_midcell_enrichment: float | None
+    fluo1_axial_spread: float | None
+    fluo1_axial_offset: float | None
+    fluo1_axial_asymmetry: float | None
+    fluo1_background_intensity: float | None
+    fluo2_entropy_norm: float | None
+    fluo2_hoyer_sparsity: float | None
+    fluo2_top10_fraction: float | None
+    fluo2_polar_enrichment: float | None
+    fluo2_midcell_enrichment: float | None
+    fluo2_axial_spread: float | None
+    fluo2_axial_offset: float | None
+    fluo2_axial_asymmetry: float | None
+    fluo2_background_intensity: float | None
+
+
+class PhenotypeFeatures(BaseModel):
+    dbname: str
+    feature_version: str
+    source_fingerprint: str
+    degree: int
+    units: dict[str, str]
+    localization: dict[str, str | int | float]
+    cells: list[CellPhenotype]
+
+
+class PhenotypeComparisonRequest(BaseModel):
+    dbnames: list[str] = Field(min_length=1)
+    label: str | None = None
+    degree: int = Field(default=4, ge=1)
+    background_mode: Literal["local_ring", "none"] = "local_ring"
+
+
+class PhenotypeDataset(BaseModel):
+    dbname: str
+    cell_count: int
+    source_fingerprint: str | None
+    error: str | None
+
+
+class ComparisonCell(CellPhenotype):
+    dbname: str
+
+
+class PhenotypeComparison(BaseModel):
+    comparison_version: str
+    feature_version: str
+    source_fingerprint: str
+    degree: int
+    units: dict[str, str]
+    localization: dict[str, str | int | float]
+    datasets: list[PhenotypeDataset]
+    cells: list[ComparisonCell]
+
+
+@router_bulk_engine.post("/get-phenotype-comparison", response_model=PhenotypeComparison)
+async def get_phenotype_comparison_endpoint(payload: PhenotypeComparisonRequest) -> PhenotypeComparison:
+    try:
+        loop = asyncio.get_running_loop()
+        result = await loop.run_in_executor(
+            phenotype_executor, get_phenotype_comparison,
+            payload.dbnames, payload.label, payload.degree, payload.background_mode,
+        )
+        return PhenotypeComparison(**result)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router_bulk_engine.get("/get-phenotype-features", response_model=PhenotypeFeatures)
+async def get_phenotype_features_endpoint(
+    dbname: Annotated[str, Query()] = ...,
+    label: Annotated[str | None, Query()] = None,
+    degree: Annotated[int, Query(ge=1)] = 4,
+    background_mode: Annotated[Literal["local_ring", "none"], Query()] = "local_ring",
+) -> PhenotypeFeatures:
+    try:
+        loop = asyncio.get_running_loop()
+        payload = await loop.run_in_executor(
+            phenotype_executor, get_phenotype_features, dbname, label, degree, background_mode
+        )
+        return PhenotypeFeatures(**payload)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Database not found")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 @router_bulk_engine.get("/get-heatmap-vectors-csv")

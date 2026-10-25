@@ -17,7 +17,7 @@ Bulk Engine は、Annotation 後の database からラベル別の細胞集団�
 1. database を指定して Bulk Engine を開く。
 2. preview channel と label を選び、解析対象の細胞集団を確認する。
 3. `Analysis mode` で指標を選ぶ。
-4. `Cell length`, `Cell width`, `Cell area`, `Normalized median`, `FITC aggregation ratio`, `Entropy`, `Heatmap`, `Contours`, `Map256`, `Raw data` を実行する。
+4. `Phenotype map`, `Cell length`, `Cell width`, `Cell area`, `Normalized median`, `FITC aggregation ratio`, `Entropy`, `Heatmap`, `Contours`, `Map256`, `Raw data` を実行する。
 5. plot を確認し、必要に応じて JSON/CSV を export する。
 
 ![Bulk engine modes](/img/screenshots/bulk3.png)
@@ -25,6 +25,90 @@ Bulk Engine は、Annotation 後の database からラベル別の細胞集団�
 ![Bulk engine heatmap](/img/screenshots/bulk4.png)
 
 ## 主要な解析
+
+### Phenotype map
+
+`Phenotype map` は 1 点を 1 細胞として、蛍光局在パターンを複数の指標で探索する散布図です。
+初期表示は X = Intensity entropy、Y = Polar enrichment、色 = Axial centroid offset です。
+X/Y 軸と色を切り替えて、以下の指標を比較できます。細胞長・全幅・面積は参照用の指標として選択できます。
+FLUO1/FLUO2 の値はまとめて取得するため、軸やチャンネルの変更では再計算しません。
+
+| 指標 | 数値の意味 |
+| --- | --- |
+| Intensity entropy | 0 に近いほど少数画素へ集中、1 に近いほど細胞内で均一。 |
+| Hoyer sparsity | 0 で均一、1 に近いほど少数画素への強い集中。 |
+| Top 10% signal fraction | 明るい上位 10%（画素数は切り上げ）が占める総シグナルの割合。 |
+| Polar enrichment | 両端それぞれ 20% の平均強度 / 細胞全体の平均強度。均一なら 1。 |
+| Midcell enrichment | 中央 40–60% の平均強度 / 細胞全体の平均強度。均一なら 1。 |
+| Relative axial spread | 中心線上の相対位置を強度で重み付けした標準偏差（0–0.5）。局所的なスポットでは小さく、両極へ分かれた分布では大きい。 |
+| Axial centroid offset | シグナル重心の中央からのずれ。0 で中央、1 で極。向きを反転しても同じ値。 |
+| Axial asymmetry | 二つの半分の平均強度差の絶対値 / 和。0 で対称、1 で片側のみ。 |
+
+`Concentration × poles`、`Poles × midcell`、`Spread × offset` のプリセットを利用できます。
+例えば両極に集中した分布は Polar enrichment と axial spread が高く、重心の offset は小さくなります。
+片極へ集中した分布は Polar enrichment と offset が高くなります。
+各軸の説明はプロット下に表示されます。
+
+背景補正の既定値は、輪郭の外側 3 px のリング領域の中央値を引き、負値を 0 にする方法です。
+`None (raw intensity)` で保存画像の強度をそのまま使うこともできます。補正条件を変えると再計算し、選択を解除します。
+リングが取得できない場合や、補正後に正のシグナルが残らない場合、局在指標は欠損になります。
+`Normalized median (raw)` は常に保存画像の生強度から計算します。
+
+集中度の 3 指標は、明るい画素の場所を入れ替えても同じ値です。
+極・中央への濃縮度や長軸方向の指標と組み合わせて、位置も含めた分布を比較します。
+長軸位置は、輪郭内の画素から求めた中心線への投影位置を弧長 0–1 に正規化します。
+極の向きは符号を持たないため、新極・旧極の判定には使いません。
+
+Hoyer sparsity の定義は [Hoyer (2004)](https://www.jmlr.org/papers/v5/hoyer04a.html) を参照してください。
+
+1. 点をクリックして細胞を選ぶ。Shift-click で選択を追加・解除する。
+2. プロットの空白からドラッグして、矩形内の細胞を選ぶ。
+3. `Cell details` で PH/蛍光画像と値を確認し、`Open Cell Viewer` で元の細胞を開く。
+4. `Zoom to selection` で選択集団を拡大し、`Reset view` で全体へ戻る。
+5. `Export selected CSV` で選択細胞の全指標を、`Export selection JSON` で指標と表示条件を保存する。
+
+選択は軸を切り替えても細胞 ID に対応します。manual label の絞り込みを変えると
+選択は解除されます。`Select all visible` は現在の表示範囲内の点を選びます。
+元画像は選択した細胞から読み込み、一覧は 24 細胞ずつ表示します。
+
+欠損を 0 に置き換えず、軸の値がない細胞は欠損件数として表示します。
+CSV では空欄、JSON では `null` です。全画素が 0 の蛍光画像の normalized median は 0 です。
+輪郭・画像の編集後は `Refresh measurements` で再取得できます。
+JSON には DB 名、元データの識別値、指標の単位・バージョン、中心線次数、
+選択細胞と軸・色・チャンネル・背景補正・領域の定義・絞り込み・表示範囲を記録します。
+
+直接開く場合は `/bulk-engine?dbname=sample.db&mode=phenotype-map` を使えます。
+
+#### データベース間で同一チャンネルを比較する
+
+1. `Compare databases` の一覧で比較する DB にチェックを入れ、`Apply databases` を押す。
+2. `Fluorescence channel` で共通の FLUO1 または FLUO2 を選ぶ。
+3. `Background correction` を共通の条件に設定する。
+4. DB ごとに色分けされた散布図で指標を比較する。`Color by` から数値やラベルによる色分けにも切り替えられる。
+5. 下の `Compare database distributions` で同一指標の累積分布と集計表を確認する。
+
+各曲線は、その DB の有効な細胞のうち「X 軸の値以下の細胞が占める割合」を表します。
+DB ごとに 0–1 に正規化するため、細胞数が異なる DB でも分布の形や位置を比較できます。
+集計表には対象細胞数、有効件数、欠損件数、中央値と Q1–Q3 を表示します。
+四分位数は、昇順データの位置 `(n - 1) p` を線形補間して求めます。
+これらは DB ごとの細胞集団の記述統計です。
+
+曲線と集計値の対象は、manual label で絞り込んだ全細胞です。散布図の選択や拡大は集計対象を変えません。
+`Distribution metric` で比較する指標を切り替えられます。
+共通チャンネルは散布図、色、画像プレビュー、分布比較のすべてに適用されます。
+軸・色・チャンネル・分布指標の切り替えでは再取得せず、背景補正を変えた場合は全 DB を再計算します。
+
+細胞の識別には DB 名と細胞 ID の組み合わせを使います。
+例えば `control.db` の `F0C0` と `treatment.db` の `F0C0` はそれぞれ別の点として扱い、
+元画像の取得先、Cell Viewer のリンク、選択 CSV/JSON にもその DB 名を保持します。
+DB の適用・再取得・背景補正の変更時には選択を解除します。
+
+`Export database summary CSV` で DB ごとの分布集計を保存できます。
+チャンネル、背景補正、ラベル、指標、件数、四分位数に加え、指標のバージョンと元データの識別値も記録します。
+選択 JSON には比較対象すべての DB の情報と、分布指標も保存します。
+読み込めない DB はエラーを明示し、残りの DB を表示します。対象チャンネルがない細胞は欠損として集計します。
+
+### 個別の指標
 
 `Cell length` は、輪郭内部ピクセルを PCA 主軸へ射影し、最大射影値と最小射影値の差を px 単位で返します。
 
@@ -54,6 +138,8 @@ $$
 
 ```bash
 GET /api/v1/get-cell-lengths
+GET /api/v1/get-phenotype-features
+POST /api/v1/get-phenotype-comparison
 GET /api/v1/get-cell-widths
 GET /api/v1/get-cell-areas
 GET /api/v1/get-normalized-medians
