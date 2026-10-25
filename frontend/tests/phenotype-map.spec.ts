@@ -2,6 +2,8 @@ import { readFile } from 'node:fs/promises'
 import { expect, test, type Page } from 'playwright/test'
 
 const dbName = 'sample #1.db'
+const otherDbName = 'treatment #2.db'
+const missingDbName = 'removed.db'
 const mapUrl = `/bulk-engine?${new URLSearchParams({ dbname: dbName, mode: 'phenotype-map' })}`
 const localizationKeys = ['entropy_norm', 'hoyer_sparsity', 'top10_fraction', 'polar_enrichment',
   'midcell_enrichment', 'axial_spread', 'axial_offset', 'axial_asymmetry', 'background_intensity'] as const
@@ -25,23 +27,57 @@ const cells = [
     [`${channel}_${key}`, cell[`${channel}_normalized_median`] === null ? null : patterns[index][metricIndex]],
   )),
 ) }))
+const otherCells = [
+  { ...cells[0], fluo1_entropy_norm: 0.1, fluo1_polar_enrichment: 1.4, fluo2_entropy_norm: 0.7 },
+  { ...cells[1], cell_id: 'F0C4', fluo1_entropy_norm: 0.9, fluo1_polar_enrichment: 0.8 },
+  { ...cells[3], cell_id: 'F0C5', ...Object.fromEntries(localizationKeys.filter((key) => key !== 'background_intensity').map((key) => [`fluo1_${key}`, null])), fluo2_entropy_norm: 0.2 },
+]
 
 async function openMap(page: Page, failFirst = false, empty = false) {
-  const state = { featureRequests: 0, imageRequests: [] as URL[], zipRequests: 0, failRequests: failFirst }
+  const state = { featureRequests: 0, comparisonRequests: [] as { dbnames: string[]; background_mode: string }[],
+    imageRequests: [] as URL[], zipRequests: 0, failRequests: failFirst }
   await page.route('**/api/v1/**', async (route) => {
     const url = new URL(route.request().url())
     const headers = { 'access-control-allow-origin': '*' }
-    if (url.pathname.endsWith('/get-phenotype-features')) {
+    if (route.request().method() === 'OPTIONS') {
+      await route.fulfill({ status: 204, headers: { ...headers, 'access-control-allow-methods': 'GET, POST, OPTIONS', 'access-control-allow-headers': 'content-type' } })
+      return
+    }
+    if (url.pathname.endsWith('/get-databases')) {
+      await route.fulfill({ headers, json: [dbName, otherDbName, missingDbName] })
+    } else if (url.pathname.endsWith('/get-phenotype-comparison')) {
+      const request = route.request().postDataJSON() as { dbnames: string[]; background_mode: string }
+      state.comparisonRequests.push(request)
+      const mode = request.background_mode
+      const selected = request.dbnames.flatMap((name) => name === missingDbName ? [] :
+        (name === dbName ? cells : otherCells).map((cell) => ({ ...cell, dbname: name })))
+      await route.fulfill({ headers, json: {
+        comparison_version: '1', feature_version: '2', source_fingerprint: `comparison-${mode}`, degree: 4,
+        localization: { background_mode: mode, background_ring_px: 3, pole_fraction: 0.2,
+          midcell_start: 0.4, midcell_end: 0.6, top_fraction: 0.1, coordinate: 'normalized_centerline_arc_length' },
+        units: { area_px2: 'px^2', length_px: 'px', fluo1_entropy_norm: 'dimensionless', fluo2_entropy_norm: 'dimensionless' },
+        datasets: request.dbnames.map((name) => ({ dbname: name,
+          cell_count: selected.filter((cell) => cell.dbname === name).length,
+          source_fingerprint: name === missingDbName ? null : `source-${name}-${mode}`,
+          error: name === missingDbName ? 'Database not found' : null })),
+        cells: selected,
+      } })
+    } else if (url.pathname.endsWith('/get-phenotype-features')) {
       state.featureRequests += 1
-      expect(url.searchParams.get('dbname')).toBe(dbName)
+      const requestedDb = url.searchParams.get('dbname')
+      expect([dbName, otherDbName, missingDbName]).toContain(requestedDb)
+      if (requestedDb === missingDbName) {
+        await route.fulfill({ status: 404, headers, json: { detail: 'Database not found' } })
+        return
+      }
       await route.fulfill({ status: state.failRequests ? 500 : 200, headers, json: {
-        dbname: dbName, feature_version: '2', source_fingerprint: `test-source-${url.searchParams.get('background_mode')}`, degree: 4,
+        dbname: requestedDb, feature_version: '2', source_fingerprint: `test-source-${url.searchParams.get('background_mode')}`, degree: 4,
         localization: { background_mode: url.searchParams.get('background_mode'), background_ring_px: 3,
           pole_fraction: 0.2, midcell_start: 0.4, midcell_end: 0.6, top_fraction: 0.1,
           coordinate: 'normalized_centerline_arc_length' },
         units: { length_px: 'px', width_mean_px: 'px', width_median_px: 'px', area_px2: 'px^2',
           fluo1_normalized_median: 'dimensionless', fluo2_normalized_median: 'dimensionless' },
-        cells: empty ? [] : cells,
+        cells: empty ? [] : requestedDb === dbName ? cells : otherCells,
       } })
     } else if (url.pathname.endsWith('/get-cell-image')) {
       state.imageRequests.push(url)
@@ -197,4 +233,99 @@ test('handles an empty database and allows retry after a failed request', async 
   await openMap(page, false, true)
   await expect(page.getByText('No cells match this label.')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Select all visible' })).toBeDisabled()
+})
+
+test('compares the same channel across databases without merging matching cell IDs', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1200 })
+  const state = await openMap(page)
+  await expect(page.getByRole('button', { name: 'Select cell F0C0', exact: true })).toBeVisible()
+  await page.getByLabel(`Compare database ${otherDbName}`, { exact: true }).check()
+  await page.getByRole('button', { name: 'Apply databases (2)' }).click()
+  await expect(page.getByTestId('phenotype-counts')).toContainText('Plotted 5 / 7 cells')
+  await expect(page.getByLabel('Color by')).toHaveValue('database')
+  const primary = page.getByRole('button', { name: `Select cell F0C0 in ${dbName}`, exact: true })
+  const secondary = page.getByRole('button', { name: `Select cell F0C0 in ${otherDbName}`, exact: true })
+  await primary.click()
+  await secondary.click({ modifiers: ['Shift'] })
+  await expect(primary).toHaveAttribute('aria-pressed', 'true')
+  await expect(secondary).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByTestId('phenotype-gallery').getByRole('button')).toHaveCount(2)
+  await expect(page.getByRole('link', { name: 'Open Cell Viewer' })).toHaveAttribute('href',
+    `/cells?${new URLSearchParams({ db: otherDbName, cell_id: 'F0C0' })}`)
+  await expect.poll(() => state.imageRequests.some((url) => url.searchParams.get('dbname') === otherDbName &&
+    url.searchParams.get('cell_id') === 'F0C0' && url.searchParams.get('image_type') === 'fluo1')).toBe(true)
+
+  const csvPromise = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Export selected CSV' }).click()
+  const [header, ...rows] = (await readFile((await (await csvPromise).path())!, 'utf8')).split('\r\n').map((line) => line.split(','))
+  expect(rows.map((row) => [row[header.indexOf('dbname')], row[header.indexOf('cell_id')]])).toEqual([
+    [dbName, 'F0C0'], [otherDbName, 'F0C0'],
+  ])
+  expect(rows.map((row) => Number(row[header.indexOf('fluo1_entropy_norm')]))).toEqual([0.2, 0.1])
+  const jsonPromise = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Export selection JSON' }).click()
+  const exported = JSON.parse(await readFile((await (await jsonPromise).path())!, 'utf8'))
+  expect(exported.datasets.map((dataset: { dbname: string }) => dataset.dbname)).toEqual([dbName, otherDbName])
+  expect(exported.cells.map((cell: { dbname: string }) => cell.dbname)).toEqual([dbName, otherDbName])
+  expect(exported.settings.channel).toBe('fluo1')
+  expect(exported.settings.distribution_metric).toBe('entropy_norm')
+  const requests = state.comparisonRequests.length
+  await page.getByLabel('Fluorescence channel').selectOption('fluo2')
+  await expect.poll(() => state.imageRequests.some((url) => url.searchParams.get('dbname') === otherDbName &&
+    url.searchParams.get('cell_id') === 'F0C0' && url.searchParams.get('image_type') === 'fluo2')).toBe(true)
+  expect(state.comparisonRequests).toHaveLength(requests)
+  await page.getByLabel('Distribution metric').selectOption('axial_spread')
+  await page.getByLabel('Background correction').selectOption('none')
+  await expect(page.getByTestId('phenotype-counts')).toContainText('Selected: 0')
+  await expect(page.getByLabel('Distribution metric')).toHaveValue('axial_spread')
+  expect(state.comparisonRequests).toHaveLength(requests + 1)
+  expect(state.comparisonRequests.at(-1)).toEqual({ dbnames: [dbName, otherDbName], background_mode: 'none' })
+})
+
+test('shows normalized database distributions, known quartiles and unavailable sources', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1200 })
+  const state = await openMap(page)
+  await page.getByLabel(`Compare database ${otherDbName}`, { exact: true }).check()
+  await page.getByLabel(`Compare database ${missingDbName}`, { exact: true }).check()
+  await page.getByRole('button', { name: 'Apply databases (3)' }).click()
+  await expect(page.getByRole('alert')).toContainText(`${missingDbName}: Database not found`)
+  const table = page.getByRole('table', { name: 'Database distribution summary' })
+  const primaryRow = table.getByRole('row').filter({ hasText: dbName })
+  const otherRow = table.getByRole('row').filter({ hasText: otherDbName })
+  await expect(primaryRow.getByRole('cell')).toHaveText(['4', '3', '1', '0.4', '0.3 – 0.6'])
+  await expect(otherRow.getByRole('cell')).toHaveText(['3', '2', '1', '0.5', '0.3 – 0.7'])
+  await expect(page.locator('svg[aria-label="Database cumulative distributions"] path[data-dbname]')).toHaveCount(2)
+  const csvPromise = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Export database summary CSV' }).click()
+  const csv = (await readFile((await (await csvPromise).path())!, 'utf8')).split('\r\n').map((line) => line.split(','))
+  expect(csv[1].slice(0, 8)).toEqual([dbName, 'fluo1', 'local_ring', 'All', 'entropy_norm', '4', '3', '1'])
+  expect(Number(csv[1][8])).toBeCloseTo(0.3)
+  expect(Number(csv[2][9])).toBeCloseTo(0.5)
+  expect(csv[1][11]).toBe('2')
+  expect(csv[1][12]).toBe(`source-${dbName}-local_ring`)
+  expect(csv[3].at(-1)).toBe('Database not found')
+  await page.getByTestId('database-comparison').screenshot({ path: 'test-results/phenotype-database-comparison.png' })
+  const requests = state.comparisonRequests.length
+  await page.getByLabel('Fluorescence channel').selectOption('fluo2')
+  await expect(otherRow.getByRole('cell')).toHaveText(['3', '2', '1', '0.45', '0.325 – 0.575'])
+  await page.getByLabel('Distribution metric').selectOption('polar_enrichment')
+  expect(state.comparisonRequests).toHaveLength(requests)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByTestId('database-comparison').scrollIntoViewIfNeeded()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  await page.screenshot({ path: 'test-results/phenotype-database-comparison-mobile.png' })
+})
+
+test('allows a different single database and prevents an empty source selection', async ({ page }) => {
+  await openMap(page)
+  await expect(page.getByRole('button', { name: 'Select cell F0C0', exact: true })).toBeVisible()
+  await page.getByLabel(`Compare database ${dbName}`, { exact: true }).uncheck()
+  await expect(page.getByRole('button', { name: 'Apply databases (0)' })).toBeDisabled()
+  await page.getByLabel(`Compare database ${otherDbName}`, { exact: true }).check()
+  await page.getByRole('button', { name: 'Apply databases (1)' }).click()
+  await expect(page.getByTestId('phenotype-counts')).toContainText('Plotted 2 / 3 cells')
+  await page.getByRole('button', { name: 'Select cell F0C0', exact: true }).click()
+  await expect(page.getByRole('link', { name: 'Open Cell Viewer' })).toHaveAttribute('href',
+    `/cells?${new URLSearchParams({ db: otherDbName, cell_id: 'F0C0' })}`)
+  await expect(page.getByTestId('database-comparison')).toHaveCount(0)
 })

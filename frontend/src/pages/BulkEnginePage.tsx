@@ -2020,7 +2020,7 @@ export default function BulkEnginePage() {
         <Stack spacing={{ base: 5, lg: 4 }} flex="1" minH="0">
           <HStack justify="space-between" flexWrap="wrap" gap="3">
             <Text fontSize="sm" color="ink.700">
-              Database: {dbName || 'Not selected'}
+              {showPhenotypeMap ? 'Starting database' : 'Database'}: {dbName || 'Not selected'}
             </Text>
             {!showPhenotypeMap && <Text fontSize="xs" color="ink.700">
               Showing {filteredCells.length} / {cells.length}

@@ -37,6 +37,19 @@ export type PhenotypeFeatures = {
   localization: Record<string, string | number>
   cells: PhenotypeCell[]
 }
+export type ComparisonCell = PhenotypeCell & { dbname: string }
+export type PhenotypeDataset = {
+  dbname: string
+  cell_count: number
+  source_fingerprint: string | null
+  error: string | null
+}
+export type PhenotypeComparison = Omit<PhenotypeFeatures, 'dbname' | 'cells'> & {
+  comparison_version: string
+  datasets: PhenotypeDataset[]
+  cells: ComparisonCell[]
+}
+export const phenotypeCellKey = (cell: ComparisonCell) => JSON.stringify([cell.dbname, cell.cell_id])
 export type Bounds = { xMin: number; xMax: number; yMin: number; yMax: number }
 
 export const isShapeMetric = (key: MetricKey): key is ShapeKey => shapeKeys.some((shape) => shape === key)
@@ -82,6 +95,69 @@ export function parsePhenotypeFeatures(payload: unknown): PhenotypeFeatures {
   return data
 }
 
+export function singleDatabaseComparison(data: PhenotypeFeatures): PhenotypeComparison {
+  return {
+    ...data,
+    comparison_version: '1',
+    datasets: [{ dbname: data.dbname, cell_count: data.cells.length,
+      source_fingerprint: data.source_fingerprint, error: null }],
+    cells: data.cells.map((cell) => ({ ...cell, dbname: data.dbname })),
+  }
+}
+
+export function parsePhenotypeComparison(payload: unknown): PhenotypeComparison {
+  if (!payload || typeof payload !== 'object') throw new Error('Invalid comparison response.')
+  const data = payload as PhenotypeComparison
+  if (data.comparison_version !== '1' || !Array.isArray(data.datasets) || !data.datasets.length || !Array.isArray(data.cells)) {
+    throw new Error('Invalid comparison response.')
+  }
+  const names = new Set<string>()
+  for (const dataset of data.datasets) {
+    if (!dataset || typeof dataset.dbname !== 'string' || !dataset.dbname || names.has(dataset.dbname) ||
+        !Number.isInteger(dataset.cell_count) || dataset.cell_count < 0 ||
+        (dataset.error !== null && typeof dataset.error !== 'string') ||
+        (dataset.source_fingerprint !== null && typeof dataset.source_fingerprint !== 'string')) {
+      throw new Error('Invalid comparison database metadata.')
+    }
+    names.add(dataset.dbname)
+    const cells = data.cells.filter((cell) => cell?.dbname === dataset.dbname)
+    if (cells.length !== dataset.cell_count || (dataset.error && cells.length)) throw new Error('Invalid comparison cell counts.')
+    parsePhenotypeFeatures({ ...data, dbname: dataset.dbname, cells })
+  }
+  if (data.cells.some((cell) => !cell || !names.has(cell.dbname))) throw new Error('Unknown source database in comparison.')
+  return data
+}
+
+export type DatabaseMetricSummary = {
+  dbname: string
+  total: number
+  missing: number
+  values: number[]
+  q1: number | null
+  median: number | null
+  q3: number | null
+}
+
+export function databaseMetricSummaries(
+  cells: ComparisonCell[], names: string[], metric: MetricKey, channel: FluoChannel,
+): DatabaseMetricSummary[] {
+  return names.map((dbname) => {
+    const rows = cells.filter((cell) => cell.dbname === dbname)
+    const values = rows.flatMap((cell) => {
+      const value = metricValue(cell, metric, channel)
+      return value === null ? [] : [value]
+    }).sort((a, b) => a - b)
+    const quantile = (fraction: number) => {
+      if (!values.length) return null
+      const index = (values.length - 1) * fraction
+      const lower = Math.floor(index)
+      return values[lower] + (values[Math.ceil(index)] - values[lower]) * (index - lower)
+    }
+    return { dbname, total: rows.length, missing: rows.length - values.length,
+      values, q1: quantile(0.25), median: quantile(0.5), q3: quantile(0.75) }
+  })
+}
+
 export function paddedDomain(values: number[]): [number, number] {
   let min = Infinity
   let max = -Infinity
@@ -96,10 +172,24 @@ const escapeCsv = (value: string | number | null) => {
   return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text
 }
 
-export function phenotypeCsv(dbName: string, cells: PhenotypeCell[]): string {
+export function phenotypeCsv(cells: ComparisonCell[]): string {
   const header = ['dbname', 'cell_id', 'manual_label', ...featureKeys]
   return [header.join(','), ...cells.map((cell) =>
-    [dbName, cell.cell_id, cell.manual_label, ...featureKeys.map((key) => cell[key])]
+    [cell.dbname, cell.cell_id, cell.manual_label, ...featureKeys.map((key) => cell[key])]
       .map(escapeCsv).join(','),
   )].join('\r\n')
+}
+
+export function comparisonSummaryCsv(
+  summaries: DatabaseMetricSummary[], datasets: PhenotypeDataset[],
+  metric: MetricKey, channel: FluoChannel, backgroundMode: BackgroundMode, label: string, featureVersion: string,
+): string {
+  return [
+    'dbname,channel,background_mode,label,metric,total_cells,valid_cells,missing_cells,q1,median,q3,feature_version,source_fingerprint,error',
+    ...summaries.map((summary) => [summary.dbname, channel, backgroundMode, label, metric,
+      summary.total, summary.values.length, summary.missing, summary.q1, summary.median, summary.q3,
+      featureVersion, datasets.find((dataset) => dataset.dbname === summary.dbname)?.source_fingerprint ?? '',
+      datasets.find((dataset) => dataset.dbname === summary.dbname)?.error ?? '',
+    ].map(escapeCsv).join(',')),
+  ].join('\r\n')
 }

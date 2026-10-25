@@ -79,6 +79,35 @@ JSON には DB 名、元データの識別値、指標の単位・バージョ�
 
 直接開く場合は `/bulk-engine?dbname=sample.db&mode=phenotype-map` を使えます。
 
+#### データベース間で同一チャンネルを比較する
+
+1. `Compare databases` の一覧で比較する DB にチェックを入れ、`Apply databases` を押す。
+2. `Fluorescence channel` で共通の FLUO1 または FLUO2 を選ぶ。
+3. `Background correction` を共通の条件に設定する。
+4. DB ごとに色分けされた散布図で指標を比較する。`Color by` から数値やラベルによる色分けにも切り替えられる。
+5. 下の `Compare database distributions` で同一指標の累積分布と集計表を確認する。
+
+各曲線は、その DB の有効な細胞のうち「X 軸の値以下の細胞が占める割合」を表します。
+DB ごとに 0–1 に正規化するため、細胞数が異なる DB でも分布の形や位置を比較できます。
+集計表には対象細胞数、有効件数、欠損件数、中央値と Q1–Q3 を表示します。
+四分位数は、昇順データの位置 `(n - 1) p` を線形補間して求めます。
+これらは DB ごとの細胞集団の記述統計です。
+
+曲線と集計値の対象は、manual label で絞り込んだ全細胞です。散布図の選択や拡大は集計対象を変えません。
+`Distribution metric` で比較する指標を切り替えられます。
+共通チャンネルは散布図、色、画像プレビュー、分布比較のすべてに適用されます。
+軸・色・チャンネル・分布指標の切り替えでは再取得せず、背景補正を変えた場合は全 DB を再計算します。
+
+細胞の識別には DB 名と細胞 ID の組み合わせを使います。
+例えば `control.db` の `F0C0` と `treatment.db` の `F0C0` はそれぞれ別の点として扱い、
+元画像の取得先、Cell Viewer のリンク、選択 CSV/JSON にもその DB 名を保持します。
+DB の適用・再取得・背景補正の変更時には選択を解除します。
+
+`Export database summary CSV` で DB ごとの分布集計を保存できます。
+チャンネル、背景補正、ラベル、指標、件数、四分位数に加え、指標のバージョンと元データの識別値も記録します。
+選択 JSON には比較対象すべての DB の情報と、分布指標も保存します。
+読み込めない DB はエラーを明示し、残りの DB を表示します。対象チャンネルがない細胞は欠損として集計します。
+
 ### 個別の指標
 
 `Cell length` は、輪郭内部ピクセルを PCA 主軸へ射影し、最大射影値と最小射影値の差を px 単位で返します。
@@ -110,6 +139,7 @@ $$
 ```bash
 GET /api/v1/get-cell-lengths
 GET /api/v1/get-phenotype-features
+POST /api/v1/get-phenotype-comparison
 GET /api/v1/get-cell-widths
 GET /api/v1/get-cell-areas
 GET /api/v1/get-normalized-medians

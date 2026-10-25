@@ -180,6 +180,64 @@ polynomial degree plus background/region/coordinate definitions in `localization
 It records the selection for downstream analysis; it does
 not modify annotation labels.
 
+**POST** `/get-phenotype-comparison`
+
+Compare multiple databases using identical feature definitions, polynomial
+degree, and background correction. The original single-DB GET endpoint remains
+available. Request body:
+
+```json
+{
+  "dbnames": ["control.db", "treatment.db"],
+  "label": null,
+  "degree": 4,
+  "background_mode": "local_ring"
+}
+```
+
+`dbnames` must contain at least one name. Names are sanitized and deduplicated.
+`label` is optional; an omitted/null label loads all annotations. The remaining
+options have the same defaults and definitions as `/get-phenotype-features`.
+Response: `comparison_version`, `feature_version`, `source_fingerprint`,
+`degree`, `units`, `localization`, `datasets`, and `cells`.
+Each dataset has `dbname`, `cell_count`, `source_fingerprint` and `error`.
+Each cell adds `dbname` to the single-DB cell fields. The composite key
+`(dbname, cell_id)` identifies a cell throughout selection, image retrieval,
+Cell Viewer links, CSV and JSON exports. Matching IDs in different databases
+remain separate observations.
+
+Unavailable databases have a non-null error, null fingerprint and zero cells;
+they are explicitly listed in the UI and export metadata. Other sources still
+load. Even an entirely unavailable comparison returns this structured 200
+response with no cells; request validation errors return 400/422.
+The comparison fingerprint covers all per-DB fingerprints/statuses and shared
+feature settings. Numeric definitions and feature version are unchanged.
+
+In **Phenotype map → Compare databases**, check the source names and press
+**Apply databases**. Multiple sources default to **Color by → Database**.
+The single channel selector chooses FLUO1 or FLUO2 for all sources, scatter axes,
+color metrics, previews, and distribution summaries. The shared background
+selector recalculates all sources. Applying sources or refreshing measurements
+clears selection. Axes/channel/color/distribution metric changes are local.
+An individual alternative database can also be loaded through this selector.
+
+**Compare database distributions** plots an empirical cumulative distribution
+for each DB, on common axes. For a sorted vector of valid measurements, the
+curve is `F(x) = count(value <= x) / valid_count`; ties form a single jump.
+Each DB is normalized separately, so different cell counts do not determine
+curve height. The summary uses the entire label-filtered population, regardless
+of scatter selection or zoom, and reports total, valid and missing counts,
+median and Q1–Q3. Quantiles linearly interpolate sorted values at index
+`(n - 1) p`, for `p = 0.25, 0.5, 0.75`. Zero valid values give null summaries
+and no curve. These are descriptive per-cell population statistics.
+
+**Export database summary CSV** includes the DB name, common channel and
+background mode, label, metric, counts, Q1/median/Q3, feature version, per-DB
+fingerprint and any load error. Selected-cell CSV retains the source DB on
+every row. Selection JSON also records all source statuses/fingerprints and
+the chosen distribution metric. Summary tables scroll horizontally on small
+screens.
+
 **GET** `/get-cell-lengths`  
 Cell lengths (px) using PCA over contour.
 

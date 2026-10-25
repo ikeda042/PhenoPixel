@@ -200,7 +200,7 @@ Bulk Engine modes:
 
 | Mode | Description |
 | --- | --- |
-| `Phenotype map` | Compare eight fluorescence localization descriptors (concentration, polar/midcell enrichment and axial distribution), with selectable background correction, linked cell images and CSV/JSON exports. |
+| `Phenotype map` | Compare eight fluorescence localization descriptors within/across databases using one shared channel and background correction, DB-colored scatter plots, cumulative distributions, quartile summaries, linked images and CSV/JSON exports. |
 | `Cell length` | Measure cell length in pixels from contour geometry. |
 | `Cell width` | Export mean and median full-width estimates in pixels. |
 | `Cell area` | Export cell area in pixels squared. |

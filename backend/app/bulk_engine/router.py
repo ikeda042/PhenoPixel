@@ -5,12 +5,12 @@ from concurrent.futures import ProcessPoolExecutor
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from fastapi.responses import StreamingResponse
 
 from app.activity_tracker.crud import ACTION_BULK_ENGINE, record_activity
 from app.bulk_engine.crud import BulkEngineCrud
-from app.bulk_engine.phenotype_features import get_phenotype_features
+from app.bulk_engine.phenotype_features import get_phenotype_comparison, get_phenotype_features
 from app.slack.notifier import build_bulk_engine_completed_message, notify_slack
 
 
@@ -130,6 +130,48 @@ class PhenotypeFeatures(BaseModel):
     units: dict[str, str]
     localization: dict[str, str | int | float]
     cells: list[CellPhenotype]
+
+
+class PhenotypeComparisonRequest(BaseModel):
+    dbnames: list[str] = Field(min_length=1)
+    label: str | None = None
+    degree: int = Field(default=4, ge=1)
+    background_mode: Literal["local_ring", "none"] = "local_ring"
+
+
+class PhenotypeDataset(BaseModel):
+    dbname: str
+    cell_count: int
+    source_fingerprint: str | None
+    error: str | None
+
+
+class ComparisonCell(CellPhenotype):
+    dbname: str
+
+
+class PhenotypeComparison(BaseModel):
+    comparison_version: str
+    feature_version: str
+    source_fingerprint: str
+    degree: int
+    units: dict[str, str]
+    localization: dict[str, str | int | float]
+    datasets: list[PhenotypeDataset]
+    cells: list[ComparisonCell]
+
+
+@router_bulk_engine.post("/get-phenotype-comparison", response_model=PhenotypeComparison)
+async def get_phenotype_comparison_endpoint(payload: PhenotypeComparisonRequest) -> PhenotypeComparison:
+    try:
+        loop = asyncio.get_running_loop()
+        result = await loop.run_in_executor(
+            phenotype_executor, get_phenotype_comparison,
+            payload.dbnames, payload.label, payload.degree, payload.background_mode,
+        )
+        return PhenotypeComparison(**result)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 @router_bulk_engine.get("/get-phenotype-features", response_model=PhenotypeFeatures)

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 from collections import OrderedDict
 from threading import Lock
@@ -26,6 +27,7 @@ from app.database_manager.crud import (
     DatabaseManagerCrud,
     _normalize_annotation_label,
     get_cells_table,
+    sanitize_db_name,
 )
 
 FEATURE_VERSION = "2"
@@ -177,3 +179,49 @@ def get_phenotype_features(
         }
     finally:
         session.close()
+
+
+def get_phenotype_comparison(
+    db_names: list[str], label: str | None = None, degree: int = 4,
+    background_mode: BackgroundMode = "local_ring",
+) -> dict[str, Any]:
+    """Use identical feature settings for each DB and retain source identity."""
+    if not db_names:
+        raise ValueError("At least one database is required")
+    if degree < 1:
+        raise ValueError("degree must be >= 1")
+    if background_mode not in ("local_ring", "none"):
+        raise ValueError("Invalid background mode")
+    names = list(dict.fromkeys(sanitize_db_name(name) for name in db_names))
+    datasets = []
+    rows = []
+    for name in names:
+        try:
+            result = get_phenotype_features(name, label, degree, background_mode)
+        except FileNotFoundError:
+            datasets.append({"dbname": name, "cell_count": 0, "source_fingerprint": None,
+                             "error": "Database not found"})
+        except Exception:
+            logger.warning("Could not read phenotype comparison database %s", name, exc_info=True)
+            datasets.append({"dbname": name, "cell_count": 0, "source_fingerprint": None,
+                             "error": "Could not read measurements"})
+        else:
+            datasets.append({"dbname": name, "cell_count": len(result["cells"]),
+                             "source_fingerprint": result["source_fingerprint"], "error": None})
+            rows.extend({"dbname": name, **cell} for cell in result["cells"])
+    source_digest = hashlib.blake2b(
+        json.dumps({"datasets": datasets, "feature_version": FEATURE_VERSION,
+                    "degree": degree, "background_mode": background_mode,
+                    "localization": LOCALIZATION_PARAMETERS},
+                   sort_keys=True, ensure_ascii=False).encode(), digest_size=20
+    ).hexdigest()
+    return {
+        "comparison_version": "1",
+        "feature_version": FEATURE_VERSION,
+        "source_fingerprint": source_digest,
+        "degree": degree,
+        "units": FEATURE_UNITS.copy(),
+        "localization": {"background_mode": background_mode, **LOCALIZATION_PARAMETERS},
+        "datasets": datasets,
+        "cells": rows,
+    }

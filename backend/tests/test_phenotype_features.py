@@ -151,6 +151,61 @@ class PhenotypeFeaturesTest(unittest.TestCase):
                     missing = client.get("/api/v1/get-phenotype-features", params={"dbname": "missing.db"})
                 self.assertEqual(missing.status_code, 404)
 
+    def test_comparison_preserves_same_id_from_different_databases_and_reports_missing_sources(self):
+        second_name = "alternative #2.db"
+        second_engine = create_database(str(Path(self.tmpdir.name) / second_name))
+        second_sessions = sessionmaker(second_engine)
+        uniform = np.full((12, 20), 200, dtype=np.uint16)
+        uniform[2:7, 2:13] = 600
+        success, encoded = cv2.imencode(".png", uniform)
+        self.assertTrue(success)
+        with second_engine.begin() as conn:
+            conn.execute(text("INSERT INTO cells (cell_id, manual_label, contour, img_fluo1, area) VALUES (:id, 1, :contour, :image, 40)"),
+                         {"id": "F0C0", "contour": contour_blob(), "image": encoded.tobytes()})
+        def session_for(name):
+            if name == "features.db":
+                return self.sessions()
+            if name == second_name:
+                return second_sessions()
+            raise FileNotFoundError(name)
+
+        try:
+            with patch.object(phenotype_features.DatabaseManagerCrud, "get_database_session", side_effect=session_for):
+                names = ["features.db", second_name, "folder/features.db", "missing.db"]
+                result = phenotype_features.get_phenotype_comparison(names, label="1", degree=1)
+                self.assertEqual(len(result["datasets"]), 3)
+                first, second = result["cells"]
+                self.assertEqual(first["cell_id"], second["cell_id"])
+                self.assertEqual(first["dbname"], "features.db")
+                self.assertEqual(second["dbname"], second_name)
+                self.assertAlmostEqual(first["fluo1_entropy_norm"], 0)
+                self.assertAlmostEqual(second["fluo1_entropy_norm"], 1)
+                self.assertEqual(result["datasets"][2]["error"], "Database not found")
+                self.assertEqual(result["localization"]["background_mode"], "local_ring")
+                self.assertEqual(result["degree"], 1)
+                self.assertEqual(result, phenotype_features.get_phenotype_comparison(names, label="1", degree=1))
+                raw = phenotype_features.get_phenotype_comparison(names, label="1", degree=1, background_mode="none")
+                self.assertNotEqual(result["source_fingerprint"], raw["source_fingerprint"])
+                self.assertGreater(raw["cells"][0]["fluo1_entropy_norm"], first["fluo1_entropy_norm"])
+                json.dumps(result, allow_nan=False)
+
+                app = FastAPI()
+                app.include_router(router.router_bulk_engine, prefix="/api/v1")
+                app.dependency_overrides[router._track_bulk_engine_activity] = lambda: None
+                with ThreadPoolExecutor(max_workers=1) as executor, patch.object(router, "phenotype_executor", executor), TestClient(app) as client:
+                    response = client.post("/api/v1/get-phenotype-comparison", json={"dbnames": names, "label": "1", "degree": 1})
+                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(response.json()["cells"][1]["dbname"], second_name)
+                    self.assertEqual(client.post("/api/v1/get-phenotype-comparison", json={"dbnames": []}).status_code, 422)
+                    self.assertEqual(client.post("/api/v1/get-phenotype-comparison", json={"dbnames": [""]}).status_code, 400)
+                    self.assertEqual(client.post("/api/v1/get-phenotype-comparison", json={"dbnames": names, "background_mode": "invalid"}).status_code, 422)
+                    missing = client.post("/api/v1/get-phenotype-comparison", json={"dbnames": ["missing.db"]})
+                    self.assertEqual(missing.status_code, 200)
+                    self.assertEqual(missing.json()["cells"], [])
+                    self.assertIsNotNone(missing.json()["datasets"][0]["error"])
+        finally:
+            second_engine.dispose()
+
 
 if __name__ == "__main__":
     unittest.main()
