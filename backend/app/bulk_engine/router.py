@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from fastapi.responses import StreamingResponse
 
 from app.activity_tracker.crud import ACTION_BULK_ENGINE, record_activity
-from app.bulk_engine.crud import BulkEngineCrud
+from app.bulk_engine.crud import FITC_AGGREGATION_THRESHOLD, BulkEngineCrud
 from app.bulk_engine.phenotype_features import get_phenotype_comparison, get_phenotype_features
 from app.slack.notifier import build_bulk_engine_completed_message, notify_slack
 
@@ -648,6 +648,9 @@ async def get_fitc_aggregation_plot(
     dbname: Annotated[str, Query()] = ...,
     label: Annotated[str | None, Query()] = None,
     channel: Annotated[str, Query(description="fluo1 | fluo2")] = "fluo1",
+    threshold: Annotated[
+        float, Query(ge=0, le=1, description="Normalized median cutoff (strictly below)")
+    ] = FITC_AGGREGATION_THRESHOLD,
 ) -> StreamingResponse:
     try:
         loop = asyncio.get_running_loop()
@@ -657,6 +660,7 @@ async def get_fitc_aggregation_plot(
             dbname,
             label,
             channel,
+            threshold,
         )
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Database not found")

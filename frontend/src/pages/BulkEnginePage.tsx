@@ -14,6 +14,7 @@ import {
   Grid,
   Heading,
   HStack,
+  Input,
   NativeSelect,
   Spinner,
   Stack,
@@ -154,7 +155,6 @@ export default function BulkEnginePage() {
   const [searchParams] = useSearchParams()
   const dbName = searchParams.get('dbname') ?? ''
   const apiBase = useMemo(() => getApiBase(), [])
-  const fitcThreshold = 0.7414
 
   const [cells, setCells] = useState<BulkCell[]>([])
   const [previewCellId, setPreviewCellId] = useState<string | null>(null)
@@ -198,6 +198,13 @@ export default function BulkEnginePage() {
   const [isMedianExporting, setIsMedianExporting] = useState(false)
   const [medianExportError, setMedianExportError] = useState<string | null>(null)
   const [hasCalculatedMedian, setHasCalculatedMedian] = useState(false)
+  const [fitcThreshold, setFitcThreshold] = useState('0.7414')
+  const fitcThresholdValue = Number(fitcThreshold)
+  const isFitcThresholdValid =
+    fitcThreshold.trim() !== '' &&
+    Number.isFinite(fitcThresholdValue) &&
+    fitcThresholdValue >= 0 &&
+    fitcThresholdValue <= 1
   const [fitcPlotUrl, setFitcPlotUrl] = useState<string | null>(null)
   const [fitcError, setFitcError] = useState<string | null>(null)
   const [isFitcLoading, setIsFitcLoading] = useState(false)
@@ -1041,7 +1048,7 @@ export default function BulkEnginePage() {
   }
 
   const handleCalcFitcAggregation = async () => {
-    if (!dbName || isFitcLoading) return
+    if (!dbName || isFitcLoading || !isFitcThresholdValid) return
     setIsFitcLoading(true)
     setFitcError(null)
     try {
@@ -1049,6 +1056,7 @@ export default function BulkEnginePage() {
         dbname: dbName,
         label: analysisLabel,
         channel: analysisChannel,
+        threshold: String(fitcThresholdValue),
       })
       const res = await fetch(`${apiBase}/get-fitc-aggregation-plot?${params.toString()}`, {
         headers: { accept: 'image/png' },
@@ -2939,9 +2947,46 @@ export default function BulkEnginePage() {
                           </NativeSelect.Root>
                         </Box>
                       </HStack>
-                      <Text fontSize="xs" color="ink.700">
-                        Threshold: {fitcThreshold}
-                      </Text>
+                      <Box maxW="12rem">
+                        <Text id="fitc-threshold-label" fontSize="xs" color="ink.700" mb="1">
+                          Threshold
+                        </Text>
+                        <Input
+                          size="sm"
+                          type="number"
+                          min={0}
+                          max={1}
+                          step="any"
+                          aria-labelledby="fitc-threshold-label"
+                          aria-invalid={!isFitcThresholdValid}
+                          aria-describedby={!isFitcThresholdValid ? 'fitc-threshold-error' : undefined}
+                          value={fitcThreshold}
+                          disabled={isFitcLoading}
+                          onChange={(event) => {
+                            setFitcThreshold(event.target.value)
+                            if (fitcPlotUrlRef.current) {
+                              URL.revokeObjectURL(fitcPlotUrlRef.current)
+                              fitcPlotUrlRef.current = null
+                            }
+                            setFitcPlotUrl(null)
+                            setFitcError(null)
+                            setHasCalculatedFitc(false)
+                          }}
+                          bg="sand.50"
+                          border="1px solid"
+                          borderColor="sand.200"
+                          color="ink.900"
+                          _focusVisible={{
+                            borderColor: 'tide.400',
+                            boxShadow: '0 0 0 1px var(--app-accent-ring)',
+                          }}
+                        />
+                        {!isFitcThresholdValid && (
+                          <Text id="fitc-threshold-error" fontSize="xs" color="violet.300" mt="1">
+                            Enter a value between 0 and 1.
+                          </Text>
+                        )}
+                      </Box>
                       <Text fontSize="xs" color="ink.700" mt="3">
                         Execution
                       </Text>
@@ -2949,7 +2994,7 @@ export default function BulkEnginePage() {
                         <Button
                           size="sm"
                           onClick={handleCalcFitcAggregation}
-                          disabled={!dbName || isFitcLoading}
+                          disabled={!dbName || isFitcLoading || !isFitcThresholdValid}
                           variant="outline"
                         >
                           {isFitcLoading ? 'Calculating...' : 'Calc ratio'}
