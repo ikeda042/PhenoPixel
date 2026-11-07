@@ -70,8 +70,9 @@ GET /api/v1/get-fitc-aggregation-plot
 | `dbname` | `string` | required | 対象 database |
 | `label` | `string` | `null` | 集計対象 label |
 | `channel` | `string` | `fluo1` | `fluo1`, `fluo2` |
+| `threshold` | `number` | `0.7414` | 正規化中央値のしきい値（0〜1） |
 
-しきい値は `FITC_AGGREGATION_THRESHOLD = 0.7414` です。normalized median がしきい値未満の細胞数を全細胞数で割ります。
+しきい値は `threshold` で指定でき、省略時は `FITC_AGGREGATION_THRESHOLD = 0.7414` を使います。normalized median がしきい値未満の細胞数を、中央値を計算できた対象細胞数で割ります。
 
 ```python title="backend/app/bulk_engine/crud.py"
 def _calc_fraction_below_threshold(

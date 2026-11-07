@@ -126,10 +126,10 @@ $$
 m(C) = \mathrm{median}\left(\frac{I_i}{\max I}\right)
 $$
 
-`FITC aggregation ratio` は normalized median が既定しきい値 `0.7414` 未満の細胞割合を計算します。
+`FITC aggregation ratio` は normalized median がしきい値未満の細胞割合を計算します。`Threshold` に 0〜1 の値を入力して `Calc ratio` を実行します。デフォルトは `0.7414` です。
 
 $$
-R = \frac{1}{N}\sum_{c=1}^{N}\mathbf{1}[m(C_c) < 0.7414]
+R(\tau) = \frac{1}{N}\sum_{c=1}^{N}\mathbf{1}[m(C_c) < \tau]
 $$
 
 `Heatmap` は細胞中心線に沿って蛍光ピークベクトルを作り、絶対長または相対位置で並べます。`Contours` は PCA で細胞の向きを揃えた輪郭座標を描画・export します。

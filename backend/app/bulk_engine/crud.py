@@ -1338,9 +1338,13 @@ class BulkEngineCrud:
 
     @classmethod
     def create_fitc_aggregation_ratio_plot(
-        cls, db_name: str, label: str | None = None, channel: str = "fluo1"
+        cls,
+        db_name: str,
+        label: str | None = None,
+        channel: str = "fluo1",
+        threshold: float = FITC_AGGREGATION_THRESHOLD,
     ) -> bytes:
-        return create_fitc_aggregation_ratio_plot(db_name, label, channel)
+        return create_fitc_aggregation_ratio_plot(db_name, label, channel, threshold)
 
 
 def create_cell_area_boxplot(
@@ -1382,21 +1386,26 @@ def create_normalized_median_boxplot(
 
 
 def create_fitc_aggregation_ratio_plot(
-    db_name: str, label: str | None = None, channel: str = "fluo1"
+    db_name: str,
+    label: str | None = None,
+    channel: str = "fluo1",
+    threshold: float = FITC_AGGREGATION_THRESHOLD,
 ) -> bytes:
+    if not np.isfinite(threshold) or not 0 <= threshold <= 1:
+        raise ValueError("Threshold must be a finite number between 0 and 1.")
     medians = get_normalized_medians_by_label(db_name, label, channel)
     if not medians:
         raise LookupError("No cells found for the specified label.")
     values = [median for _, median in medians]
     ratio, _count_below, _total = _calc_fraction_below_threshold(
-        values, FITC_AGGREGATION_THRESHOLD
+        values, threshold
     )
     label_text = str(label) if label not in (None, "", "all", "All") else "All"
     return _build_fitc_aggregation_ratio_plot(
         ratio=ratio,
         label_text=label_text,
         title=f"{db_name} | label {label_text} | {channel}",
-        threshold=FITC_AGGREGATION_THRESHOLD,
+        threshold=threshold,
     )
 
 
