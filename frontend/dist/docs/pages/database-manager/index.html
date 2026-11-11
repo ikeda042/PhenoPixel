@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.0">
 <title data-rh="true">Database Console | PhenoPixel Docs</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="http://localhost:3000/docs/img/screen-records/cell-extraction.preview.gif"><meta data-rh="true" name="twitter:image" content="http://localhost:3000/docs/img/screen-records/cell-extraction.preview.gif"><meta data-rh="true" property="og:url" content="http://localhost:3000/docs/pages/database-manager/"><meta data-rh="true" property="og:locale" content="ja"><meta data-rh="true" name="docusaurus_locale" content="ja"><meta data-rh="true" name="docsearch:language" content="ja"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Database Console | PhenoPixel Docs"><meta data-rh="true" name="description" content="SQLite database のアップロード、ダウンロード、リネーム、削除、細胞ビューアへの遷移。"><meta data-rh="true" property="og:description" content="SQLite database のアップロード、ダウンロード、リネーム、削除、細胞ビューアへの遷移。"><link data-rh="true" rel="icon" href="/docs/img/images/method-centerline-fit.png"><link data-rh="true" rel="canonical" href="http://localhost:3000/docs/pages/database-manager/"><link data-rh="true" rel="alternate" href="http://localhost:3000/docs/pages/database-manager/" hreflang="ja"><link data-rh="true" rel="alternate" href="http://localhost:3000/docs/pages/database-manager/" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Database Console","item":"http://localhost:3000/docs/pages/database-manager"}]}</script><link rel="stylesheet" href="/docs/assets/css/styles.8a16c6dc.css">
-<script src="/docs/assets/js/runtime~main.cdc6424c.js" defer="defer"></script>
+<script src="/docs/assets/js/runtime~main.dcf7d55d.js" defer="defer"></script>
 <script src="/docs/assets/js/main.bf12788d.js" defer="defer"></script>
 </head>
 <body>
@@ -23,6 +23,7 @@
 <li class=""><code>Upload</code> で別の <code>.db</code> を取り込む。</li>
 <li class="">必要に応じて rename/delete で整理する。</li>
 </ol>
+<p><code>test_database.db</code> はリポジトリに同梱された保護対象です。削除・リネーム・同名ファイルのアップロードはできません。バックエンドでもこれらの操作と再抽出による置き換えを拒否します。</p>
 <p><img decoding="async" loading="lazy" alt="Database access" src="/docs/assets/images/database_manager2-0aa2311c0d8cdaddfd24aba25276f0c7.png" width="2720" height="1682" class="img_ev3q"></p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="裏側の処理">裏側の処理<a href="#裏側の処理" class="hash-link" aria-label="裏側の処理 への直接リンク" title="裏側の処理 への直接リンク" translate="no">​</a></h2>
 <p>database は <code>backend/app/databases/</code> に保存されます。アップロード時には <code>.db</code> 拡張子を検証し、SQLite schema の軽い migration を実行します。古い database に <code>img_fluo</code> が残っている場合は <code>img_fluo1</code> へ rename し、現行の <code>cells</code> model に足りないカラムがあれば <code>ALTER TABLE</code> で追加します。</p>

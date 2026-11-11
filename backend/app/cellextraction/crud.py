@@ -24,6 +24,7 @@ from pydantic import BaseModel, Field, ValidationInfo, field_validator
 from autoannotation.features import extract_feature_dict
 from autoannotation.models import AutoAnnotator, load_model
 
+from app.shared.database_protection import ensure_database_file_unprotected
 from app.shared.objective_scale import (
     DEFAULT_OBJECTIVE_MAGNIFICATION,
     DEFAULT_PIXEL_SIZE_UM,
@@ -1405,6 +1406,7 @@ class ExtractionCrudBase:
         return normalized
 
     def _reset_database(self, db_path: str) -> None:
+        ensure_database_file_unprotected(Path(db_path))
         try:
             os.remove(db_path)
         except FileNotFoundError:

@@ -19,6 +19,8 @@ Database Console は、Cell Extraction で生成された SQLite database を一
 5. `Upload` で別の `.db` を取り込む。
 6. 必要に応じて rename/delete で整理する。
 
+`test_database.db` はリポジトリに同梱された保護対象です。削除・リネーム・同名ファイルのアップロードはできません。バックエンドでもこれらの操作と再抽出による置き換えを拒否します。
+
 ![Database access](/img/screenshots/database_manager2.png)
 
 ## 裏側の処理
