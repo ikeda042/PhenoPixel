@@ -34,6 +34,10 @@ const SearchGlyph = () => (
 )
 
 const PAGE_SIZE = 50
+const PROTECTED_DATABASE_MESSAGE =
+  'test_database.db is a bundled database and cannot be deleted, renamed, or overwritten'
+// Keep in sync with backend/app/shared/database_protection.py.
+const isProtectedDatabase = (name: string) => name.trim().toLowerCase() === 'test_database.db'
 
 export default function DatabasesPage() {
   const navigate = useNavigate()
@@ -154,6 +158,10 @@ export default function DatabasesPage() {
 
   const uploadDatabase = useCallback(
     async (file: File) => {
+      if (isProtectedDatabase(file.name)) {
+        setError(PROTECTED_DATABASE_MESSAGE)
+        return
+      }
       setIsUploading(true)
       setError(null)
       try {
@@ -244,7 +252,7 @@ export default function DatabasesPage() {
 
   const handleDelete = useCallback(
     async (dbName: string) => {
-      if (isDatabaseActionBusy) return
+      if (isDatabaseActionBusy || isProtectedDatabase(dbName)) return
       const confirmed = window.confirm(`Delete ${dbName}?`)
       if (!confirmed) return
       setDeletingDatabase(dbName)
@@ -269,6 +277,7 @@ export default function DatabasesPage() {
   )
 
   const beginRename = useCallback((dbName: string) => {
+    if (isProtectedDatabase(dbName)) return
     setError(null)
     setRenamingDatabase(dbName)
     setRenameValue(dbName)
@@ -282,6 +291,10 @@ export default function DatabasesPage() {
   const confirmRename = useCallback(async () => {
     if (!renamingDatabase) return
     const trimmed = renameValue.trim()
+    if (isProtectedDatabase(renamingDatabase) || isProtectedDatabase(trimmed)) {
+      setError(PROTECTED_DATABASE_MESSAGE)
+      return
+    }
     if (!trimmed) {
       setError('Database name is required')
       return
@@ -578,6 +591,7 @@ export default function DatabasesPage() {
             {!isLoading &&
               pagedDatabases.map((name, index) => {
                 const isEditing = renamingDatabase === name
+                const isProtected = isProtectedDatabase(name)
                 const disableActions = Boolean(
                   isRenaming ||
                   isBulkDownloading ||
@@ -642,6 +656,11 @@ export default function DatabasesPage() {
                       ) : (
                         <Text fontSize="sm" fontWeight="500" minW="0" overflowWrap="anywhere">
                           {name}
+                          {isProtected && (
+                            <Text as="span" fontSize="xs" color="ink.700" ml="2">
+                              Protected
+                            </Text>
+                          )}
                         </Text>
                       )}
                     </HStack>
@@ -713,7 +732,8 @@ export default function DatabasesPage() {
                             size="xs"
                             variant="outline"
                             onClick={() => beginRename(name)}
-                            disabled={disableActions}
+                            disabled={disableActions || isProtected}
+                            title={isProtected ? PROTECTED_DATABASE_MESSAGE : undefined}
                             aria-label={`Rename ${name}`}
                             minW="auto"
                             px="2"
@@ -740,7 +760,8 @@ export default function DatabasesPage() {
                             aria-label={`Delete ${name}`}
                             minW="auto"
                             px="2"
-                            disabled={disableActions}
+                            disabled={disableActions || isProtected}
+                            title={isProtected ? PROTECTED_DATABASE_MESSAGE : undefined}
                             colorPalette="red"
                           >
                             <Icon as={Trash2} boxSize={3.5} />

@@ -20,6 +20,7 @@ from sqlalchemy import BLOB, FLOAT, Column, Index, Integer, String, Table, creat
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import DeclarativeMeta, Session, declarative_base, sessionmaker
 
+from app.shared.database_protection import ensure_database_file_unprotected
 from app.shared.objective_scale import (
     DEFAULT_OBJECTIVE_MAGNIFICATION,
     DEFAULT_PIXEL_SIZE_UM,
@@ -121,6 +122,13 @@ class _DatabaseFileCrud(DirectoryStorageCrud):
         return {"filename": filename}
 
     @classmethod
+    async def save_upload(
+        cls, filename: str, reader: AsyncIterator[bytes]
+    ) -> dict[str, object]:
+        ensure_database_file_unprotected(cls.resolve_database_path(filename))
+        return await super().save_upload(filename, reader)
+
+    @classmethod
     def sanitize_db_name(cls, db_name: str) -> str:
         return cls.sanitize_name(db_name)
 
@@ -170,6 +178,7 @@ class _DatabaseFileCrud(DirectoryStorageCrud):
 
     @classmethod
     async def delete_database(cls, db_name: str) -> str:
+        ensure_database_file_unprotected(cls.resolve_database_path(db_name))
         return await cls.delete(db_name, missing_message="Database not found")
 
     @classmethod
@@ -196,6 +205,8 @@ class _DatabaseFileCrud(DirectoryStorageCrud):
 
     @classmethod
     async def rename_database(cls, old_name: str, new_name: str) -> tuple[str, str]:
+        ensure_database_file_unprotected(cls.resolve_database_path(old_name))
+        ensure_database_file_unprotected(cls.resolve_database_path(new_name))
         return await cls.rename(
             old_name,
             new_name,

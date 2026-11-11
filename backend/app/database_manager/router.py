@@ -45,6 +45,8 @@ async def upload_database(file: Annotated[UploadFile, File()] = ...) -> dict:
             _iter_upload(file),
         )
         DatabaseManagerCrud.migrate_database(str(payload["filename"]))
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
@@ -106,6 +108,8 @@ async def download_database_endpoint(dbname: Annotated[str, Path()]) -> FileResp
 async def delete_database_endpoint(dbname: Annotated[str, Path()]) -> dict:
     try:
         deleted = await DatabaseManagerCrud.delete_database(dbname)
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
     except ValueError as exc:
@@ -122,6 +126,8 @@ async def rename_database_endpoint(
 ) -> dict:
     try:
         previous, updated = await DatabaseManagerCrud.rename_database(dbname, new_name)
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
     except FileExistsError as exc:
