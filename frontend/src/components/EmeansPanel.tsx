@@ -3,6 +3,7 @@ import { Box, Button, HStack, Input, NativeSelect, Spinner, Text } from '@chakra
 
 export type SpotOptions = {
   channel: 'fluo1' | 'fluo2'
+  autoTune: boolean
   sigmaMin: string
   sigmaMax: string
   minSnr: string
@@ -37,7 +38,7 @@ export default function EmeansPanel({ apiBase, dbName, cellId, clusters, onClust
   const isWidthValid = spotOptions.sigmaMin.trim() !== '' && spotOptions.sigmaMax.trim() !== '' &&
     Number.isFinite(sigmaMin) && Number.isFinite(sigmaMax) && sigmaMin >= 0.5 && sigmaMin < sigmaMax && sigmaMax <= 10
   const isSnrValid = spotOptions.minSnr.trim() !== '' && Number.isFinite(minSnr) && minSnr >= 2 && minSnr <= 30
-  const isValid = isCountValid && (!spotMode || (isWidthValid && isSnrValid))
+  const isValid = isCountValid && (!spotMode || spotOptions.autoTune || (isWidthValid && isSnrValid))
 
   useEffect(() => () => {
     controllerRef.current?.abort()
@@ -67,9 +68,12 @@ export default function EmeansPanel({ apiBase, dbName, cellId, clusters, onClust
       if (spotMode) {
         params.set('channel', spotOptions.channel)
         params.set('max_spots', String(count))
-        params.set('sigma_min', String(sigmaMin))
-        params.set('sigma_max', String(sigmaMax))
-        params.set('min_snr', String(minSnr))
+        params.set('auto_tune', String(spotOptions.autoTune))
+        if (!spotOptions.autoTune) {
+          params.set('sigma_min', String(sigmaMin))
+          params.set('sigma_max', String(sigmaMax))
+          params.set('min_snr', String(minSnr))
+        }
       } else {
         params.set('n_clusters', String(count))
       }
@@ -110,6 +114,17 @@ export default function EmeansPanel({ apiBase, dbName, cellId, clusters, onClust
           </NativeSelect.Field>
           <NativeSelect.Indicator />
         </NativeSelect.Root>}
+        {spotMode && <NativeSelect.Root size="sm" w="7rem">
+          <NativeSelect.Field aria-label="Spot tuning" value={spotOptions.autoTune ? 'auto' : 'manual'}
+            onChange={(event) => {
+              clearResult()
+              onSpotOptionsChange({ ...spotOptions, autoTune: event.target.value === 'auto' })
+            }} bg="sand.50">
+            <option value="auto">Auto</option>
+            <option value="manual">Manual</option>
+          </NativeSelect.Field>
+          <NativeSelect.Indicator />
+        </NativeSelect.Root>}
         <Text as="label" htmlFor="e-means-clusters" fontSize="xs" color="ink.700">
           {spotMode ? 'Max spots' : 'Clusters'}
         </Text>
@@ -128,7 +143,11 @@ export default function EmeansPanel({ apiBase, dbName, cellId, clusters, onClust
           1–{maximumCount}
         </Text>
       </HStack>
-      {spotMode && <>
+      {spotMode && spotOptions.autoTune && <Text fontSize="xs" color="ink.700">
+        Auto estimates widths and acceptance thresholds for this cell. Selected values appear in the plot.
+        {' '}Max spots is a limit; zero spots is a valid result.
+      </Text>}
+      {spotMode && !spotOptions.autoTune && <>
         <HStack gap="2" flexWrap="wrap">
           {([
             ['sigmaMin', 'Min σ', 0.5, 10, isWidthValid],
@@ -159,7 +178,8 @@ export default function EmeansPanel({ apiBase, dbName, cellId, clusters, onClust
             width="100%" height="100%" objectFit="contain" />
         ) : (
           <Text fontSize="sm" color="ink.700" p="3">
-            {spotMode ? 'Set spot parameters and press Calc.' : 'Choose clusters and press Calc.'}
+            {spotMode ? (spotOptions.autoTune ? 'Choose a channel and press Calc.' : 'Set spot parameters and press Calc.')
+              : 'Choose clusters and press Calc.'}
           </Text>
         )}
       </Box>

@@ -6,7 +6,7 @@ References: https://big-fish.readthedocs.io/en/stable/detection/spots.html
             https://e-means.github.io/
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import io
 
 import cv2
@@ -15,13 +15,17 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 from matplotlib.patches import Ellipse
 import numpy as np
-from scipy.ndimage import gaussian_laplace, maximum_filter
+from scipy.ndimage import distance_transform_edt, gaussian_laplace, maximum_filter
 from scipy.optimize import least_squares, linear_sum_assignment
+from scipy.stats import norm
 
 
 MAX_SPOTS = 16
 MAX_AXIS_RATIO = 1.6
 MIN_BIC_IMPROVEMENT = 10.0
+# Internal reference tail budget, not a calibrated false-positive probability.
+AUTO_TAIL_BUDGET = 0.01
+SCALE_COUNT = 9
 
 
 @dataclass(frozen=True)
@@ -33,6 +37,33 @@ class Spot:
     bic_improvement: float
 
 
+@dataclass(frozen=True)
+class SpotSettings:
+    sigma_min: float
+    sigma_max: float
+    min_snr: float
+    min_bic: float = MIN_BIC_IMPROVEMENT
+    auto_tune: bool = False
+
+
+@dataclass(frozen=True)
+class SpotAnalysis:
+    spots: list[Spot]
+    signal: np.ndarray
+    noise: float
+    settings: SpotSettings
+
+
+def _automatic_settings(mask: np.ndarray) -> SpotSettings:
+    # Padding also handles cells touching every edge of a cropped image.
+    radius = float(distance_transform_edt(np.pad(mask, 1)).max())
+    # Compact spots should occupy only part of the cell's transverse width.
+    sigma_max = float(np.clip(radius / 2, 1.5, 10))
+    trials = max(1, int(mask.sum())) * SCALE_COUNT
+    min_snr = max(3.0, float(norm.isf(AUTO_TAIL_BUDGET / trials)))
+    return SpotSettings(0.75, sigma_max, min_snr, auto_tune=True)
+
+
 def _noise_sigma(image: np.ndarray, mask: np.ndarray) -> float:
     pairs = mask[1:, :] & mask[:-1, :]
     differences = np.diff(image, axis=0)[pairs]
@@ -42,7 +73,7 @@ def _noise_sigma(image: np.ndarray, mask: np.ndarray) -> float:
 
 
 def _peak_candidates(mask, signal, noise, sigma_min, sigma_max, snr, limit):
-    scales = np.geomspace(sigma_min, sigma_max, 9)
+    scales = np.geomspace(sigma_min, sigma_max, SCALE_COUNT)
     # Guard scales reject features smaller/larger than the requested range.
     scales = np.r_[sigma_min / np.sqrt(2), scales, sigma_max * np.sqrt(2)]
     responses = np.stack([-sigma**2 * gaussian_laplace(signal, sigma) for sigma in scales])
@@ -93,7 +124,8 @@ def _initial_centers(points, raw_xy, signal_values, candidates):
     return raw_centers, transform
 
 
-def _fit_spot(image, mask, seed, initial_center, sigma, noise, sigma_min, sigma_max, min_snr):
+def _fit_spot(image, mask, seed, initial_center, sigma, noise, sigma_min, sigma_max, min_snr,
+              min_bic=MIN_BIC_IMPROVEMENT):
     radius = max(4, int(np.ceil(4 * sigma)))
     x0, y0 = np.floor(seed - radius).astype(int)
     x1, y1 = np.ceil(seed + radius + 1).astype(int)
@@ -122,7 +154,10 @@ def _fit_spot(image, mask, seed, initial_center, sigma, noise, sigma_min, sigma_
     lower = [0, -center_limit, -center_limit, 0.35, 0.35, -np.pi, -np.inf, -np.inf, -np.inf]
     upper = [4, center_limit, center_limit, sigma_max * 3, sigma_max * 3, np.pi, np.inf, np.inf, np.inf]
     fit = least_squares(lambda parameters: model(parameters) - target, initial,
-                         bounds=(lower, upper), max_nfev=100, x_scale='jac')
+                         bounds=(lower, upper), max_nfev=100,
+                         # A circular seed has zero angle derivative; Jacobian
+                         # scaling can stall at the initial width in that case.
+                         x_scale=[1, sigma, sigma, sigma, sigma, 1, 1, 1 / radius, 1 / radius])
     if not fit.success or not np.isfinite(fit.x).all():
         return None
     amplitude, cx, cy, sx, sy, angle = fit.x[:6]
@@ -138,28 +173,40 @@ def _fit_spot(image, mask, seed, initial_center, sigma, noise, sigma_min, sigma_
     null_parameters = np.linalg.lstsq(plane, target, rcond=None)[0]
     null_residual = (np.sum(plane * null_parameters, axis=1) - target) * scale
     floor = len(values) * noise**2 * 1e-6
-    delta_bic = len(values) * np.log(max(float(null_residual @ null_residual), floor) /
-                                    max(float(residual @ residual), floor)) - 6 * np.log(len(values))
-    if fitted_snr < min_snr or delta_bic < MIN_BIC_IMPROVEMENT:
+    delta_bic = len(values) * np.log(max(float(np.sum(null_residual**2)), floor) /
+                                    max(float(np.sum(residual**2)), floor)) - 6 * np.log(len(values))
+    if fitted_snr < min_snr or delta_bic < min_bic:
         return None
     rotation = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
     covariance = rotation @ np.diag([sx**2, sy**2]) @ rotation.T
     return Spot(center, covariance, float(amplitude * scale), float(fitted_snr), float(delta_bic))
 
 
-def detect_spots(image, coordinates, points, max_spots=3, sigma_min=1.0, sigma_max=4.0, min_snr=4.0):
-    """Return up to max_spots accepted fits, in the supplied replot coordinate system."""
+def analyze_spots(image, coordinates, points, max_spots=3, sigma_min=1.0, sigma_max=4.0,
+                  min_snr=4.0, auto_tune=False) -> SpotAnalysis:
+    """Fit spots and retain the actual per-cell settings for reproducible plots.
+
+    Auto estimates a width search range from the contour and a Gaussian-tail
+    SNR reference from the search size. The BIC requirement grows with the
+    number of proposals. It never relaxes thresholds to fill max_spots.
+    """
     if not isinstance(max_spots, int) or not 1 <= max_spots <= MAX_SPOTS:
         raise ValueError(f"Max spots must be an integer between 1 and {MAX_SPOTS}")
-    if not all(np.isfinite(v) for v in (sigma_min, sigma_max, min_snr)) or not 0.5 <= sigma_min < sigma_max <= 10:
+    if not auto_tune and (not all(np.isfinite(v) for v in (sigma_min, sigma_max, min_snr))
+                          or not 0.5 <= sigma_min < sigma_max <= 10):
         raise ValueError("Spot widths must satisfy 0.5 <= min sigma < max sigma <= 10 px")
-    if not 2 <= min_snr <= 30:
+    if not auto_tune and not 2 <= min_snr <= 30:
         raise ValueError("Min SNR must be between 2 and 30")
     image = np.asarray(image, dtype=np.float64)
     if image.ndim != 2 or not np.isfinite(image).all():
         raise ValueError("Spot detection requires a finite grayscale image")
     mask = np.zeros(image.shape, dtype=bool)
     mask[coordinates[:, 0], coordinates[:, 1]] = True
+    if not mask.any():
+        raise ValueError("Spot detection requires pixels inside the cell contour")
+    settings = (_automatic_settings(mask) if auto_tune
+                else SpotSettings(sigma_min, sigma_max, min_snr))
+    sigma_min, sigma_max, min_snr = settings.sigma_min, settings.sigma_max, settings.min_snr
     raw_xy = coordinates[:, ::-1].astype(float)
     kernel_radius = int(np.ceil(3 * sigma_max))
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * kernel_radius + 1,) * 2)
@@ -168,13 +215,17 @@ def detect_spots(image, coordinates, points, max_spots=3, sigma_min=1.0, sigma_m
     noise = max(_noise_sigma(image, mask), float(np.max(np.abs(image))) * 1e-6, 1e-9)
     signal_values = signal[coordinates[:, 0], coordinates[:, 1]]
     candidates = _peak_candidates(mask, signal, noise, sigma_min, sigma_max,
-                                  min_snr, min(64, max(16, 4 * max_spots)))
+                                  min_snr, 64 if auto_tune else min(64, max(16, 4 * max_spots)))
+    if auto_tune:
+        settings = replace(settings, min_bic=max(MIN_BIC_IMPROVEMENT,
+            float(2 * np.log(max(1, len(candidates)) / AUTO_TAIL_BUDGET))))
     if not candidates:
-        return [], signal_values, noise
+        return SpotAnalysis([], signal_values, noise, settings)
     centers, transform = _initial_centers(points, raw_xy, signal_values, candidates)
     accepted = []
     for (seed, sigma), initial in zip(candidates, centers):
-        spot = _fit_spot(image, mask, seed, initial, sigma, noise, sigma_min, sigma_max, min_snr)
+        spot = _fit_spot(image, mask, seed, initial, sigma, noise, sigma_min, sigma_max,
+                         min_snr, settings.min_bic)
         if spot is not None:
             accepted.append(spot)
     accepted.sort(key=lambda spot: spot.amplitude, reverse=True)
@@ -190,12 +241,21 @@ def detect_spots(image, coordinates, points, max_spots=3, sigma_min=1.0, sigma_m
     projected = [Spot(np.r_[spot.center, 1] @ transform,
                       transform[:2].T @ spot.covariance @ transform[:2],
                       spot.amplitude, spot.snr, spot.bic_improvement) for spot in distinct]
-    return projected, signal_values, noise
+    return SpotAnalysis(projected, signal_values, noise, settings)
+
+
+def detect_spots(image, coordinates, points, max_spots=3, sigma_min=1.0, sigma_max=4.0,
+                 min_snr=4.0, auto_tune=False):
+    """Return up to max_spots accepted fits, in the supplied replot coordinate system."""
+    result = analyze_spots(image, coordinates, points, max_spots, sigma_min, sigma_max,
+                           min_snr, auto_tune)
+    return result.spots, result.signal, result.noise
 
 
 def create_spot_plot(image, coordinates, points, contour, max_spots=3, sigma_min=1.0,
-                     sigma_max=4.0, min_snr=4.0, channel='fluo1', dark_mode=False):
-    spots, signal, _ = detect_spots(image, coordinates, points, max_spots, sigma_min, sigma_max, min_snr)
+                     sigma_max=4.0, min_snr=4.0, channel='fluo1', dark_mode=False, auto_tune=False):
+    result = analyze_spots(image, coordinates, points, max_spots, sigma_min, sigma_max, min_snr, auto_tune)
+    spots, signal, settings = result.spots, result.signal, result.settings
     background = '#10141c' if dark_mode else 'white'
     foreground = '#edf2f7' if dark_mode else '#202734'
     figure = Figure(figsize=(6, 6), facecolor=background, layout='constrained')
@@ -225,12 +285,15 @@ def create_spot_plot(image, coordinates, points, contour, max_spots=3, sigma_min
     ax.set_xlabel('u1 (px)', color=foreground)
     ax.set_ylabel('u2 (px)', color=foreground)
     ax.set_title(f'e-means spots | {channel.upper()} | {len(spots)} / {max_spots}\n'
-                 f'σ = {sigma_min:g}–{sigma_max:g} px | SNR ≥ {min_snr:g}', color=foreground, fontsize=11)
+                 f'{"Auto" if auto_tune else "Manual"} | σ = {settings.sigma_min:.2g}–{settings.sigma_max:.2g} px'
+                 f' | SNR ≥ {settings.min_snr:.2f}', color=foreground, fontsize=10)
     colorbar = figure.colorbar(scatter, ax=ax, fraction=0.035, pad=0.03)
     colorbar.set_label('Background-corrected intensity (display)', color=foreground, fontsize=8)
     colorbar.ax.tick_params(colors=foreground, labelsize=8)
     colorbar.outline.set_edgecolor(foreground)
-    note = 'Centers + fitted FWHM outlines' if spots else 'No spots meet the width, roundness and SNR criteria'
+    note = 'Centers + fitted FWHM outlines' if spots else 'No spots meet the acceptance criteria'
+    if auto_tune:
+        note += f'\nAuto: ΔBIC ≥ {settings.min_bic:.2f} | estimated noise σ = {result.noise:.3g}'
     figure.text(0.5, 0.02, note, ha='center', color=foreground, fontsize=9)
     output = io.BytesIO()
     figure.savefig(output, format='png', dpi=140)

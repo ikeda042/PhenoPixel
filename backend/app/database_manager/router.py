@@ -503,11 +503,12 @@ def get_cell_e_means_spots_endpoint(
     sigma_max: Annotated[float, Query(gt=0.5, le=10)] = 4.0,
     min_snr: Annotated[float, Query(ge=2, le=30)] = 4.0,
     dark_mode: Annotated[bool, Query()] = False,
+    auto_tune: Annotated[bool, Query(description="Estimate widths, SNR and BIC criteria per cell; ignores manual widths/SNR")] = False,
 ) -> StreamingResponse:
     try:
         image_bytes = DatabaseManagerCrud.get_cell_e_means_spots(
             dbname, cell_id, channel=channel, max_spots=max_spots, sigma_min=sigma_min,
-            sigma_max=sigma_max, min_snr=min_snr, dark_mode=dark_mode,
+            sigma_max=sigma_max, min_snr=min_snr, dark_mode=dark_mode, auto_tune=auto_tune,
         )
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Database not found")

@@ -119,11 +119,12 @@ class EmeansEndpointTest(unittest.TestCase):
             session.commit()
         with patch('app.database_manager.crud.create_spot_plot', wraps=create_spot_plot) as render:
             response = self.client.get('/api/v1/get-cell-e-means-spots', params={
-                'dbname': 'cells.db', 'cell_id': 'F0C0', 'channel': 'fluo2', 'max_spots': 3,
+                'dbname': 'cells.db', 'cell_id': 'F0C0', 'channel': 'fluo2', 'max_spots': 3, 'auto_tune': True,
             })
             self.assertEqual(response.status_code, 200)
             self.assertIsNotNone(cv2.imdecode(np.frombuffer(response.content, np.uint8), cv2.IMREAD_COLOR))
             np.testing.assert_array_equal(render.call_args.args[0], raw)
+            self.assertTrue(render.call_args.kwargs['auto_tune'])
             expected = crud._prepare_replot_geometry(raw, pickle.dumps(self.contour))
             np.testing.assert_array_equal(render.call_args.args[1], expected[0])
             np.testing.assert_allclose(render.call_args.args[2], np.asarray(expected[5])[:, ::-1])

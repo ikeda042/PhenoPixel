@@ -2282,7 +2282,7 @@ def get_cell_e_means(
 def get_cell_e_means_spots(
     db_name: str, cell_id: str, channel: Literal["fluo1", "fluo2"] = "fluo1",
     max_spots: int = 3, sigma_min: float = 1.0, sigma_max: float = 4.0,
-    min_snr: float = 4.0, dark_mode: bool = False,
+    min_snr: float = 4.0, dark_mode: bool = False, auto_tune: bool = False,
 ) -> bytes:
     if channel not in ("fluo1", "fluo2"):
         raise ValueError("Spot detection requires fluo1 or fluo2")
@@ -2307,6 +2307,7 @@ def get_cell_e_means_spots(
         image, coordinates, np.asarray(points)[:, ::-1], np.column_stack((contour_u1, contour_u2)),
         max_spots=max_spots, sigma_min=sigma_min, sigma_max=sigma_max,
         min_snr=min_snr, channel=channel, dark_mode=dark_mode,
+        auto_tune=auto_tune,
     )
 
 

@@ -209,7 +209,7 @@ const CellsHelpDrawer = ({ open, onOpenChange }: CellsHelpDrawerProps) => (
                   <Box as="li" mb="1"><Text as="span" fontWeight="700" color="ink.900">Contour</Text>：保存済みの輪郭</Box>
                   <Box as="li" mb="1"><Text as="span" fontWeight="700" color="ink.900">Replot</Text>：細胞の向きをそろえた再描画。MeshをONにすると、長軸上の等間隔の点から左右の輪郭まで垂直な線を表示</Box>
                   <Box as="li" mb="1"><Text as="span" fontWeight="700" color="ink.900">e-means (spatial)</Text>：Replotの2D座標をクラスタリング。Clusters（1〜64）を指定してCalcを押すと、クラスタ別の色・中心点・境界を表示</Box>
-                  <Box as="li" mb="1"><Text as="span" fontWeight="700" color="ink.900">e-means spots</Text>：FLUO1 / FLUO2の丸い蛍光スポットを検出。最大個数・幅σ（px）・最小SNRを指定してCalcを押すと、条件を満たすスポットの中心と半値全幅を表示。0個も有効な結果</Box>
+                  <Box as="li" mb="1"><Text as="span" fontWeight="700" color="ink.900">e-means spots</Text>：FLUO1 / FLUO2の丸い蛍光スポットを検出。Autoではチャンネルと最大個数を指定してCalcを押すと、幅・SNR・BIC閾値を細胞ごとに自動設定。Manualでは幅σ（px）・最小SNRを調整可能。中心と半値全幅を表示し、0個も有効な結果</Box>
                   <Box as="li" mb="1"><Text as="span" fontWeight="700" color="ink.900">Overlay / Raw / Fluo</Text>：チャンネルの重ね合わせ</Box>
                   <Box as="li" mb="1"><Text as="span" fontWeight="700" color="ink.900">Heatmap</Text>：中心線方向の蛍光ヒートマップ</Box>
                   <Box as="li" mb="1"><Text as="span" fontWeight="700" color="ink.900">Map 256 / Map Raw</Text>：正規化マップとJet表示</Box>

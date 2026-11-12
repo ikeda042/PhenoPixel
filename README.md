@@ -181,13 +181,18 @@ the selected cell/channel.
 
 `e-means spots` locates compact, approximately round fluorescence peaks inside
 the selected cell. Open the cell's **Function Panel**, select **Draw mode →
-e-means spots**, choose a fluorescence channel, adjust the parameters below,
-and press **Calc**.
+e-means spots**, leave tuning on **Auto**, choose a fluorescence channel and
+maximum spot count, and press **Calc**. Auto selects the width range and
+acceptance thresholds for each cell; no manual σ or SNR input is required.
+The selected values appear in the result image. Choose **Manual** to override
+the width range and minimum SNR.
 
 ![Replot and e-means spots for F0C5: three fluorescent peaks correspond to three accepted spots marked by green centers and FWHM outlines](docs/images/e-means-spots-f0c5-comparison.png)
 
 This example uses **F0C5** from `260218_SK326_Gen_90min.db`, with **FLUO1** in
-both panels. The default spot settings detect **3 spots**. The left panel is
+both panels. **Auto** with a maximum of 3 detects **3 spots**, using a width
+range of approximately **0.75–4.30 px**, **Min SNR = 4.75**, and **ΔBIC ≥ 11.41**.
+The left panel is
 the Replot image (polynomial degree 4, mesh disabled); the right panel is the
 e-means spots result. Green crosses mark fitted centers, and green ellipses
 show the fitted **full width at half maximum (FWHM)**. Both panels use the same
@@ -197,9 +202,10 @@ displays. [Open this cell locally](http://localhost:3000/cells?db=260218_SK326_G
 | Control | Default | Meaning |
 | --- | --- | --- |
 | Channel | `FLUO1` | Fluorescence image to analyze; `FLUO2` is also supported when available. |
+| Tuning | `Auto` | Estimate the width range, minimum SNR, and BIC requirement for each cell. `Manual` exposes width and SNR inputs. |
 | Max spots | `3` | Upper limit on the number of accepted spots, from 1 to 16. It does not force the detector to find this many spots. |
-| Min σ / Max σ | `1` / `4` px | Allowed Gaussian width along each fitted principal axis. Set `0.5 ≤ Min σ < Max σ ≤ 10`. FWHM is approximately `2.355σ`. |
-| Min SNR | `4` | Minimum fitted peak amplitude above the local background, divided by the estimated noise standard deviation. Allowed range: 2–30. |
+| Min σ / Max σ (Manual) | `1` / `4` px | Allowed Gaussian width along each fitted principal axis. Set `0.5 ≤ Min σ < Max σ ≤ 10`. FWHM is approximately `2.355σ`. |
+| Min SNR (Manual) | `4` | Minimum fitted peak amplitude above the local background, divided by the estimated noise standard deviation. Allowed range: 2–30. |
 
 For example, **Min SNR = 4** requires a fitted peak amplitude at least four
 times the estimated noise level. Increasing it favors clearer peaks but may
@@ -691,7 +697,7 @@ $\mu(C) > \tau_{\mathrm{PI}}$.
 The detector combines three steps:
 
 1. Estimate background by morphological opening, then find local maxima of
-   the scale-normalized Laplacian of Gaussian (LoG) response over the requested
+   the scale-normalized Laplacian of Gaussian (LoG) response over the selected
    spot-width range. Candidate centers must lie inside the cell contour.
 2. Sample nearby Replot coordinates with probability proportional to positive,
    background-corrected intensity. Run e-means on these samples to initialize
@@ -714,7 +720,7 @@ transformed back into the Replot coordinate system for display. These
 coordinates remain in pixels; they are not normalized to 0–1.
 
 A candidate is accepted only if the fit converges, its center remains inside
-the contour, both widths fall within the requested range, and the following
+the contour, both widths fall within the selected range, and the following
 conditions hold:
 
 $$
@@ -727,19 +733,56 @@ $$
 The noise estimate is the larger of two robust estimates: one from adjacent
 intracellular pixel differences and one from the local fit residuals, both
 based on median absolute deviation (MAD). The spot model must also improve on
-a background-plane-only model by at least 10 BIC units:
+a background-plane-only model by at least $T_{\mathrm{BIC}}$ BIC units
+(10 in Manual; selected per cell in Auto):
 
 $$
 \Delta\mathrm{BIC}
 = n\log\!\left(\frac{\mathrm{RSS}_{\mathrm{background}}}
 {\mathrm{RSS}_{\mathrm{spot}}}\right)-6\log n
-\geq 10.
+\geq T_{\mathrm{BIC}}.
 $$
 
 Both residual sums of squares use the same $n$ local pixels. The background
 model has 3 parameters and the spot model has 9, so the penalty accounts for
 6 additional parameters. e-means supplies initial centers; the fluorescence
 fit and acceptance criteria determine the final detections.
+
+#### Automatic acceptance settings
+
+Auto recomputes settings from the current cell at each calculation. It uses
+the largest distance $R$ from an intracellular pixel to the outside of the
+contour, measured with a [Euclidean distance transform](https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.distance_transform_edt.html),
+to set the width range:
+
+$$
+\sigma_{\min}=0.75\ \mathrm{px},\qquad
+\sigma_{\max}=\mathrm{clip}(R/2,\,1.5,\,10)\ \mathrm{px}.
+$$
+
+This is a compact-spot prior relative to cell thickness. Widths are still
+estimated individually by each Gaussian fit. For $N$ intracellular pixels
+and $L=9$ search scales, the SNR reference is
+
+$$
+T_{\mathrm{SNR}}=\max\!\left(3,\Phi^{-1}\!\left(1-\frac{0.01}{NL}\right)\right),
+\qquad
+T_{\mathrm{BIC}}=\max\!\left(10,2\log\frac{\max(1,M)}{0.01}\right),
+$$
+
+where $\Phi$ is the standard normal CDF and $M$ is the number of LoG proposals
+retained for fitting (up to 64). Larger searches require stronger evidence.
+The absolute amplitude cutoff also follows the robust noise estimate, which
+is recomputed from the cell and each fit's residuals. The proposal limit is
+independent of **Max spots**, so changing that control only caps the accepted
+results in Auto. Thresholds are never lowered just to fill the requested count.
+
+Auto reduces user inputs; it is not parameter-free. The compact-width prior,
+axis-ratio limit of 1.6, and internal reference budget of 0.01 remain fixed.
+The Gaussian-tail and BIC rules are application heuristics, **not a guarantee
+of a 1% false-positive rate**, especially for correlated or non-Gaussian noise.
+The API enables Auto with `auto_tune=true` on `get-cell-e-means-spots`; omitted
+or false retains Manual behavior for existing API clients.
 
 These are approximate Gaussian-noise/model-selection criteria, not calibrated
 detection probabilities or significance levels. Candidates are fitted

@@ -211,7 +211,7 @@ export default function CellsPage() {
   const [replotMesh, setReplotMesh] = useState(true)
   const [eMeansClusters, setEMeansClusters] = useState('3')
   const [spotOptions, setSpotOptions] = useState<SpotOptions>({
-    channel: 'fluo1', sigmaMin: '1', sigmaMax: '4', minSnr: '4',
+    channel: 'fluo1', autoTune: true, sigmaMin: '1', sigmaMax: '4', minSnr: '4',
   })
   const [contourRefreshKey, setContourRefreshKey] = useState(0)
   const [modificationMode, setModificationMode] = useState<
