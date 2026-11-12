@@ -12,6 +12,8 @@ from pydantic import BaseModel
 from starlette.background import BackgroundTask
 
 from app.database_manager.crud import DatabaseManagerCrud
+from app.database_manager.e_means import MAX_CLUSTERS
+from app.database_manager.spot_detection import MAX_SPOTS
 
 
 router_database_manager: APIRouter = APIRouter(tags=["database_manager"])
@@ -461,6 +463,59 @@ def elastic_contour_bulk_endpoint(
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router_database_manager.get(
+    "/get-cell-e-means",
+    response_class=StreamingResponse,
+    responses={200: {"content": {"image/png": {"schema": {"type": "string", "format": "binary"}}}}},
+)
+def get_cell_e_means_endpoint(
+    dbname: Annotated[str, Query()],
+    cell_id: Annotated[str, Query()],
+    n_clusters: Annotated[int, Query(ge=1, le=MAX_CLUSTERS)] = 3,
+    dark_mode: Annotated[bool, Query()] = False,
+) -> StreamingResponse:
+    try:
+        image_bytes = DatabaseManagerCrud.get_cell_e_means(
+            dbname, cell_id, n_clusters=n_clusters, dark_mode=dark_mode,
+        )
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Database not found")
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return StreamingResponse(io.BytesIO(image_bytes), media_type="image/png")
+
+
+@router_database_manager.get(
+    "/get-cell-e-means-spots",
+    response_class=StreamingResponse,
+    responses={200: {"content": {"image/png": {"schema": {"type": "string", "format": "binary"}}}}},
+)
+def get_cell_e_means_spots_endpoint(
+    dbname: Annotated[str, Query()],
+    cell_id: Annotated[str, Query()],
+    channel: Annotated[Literal["fluo1", "fluo2"], Query()] = "fluo1",
+    max_spots: Annotated[int, Query(ge=1, le=MAX_SPOTS)] = 3,
+    sigma_min: Annotated[float, Query(ge=0.5, le=10)] = 1.0,
+    sigma_max: Annotated[float, Query(gt=0.5, le=10)] = 4.0,
+    min_snr: Annotated[float, Query(ge=2, le=30)] = 4.0,
+    dark_mode: Annotated[bool, Query()] = False,
+) -> StreamingResponse:
+    try:
+        image_bytes = DatabaseManagerCrud.get_cell_e_means_spots(
+            dbname, cell_id, channel=channel, max_spots=max_spots, sigma_min=sigma_min,
+            sigma_max=sigma_max, min_snr=min_snr, dark_mode=dark_mode,
+        )
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Database not found")
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return StreamingResponse(io.BytesIO(image_bytes), media_type="image/png")
 
 
 @router_database_manager.get("/get-cell-replot")

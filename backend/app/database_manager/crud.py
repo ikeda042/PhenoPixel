@@ -20,6 +20,8 @@ from sqlalchemy import BLOB, FLOAT, Column, Index, Integer, String, Table, creat
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import DeclarativeMeta, Session, declarative_base, sessionmaker
 
+from app.database_manager.e_means import create_e_means_plot
+from app.database_manager.spot_detection import create_spot_plot
 from app.shared.database_protection import ensure_database_file_unprotected
 from app.shared.objective_scale import (
     DEFAULT_OBJECTIVE_MAGNIFICATION,
@@ -2249,6 +2251,65 @@ def get_cell_overlay_zip(
         session.close()
 
 
+def get_cell_e_means(
+    db_name: str, cell_id: str, n_clusters: int = 3, dark_mode: bool = False
+) -> bytes:
+    session = get_database_session(db_name)
+    try:
+        cells = get_cells_table(session)
+        row = session.execute(
+            select(cells.c.img_ph, cells.c.contour)
+            .where(cells.c.cell_id == cell_id)
+            .limit(1)
+        ).first()
+        if row is None or row[0] is None:
+            raise LookupError("Cell image not found")
+        if row[1] is None:
+            raise LookupError("Cell contour not found")
+        image = _as_grayscale(_decode_image(bytes(row[0])))
+        _, _, _, contour_u1, contour_u2, coordinates = _prepare_replot_geometry(
+            image, bytes(row[1])
+        )
+    finally:
+        session.close()
+    # Replot stores U as (u2, u1) and draws it in (u1, u2) order.
+    return create_e_means_plot(
+        np.asarray(coordinates)[:, ::-1], np.column_stack((contour_u1, contour_u2)),
+        n_clusters=n_clusters, dark_mode=dark_mode,
+    )
+
+
+def get_cell_e_means_spots(
+    db_name: str, cell_id: str, channel: Literal["fluo1", "fluo2"] = "fluo1",
+    max_spots: int = 3, sigma_min: float = 1.0, sigma_max: float = 4.0,
+    min_snr: float = 4.0, dark_mode: bool = False,
+) -> bytes:
+    if channel not in ("fluo1", "fluo2"):
+        raise ValueError("Spot detection requires fluo1 or fluo2")
+    session = get_database_session(db_name)
+    try:
+        cells = get_cells_table(session)
+        row = session.execute(
+            select(cells.c[f"img_{channel}"], cells.c.contour)
+            .where(cells.c.cell_id == cell_id).limit(1)
+        ).first()
+        if row is None or row[0] is None:
+            raise LookupError(f"{channel} image not found")
+        if row[1] is None:
+            raise LookupError("Cell contour not found")
+        image = _as_grayscale(_decode_image(bytes(row[0])))
+        coordinates, _, _, contour_u1, contour_u2, points = _prepare_replot_geometry(
+            image, bytes(row[1])
+        )
+    finally:
+        session.close()
+    return create_spot_plot(
+        image, coordinates, np.asarray(points)[:, ::-1], np.column_stack((contour_u1, contour_u2)),
+        max_spots=max_spots, sigma_min=sigma_min, sigma_max=sigma_max,
+        min_snr=min_snr, channel=channel, dark_mode=dark_mode,
+    )
+
+
 def get_cell_replot(
     db_name: str,
     cell_id: str,
@@ -2843,6 +2904,14 @@ class DatabaseManagerCrud(_DatabaseFileCrud):
     @classmethod
     def get_cell_replot(cls, *args, **kwargs) -> bytes:
         return get_cell_replot(*args, **kwargs)
+
+    @classmethod
+    def get_cell_e_means(cls, *args, **kwargs) -> bytes:
+        return get_cell_e_means(*args, **kwargs)
+
+    @classmethod
+    def get_cell_e_means_spots(cls, *args, **kwargs) -> bytes:
+        return get_cell_e_means_spots(*args, **kwargs)
 
     @classmethod
     def get_cell_heatmap(cls, *args, **kwargs) -> bytes:

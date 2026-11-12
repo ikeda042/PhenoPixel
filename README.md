@@ -26,7 +26,7 @@ with display intensity balanced per cell while avoiding saturation.
 | ND2 management | Upload, list, inspect metadata, download, delete, and parse `.nd2` files. |
 | Cell extraction | Generate cropped cell images, contours, preview frames, and SQLite databases. |
 | Annotation | Review auto-detected cells and relabel single cells or debris in bulk. |
-| Cell viewer | Inspect phase, fluorescence, overlays, replot views, heatmaps, map views, distributions, and raw images per cell. |
+| Cell viewer | Inspect phase, fluorescence, overlays, replot views, fluorescent spots, heatmaps, map views, distributions, and raw images per cell. |
 | Bulk analysis | Export and visualize cell length, area, fluorescence intensity summaries, heatmap vectors, contours, Map256 strips, raw intensities, and JSON/CSV data. |
 | Research reporting | Keep database files, exports, screenshots, and method formulas close to the analysis code for reproducible reporting. |
 
@@ -129,6 +129,8 @@ The cell viewer function panel provides these modes:
 | --- | --- |
 | `Contour` | Show extracted contour coordinates. |
 | `Replot` | Replot a cell in its aligned coordinate system. |
+| `e-means (spatial)` | Cluster intracellular pixel coordinates into a specified number of spatial groups. |
+| `e-means spots` | Detect compact fluorescent spots with e-means initialization and local Gaussian fitting. |
 | `Overlay` | Overlay the contour on the default cell image. |
 | `Overlay Raw` | Overlay fluorescence without contour masking on the raw view. |
 | `Overlay Fluo` | Compose fluorescence channels with selectable colors. |
@@ -174,6 +176,45 @@ group.
 the selected cell/channel.
 
 ![Single-cell fluorescence intensity distribution](docs/screenshots/database_manager8.png)
+
+#### e-means spots: fluorescent spot detection
+
+`e-means spots` locates compact, approximately round fluorescence peaks inside
+the selected cell. Open the cell's **Function Panel**, select **Draw mode →
+e-means spots**, choose a fluorescence channel, adjust the parameters below,
+and press **Calc**.
+
+![Replot and e-means spots for F0C5: three fluorescent peaks correspond to three accepted spots marked by green centers and FWHM outlines](docs/images/e-means-spots-f0c5-comparison.png)
+
+This example uses **F0C5** from `260218_SK326_Gen_90min.db`, with **FLUO1** in
+both panels. The default spot settings detect **3 spots**. The left panel is
+the Replot image (polynomial degree 4, mesh disabled); the right panel is the
+e-means spots result. Green crosses mark fitted centers, and green ellipses
+show the fitted **full width at half maximum (FWHM)**. Both panels use the same
+cell-aligned coordinates in **pixels**, with different plot zoom and intensity
+displays. [Open this cell locally](http://localhost:3000/cells?db=260218_SK326_Gen_90min.db&cell_id=F0C5).
+
+| Control | Default | Meaning |
+| --- | --- | --- |
+| Channel | `FLUO1` | Fluorescence image to analyze; `FLUO2` is also supported when available. |
+| Max spots | `3` | Upper limit on the number of accepted spots, from 1 to 16. It does not force the detector to find this many spots. |
+| Min σ / Max σ | `1` / `4` px | Allowed Gaussian width along each fitted principal axis. Set `0.5 ≤ Min σ < Max σ ≤ 10`. FWHM is approximately `2.355σ`. |
+| Min SNR | `4` | Minimum fitted peak amplitude above the local background, divided by the estimated noise standard deviation. Allowed range: 2–30. |
+
+For example, **Min SNR = 4** requires a fitted peak amplitude at least four
+times the estimated noise level. Increasing it favors clearer peaks but may
+miss dim spots; decreasing it admits weaker peaks and can admit more noise.
+Width, roundness, and model-fit criteria must also pass. **Zero detected spots
+is a valid result.** If more candidates pass than the maximum allows, the
+detector retains those with the largest fitted amplitudes after removing
+nearby duplicates. Press **Calc** again after changing settings or cells.
+
+The spot image displays background-corrected intensity scaled to 0–1 using
+the cell's 99.5th percentile and clipped for display. The fit uses the original
+fluorescence values; display Gain and this clipping do not affect detection.
+The color scale therefore does not compare absolute brightness across cells.
+See the [mathematical model and acceptance criteria](#8-e-means-spots-model)
+below.
 
 ### 4. Annotation
 
@@ -644,6 +685,67 @@ $$
 
 The PI-positive fraction is then the proportion of cells satisfying
 $\mu(C) > \tau_{\mathrm{PI}}$.
+
+### 8. e-means Spots Model
+
+The detector combines three steps:
+
+1. Estimate background by morphological opening, then find local maxima of
+   the scale-normalized Laplacian of Gaussian (LoG) response over the requested
+   spot-width range. Candidate centers must lie inside the cell contour.
+2. Sample nearby Replot coordinates with probability proportional to positive,
+   background-corrected intensity. Run e-means on these samples to initialize
+   centers (5 epochs, fixed seed 1234). This sampling makes bright pixels more
+   influential during initialization.
+3. Fit each candidate's local, original fluorescence values to an elliptical
+   Gaussian plus a background plane:
+
+$$
+\widehat I(\mathbf r)
+= b_0 + \mathbf g^{\mathsf T}\mathbf r
++ A\exp\!\left[-\frac12(\mathbf r-\boldsymbol\mu)^{\mathsf T}
+\Sigma^{-1}(\mathbf r-\boldsymbol\mu)\right].
+$$
+
+Here $\boldsymbol\mu$ is the spot center, $A$ is its peak amplitude above the
+background plane, and the square roots of the eigenvalues of $\Sigma$ are its
+two Gaussian widths, $\sigma_1$ and $\sigma_2$. Fitted centers and shapes are
+transformed back into the Replot coordinate system for display. These
+coordinates remain in pixels; they are not normalized to 0–1.
+
+A candidate is accepted only if the fit converges, its center remains inside
+the contour, both widths fall within the requested range, and the following
+conditions hold:
+
+$$
+\frac{\max(\sigma_1,\sigma_2)}{\min(\sigma_1,\sigma_2)}\leq 1.6,
+\qquad
+\mathrm{SNR}=\frac{A}{\widehat\sigma_{\mathrm{noise}}}
+\geq \mathrm{Min\ SNR}.
+$$
+
+The noise estimate is the larger of two robust estimates: one from adjacent
+intracellular pixel differences and one from the local fit residuals, both
+based on median absolute deviation (MAD). The spot model must also improve on
+a background-plane-only model by at least 10 BIC units:
+
+$$
+\Delta\mathrm{BIC}
+= n\log\!\left(\frac{\mathrm{RSS}_{\mathrm{background}}}
+{\mathrm{RSS}_{\mathrm{spot}}}\right)-6\log n
+\geq 10.
+$$
+
+Both residual sums of squares use the same $n$ local pixels. The background
+model has 3 parameters and the spot model has 9, so the penalty accounts for
+6 additional parameters. e-means supplies initial centers; the fluorescence
+fit and acceptance criteria determine the final detections.
+
+These are approximate Gaussian-noise/model-selection criteria, not calibrated
+detection probabilities or significance levels. Candidates are fitted
+individually, so closely overlapping spots may be missed or merged; diffuse
+or elongated signals can fail the width or roundness criteria. Implementation:
+[`spot_detection.py`](backend/app/database_manager/spot_detection.py).
 
 ## Research Use / Citation
 
