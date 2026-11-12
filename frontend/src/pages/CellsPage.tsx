@@ -27,6 +27,8 @@ import {
 } from '@chakra-ui/react'
 import { ArrowLeft, ArrowRight, Download } from 'lucide-react'
 import CellsHelpDrawer from '../components/CellsHelpDrawer'
+import EmeansPanel from '../components/EmeansPanel'
+import type { SpotOptions } from '../components/EmeansPanel'
 import PageBreadcrumb from '../components/PageBreadcrumb'
 import PageHeader from '../components/PageHeader'
 import PageContainer from '../components/PageContainer'
@@ -170,6 +172,8 @@ export default function CellsPage() {
   const [contourMode, setContourMode] = useState<
     | 'contour'
     | 'replot'
+    | 'e-means'
+    | 'e-means-spots'
     | 'overlay'
     | 'overlay-fluo'
     | 'overlay-raw'
@@ -205,6 +209,10 @@ export default function CellsPage() {
   const [distributionChannel, setDistributionChannel] = useState<ChannelKey>('fluo1')
   const [replotChannel, setReplotChannel] = useState<ReplotChannel>('fluo1')
   const [replotMesh, setReplotMesh] = useState(true)
+  const [eMeansClusters, setEMeansClusters] = useState('3')
+  const [spotOptions, setSpotOptions] = useState<SpotOptions>({
+    channel: 'fluo1', autoTune: true, sigmaMin: '1', sigmaMax: '4', minSnr: '4',
+  })
   const [contourRefreshKey, setContourRefreshKey] = useState(0)
   const [modificationMode, setModificationMode] = useState<
     'elastic' | 'optical-boost' | 'gain'
@@ -1284,6 +1292,7 @@ export default function CellsPage() {
     contourMode === 'overlay' ||
     contourMode === 'overlay-fluo' ||
     contourMode === 'overlay-raw'
+  const isEmeansMode = contourMode === 'e-means' || contourMode === 'e-means-spots'
   const contourPanelError =
     contourMode === 'replot'
       ? replotError
@@ -2041,11 +2050,14 @@ export default function CellsPage() {
                     <NativeSelect.Root size="sm">
                       <NativeSelect.Field
                         value={contourMode}
+                        aria-label="Draw mode"
                         onChange={(event) =>
                           setContourMode(
                             event.target.value as
                               | 'contour'
                               | 'replot'
+                              | 'e-means'
+                              | 'e-means-spots'
                               | 'overlay'
                               | 'overlay-fluo'
                               | 'overlay-raw'
@@ -2066,6 +2078,8 @@ export default function CellsPage() {
                       >
                         <option value="contour">Contour</option>
                         <option value="replot">Replot</option>
+                        <option value="e-means">e-means (spatial)</option>
+                        <option value="e-means-spots">e-means spots</option>
                         <option value="overlay">Overlay</option>
                         <option value="overlay-raw">Overlay Raw</option>
                         <option value="overlay-fluo">Overlay Fluo</option>
@@ -2078,6 +2092,15 @@ export default function CellsPage() {
                     </NativeSelect.Root>
                   </HStack>
                 </HStack>
+                {isEmeansMode && (
+                  <EmeansPanel
+                    key={`${dbName}-${currentCellId}-${contourRefreshKey}-${contourMode}`}
+                    apiBase={apiBase} dbName={dbName} cellId={currentCellId}
+                    clusters={eMeansClusters} onClustersChange={setEMeansClusters}
+                    spotMode={contourMode === 'e-means-spots'}
+                    spotOptions={spotOptions} onSpotOptionsChange={setSpotOptions}
+                  />
+                )}
                 {contourMode === 'heatmap' && (
                   <HStack spacing="2" align="center" flexWrap="nowrap">
                     <Text fontSize="xs" color="ink.700" whiteSpace="nowrap">
@@ -2211,7 +2234,7 @@ export default function CellsPage() {
                     </Switch.Root>
                   </HStack>
                 )}
-                <Box
+                {!isEmeansMode && <Box
                   bg="sand.200"
                   borderRadius="lg"
                   overflow="hidden"
@@ -2406,8 +2429,8 @@ export default function CellsPage() {
                       </Text>
                     )}
                   </Box>
-                </Box>
-                {contourPanelError && (
+                </Box>}
+                {!isEmeansMode && contourPanelError && (
                   <Text fontSize="sm" color="violet.300">
                     {contourPanelError}
                   </Text>

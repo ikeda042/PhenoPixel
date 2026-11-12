@@ -1393,6 +1393,216 @@
         }
       }
     },
+    "/api/v1/get-cell-e-means": {
+      "get": {
+        "tags": [
+          "database_manager"
+        ],
+        "summary": "Get Cell E Means Endpoint",
+        "operationId": "get_cell_e_means_endpoint_api_v1_get_cell_e_means_get",
+        "parameters": [
+          {
+            "name": "dbname",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dbname"
+            }
+          },
+          {
+            "name": "cell_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Cell Id"
+            }
+          },
+          {
+            "name": "n_clusters",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 64,
+              "minimum": 1,
+              "default": 3,
+              "title": "N Clusters"
+            }
+          },
+          {
+            "name": "dark_mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Dark Mode"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/get-cell-e-means-spots": {
+      "get": {
+        "tags": [
+          "database_manager"
+        ],
+        "summary": "Get Cell E Means Spots Endpoint",
+        "operationId": "get_cell_e_means_spots_endpoint_api_v1_get_cell_e_means_spots_get",
+        "parameters": [
+          {
+            "name": "dbname",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dbname"
+            }
+          },
+          {
+            "name": "cell_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Cell Id"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "fluo1",
+                "fluo2"
+              ],
+              "type": "string",
+              "default": "fluo1",
+              "title": "Channel"
+            }
+          },
+          {
+            "name": "max_spots",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 16,
+              "minimum": 1,
+              "default": 3,
+              "title": "Max Spots"
+            }
+          },
+          {
+            "name": "sigma_min",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "maximum": 10,
+              "minimum": 0.5,
+              "default": 1.0,
+              "title": "Sigma Min"
+            }
+          },
+          {
+            "name": "sigma_max",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "maximum": 10,
+              "exclusiveMinimum": 0.5,
+              "default": 4.0,
+              "title": "Sigma Max"
+            }
+          },
+          {
+            "name": "min_snr",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "maximum": 30,
+              "minimum": 2,
+              "default": 4.0,
+              "title": "Min Snr"
+            }
+          },
+          {
+            "name": "dark_mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Dark Mode"
+            }
+          },
+          {
+            "name": "auto_tune",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Estimate widths, SNR and BIC criteria per cell; ignores manual widths/SNR",
+              "default": false,
+              "title": "Auto Tune"
+            },
+            "description": "Estimate widths, SNR and BIC criteria per cell; ignores manual widths/SNR"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/get-cell-replot": {
       "get": {
         "tags": [

@@ -209,6 +209,8 @@ PH 画像は通常の `get-cell-image` のままです。暗い蛍光 signal の
 | --- | --- | --- |
 | `Contour` | 保存済み contour 座標を SVG path として描きます。 | `GET /api/v1/get-cell-contour` |
 | `Replot` | PCA 主軸で細胞を整列し、指定 channel を再描画します。 | `GET /api/v1/get-cell-replot` |
+| `e-means (spatial)` | Replot の 2D 座標をクラスタリングし、クラスタ別の色・中心点・境界を表示します。 | `GET /api/v1/get-cell-e-means` |
+| `e-means spots` | 蛍光スポットの位置と幅を推定し、中心と半値全幅の輪郭を表示します。 | `GET /api/v1/get-cell-e-means-spots` |
 | `Overlay` | PH を基準に、contour mask 内の蛍光 signal を重ねます。 | `GET /api/v1/get-cell-overlay?overlay_mode=ph` |
 | `Overlay Raw` | PH 上に蛍光 signal を raw overlay します。contour mask による通常 overlay との違いを確認できます。 | `GET /api/v1/get-cell-overlay?overlay_mode=raw` |
 | `Overlay Fluo` | PH なしで、FLUO1/FLUO2 の合成 overlay を表示します。 | `GET /api/v1/get-cell-overlay?overlay_mode=fluo` |
@@ -229,6 +231,51 @@ PH 画像は通常の `get-cell-image` のままです。暗い蛍光 signal の
 | `Overlay` | 複数チャンネルの overlay を再描画します。 |
 
 内部では `degree=4`, `dark_mode=true` を指定して `get-cell-replot` を呼びます。
+
+### e-means のクラスタリング
+
+`Draw mode = e-means (spatial)` を選び、`Clusters` にクラスタ数（1〜64）を入力して `Calc` を押します。計算対象は現在の細胞です。細胞・クラスタ数・輪郭・モードを変更すると結果がリセットされ、再度 `Calc` で計算します。
+
+Replot と共通の PCA 座標変換で得た、輪郭内の全 pixel の `(u1, u2)` を入力に使います。特徴量は位置のみで、蛍光強度や Gain は含めません。クラスタ数が pixel 数を超える場合はエラーになります。
+
+[e-means の公式実装](https://github.com/facebookresearch/faiss/tree/main/contrib/e_means)（`faiss.contrib.e_means.NumpyEmeans`）を使用し、5 epochs、固定 seed 1234 で計算します。学習後の中心へ再割り当てし、散布図の色と Voronoi 境界を一致させます。図の MSE は最終中心までの平均二乗距離（px²）です。
+
+参考：[e-means](https://e-means.github.io/)、[Bessa et al. (2026)](https://arxiv.org/abs/2611.09501)。バックエンドの依存関係は `pip install -r backend/requirements.txt` で更新してください。
+
+### e-means spots：ドット状の蛍光スポット
+
+`Draw mode = e-means spots` を選ぶと、初期状態は **Auto** です。FLUO1 / FLUO2 と `Max spots`（1〜16）を指定して `Calc` を押すだけで、幅の探索範囲・最小 SNR・BIC 採用閾値を細胞ごとに自動設定します。実際に使った値は結果画像に表示されます。`Max spots` は検出数の上限です。条件を満たすスポットがなければ **0 個** と表示し、上限を超える場合は推定振幅が大きいものから表示します。
+
+**Manual** に切り替えると `Min σ` / `Max σ`、`Min SNR` を手動で指定できます。σ はガウス型スポットの幅（標準偏差、px）です。Manual の初期値は 1〜4 px、SNR は 4。`0.5 ≤ Min σ < Max σ ≤ 10`、`2 ≤ Min SNR ≤ 30` の範囲で調整できます。半値全幅は `FWHM = 2.355σ` です。細胞を移動しても Auto / Manual と入力値は保持され、画像・設定・輪郭の変更時には前の計算結果を消します。Auto は非表示の Manual 入力値を使いません。
+
+#### Auto の設定方法
+
+- 幅の探索範囲：細胞内 pixel から輪郭外までの最大距離を `R` とし、`Min σ = 0.75 px`、`Max σ = clip(R / 2, 1.5, 10) px` とします。細胞の太さに対してコンパクトなスポットを対象にする事前の仮定です。
+- 最小 SNR：細胞内画素数 `N`、探索スケール数 `L = 9` に対し、標準正規分布の逆 CDF を用いて `max(3, Φ⁻¹(1 − 0.01 / (NL)))` とします。絶対輝度の採用閾値は、細胞・局所フィット残差から推定するノイズ量に応じて変わります。
+- BIC 改善量：LoG 候補数を `M` として `max(10, 2 log(max(1, M) / 0.01))` 以上を要求します。探索候補が多いほど強い根拠を要求します。Auto の候補プールは最大 64 個で `Max spots` に依存しません。
+
+各 `Calc` で再推定しますが、指定数まで検出するために閾値を下げる処理は行いません。Auto も完全なパラメータフリーではなく、幅の下限・長短軸比 1.6・内部基準値 0.01 は固定です。これはガウス雑音を参考にしたヒューリスティックで、**誤検出率 1% を保証するものではありません**。特に相関したノイズや非ガウス雑音では調整が必要な場合があります。API は `auto_tune=true` で有効化し、省略時は既存クライアント向けに Manual の動作を維持します。
+
+#### 数理モデルと採用条件
+
+1. 選択した蛍光チャンネルの元の輝度値を読みます。形態学的 opening で推定した背景を差し引き、scale-normalized LoG の空間・スケール方向の極大から候補を探します。opening の半径は `ceil(3 × Max σ)` です。細胞外をゼロに塗ってからフィルタすることはせず、候補の中心を細胞内に限定します。
+2. 候補の近傍から背景補正後の正の輝度に比例する確率で座標を再サンプリングし、公式 e-means で初期中心を求めます（seed 1234、5 epochs）。PCA 変換した Replot 座標を使い、両軸の距離の比を保ちます。
+3. 各候補の局所領域で、元の輝度へ次の「背景平面＋楕円ガウス」を最小二乗フィットします。
+
+$$
+\widehat I(\mathbf r)=b_0+\mathbf g^T\mathbf r+
+A\exp\left[-\tfrac12(\mathbf r-\boldsymbol\mu)^T\Sigma^{-1}(\mathbf r-\boldsymbol\mu)\right].
+$$
+
+中心は μ、振幅は `A > 0`、Σ の固有値の平方根が 2 軸の σ です。両軸の σ が選択された範囲内、長短軸比が 1.6 以下、推定 SNR が設定値以上であることを要求します。さらに背景平面だけのモデルに対する BIC 改善量が閾値（Manual は 10、Auto は上記の自動設定値）以上の候補を採用し、近接した重複候補を除去します。背景モデルは 3 パラメータ、スポット付きモデルは 9 パラメータで、同じ局所 pixel 集合の残差平方和を比較します。
+
+ノイズは隣接 pixel の差分の MAD から推定し、フィット残差の MAD による局所推定値との大きい方を SNR の分母に使います。これはガウス雑音を想定した近似的な判定です。SNR・BIC 閾値は有意水準や検出確率ではありません。近接・重複したスポットの同時フィットは行わず、分離できない場合や形状が条件に合わない場合は検出数が少なくなることがあります。
+
+#### 座標と 0〜1 表示
+
+Replot の `(u1, u2)` は **px 単位**です。スポット図の色だけは背景補正後の輝度を細胞内の 99.5 percentile で割り、0〜1へ clip して表示します。この clip はフィットには使いません。図のコントラストは細胞ごとに変わるため、色の値で細胞間の絶対輝度を比較しないでください。緑の十字が推定中心、輪郭が推定 FWHM です。
+
+このモードは e-means を初期化に用いるスポット検出器です。スポットの検出そのものは LoG と局所ガウスフィットによります。参考：[Big-FISH のスポット検出](https://big-fish.readthedocs.io/en/stable/detection/spots.html)、[SciPy の制約付き最小二乗法](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html)。
 
 ### Heatmap の Channel
 
@@ -342,6 +389,8 @@ GET   /api/v1/get-cell-image
 GET   /api/v1/get-cell-image-optical-boost
 GET   /api/v1/get-cell-overlay
 GET   /api/v1/get-cell-replot
+GET   /api/v1/get-cell-e-means
+GET   /api/v1/get-cell-e-means-spots
 GET   /api/v1/get-cell-heatmap
 GET   /api/v1/get-cell-map256
 GET   /api/v1/get-cell-map256-jet
