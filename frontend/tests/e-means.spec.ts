@@ -122,13 +122,12 @@ test('discards in-flight results after changing clusters or cells', async ({ pag
   }
 })
 
-test('spot mode sends channel, maximum count, widths and SNR only on Calc', async ({ page }) => {
+test('spot mode sends fixed maximum count, channel, widths and SNR only on Calc', async ({ page }) => {
   const state = await openCells(page, 'e-means-spots')
   await page.getByLabel('Spot tuning', { exact: true }).selectOption('manual')
   const calculate = page.getByRole('button', { name: 'Calc', exact: true })
   const image = page.getByRole('img', { name: 'F0C0 e-means spots', exact: true })
   await page.getByLabel('Spot channel', { exact: true }).selectOption('fluo2')
-  await page.getByRole('spinbutton', { name: 'Max spots', exact: true }).fill('5')
   await page.getByRole('spinbutton', { name: 'Min σ', exact: true }).fill('0.8')
   await page.getByRole('spinbutton', { name: 'Max σ', exact: true }).fill('3.5')
   await page.getByRole('spinbutton', { name: 'Min SNR', exact: true }).fill('6')
@@ -138,7 +137,7 @@ test('spot mode sends channel, maximum count, widths and SNR only on Calc', asyn
   expect(state.requests[0].pathname).toBe('/api/v1/get-cell-e-means-spots')
   expect(Object.fromEntries(state.requests[0].searchParams)).toEqual({
     dbname: dbName, cell_id: 'F0C0', dark_mode: 'true', channel: 'fluo2',
-    max_spots: '5', sigma_min: '0.8', sigma_max: '3.5', min_snr: '6', auto_tune: 'false',
+    max_spots: '10', sigma_min: '0.8', sigma_max: '3.5', min_snr: '6', auto_tune: 'false',
   })
   await page.getByLabel('Spot channel', { exact: true }).selectOption('fluo1')
   await expect(image).toHaveCount(0)
@@ -151,12 +150,11 @@ test('spot mode sends channel, maximum count, widths and SNR only on Calc', asyn
   expect(state.requests).toHaveLength(2)
 })
 
-test('spot mode rejects invalid widths, counts and SNR', async ({ page }) => {
+test('spot mode rejects invalid widths and SNR', async ({ page }) => {
   const state = await openCells(page, 'e-means-spots')
   await page.getByLabel('Spot tuning', { exact: true }).selectOption('manual')
   const calculate = page.getByRole('button', { name: 'Calc', exact: true })
   for (const [name, invalids, valid] of [
-    ['Max spots', ['', '0', '17', '2.5'], '3'],
     ['Min σ', ['', '0.4', '4', '5'], '1'],
     ['Max σ', ['', '0.8', '1', '11'], '4'],
     ['Min SNR', ['', '1', '31'], '4'],
@@ -187,24 +185,23 @@ test('changing spot parameters cancels a running calculation', async ({ page }) 
   await expect(page.getByRole('button', { name: 'Calc', exact: true })).toBeEnabled()
 })
 
-test('spots default to Auto with only a channel and count cap', async ({ page }) => {
+test('spots default to Auto with a fixed count cap', async ({ page }) => {
   const state = await openCells(page, 'e-means-spots')
   const tuning = page.getByLabel('Spot tuning', { exact: true })
   await expect(tuning).toHaveValue('auto')
   await expect(page.getByRole('spinbutton', { name: 'Min SNR', exact: true })).toHaveCount(0)
   await expect(page.getByRole('spinbutton', { name: 'Min σ', exact: true })).toHaveCount(0)
   await page.getByLabel('Spot channel', { exact: true }).selectOption('fluo2')
-  await page.getByRole('spinbutton', { name: 'Max spots', exact: true }).fill('5')
   expect(state.requests).toHaveLength(0)
   await page.getByRole('button', { name: 'Calc', exact: true }).click()
   await expect(page.getByRole('img', { name: 'F0C0 e-means spots', exact: true })).toBeVisible()
   expect(Object.fromEntries(state.requests[0].searchParams)).toEqual({
-    dbname: dbName, cell_id: 'F0C0', dark_mode: 'true', channel: 'fluo2', max_spots: '5', auto_tune: 'true',
+    dbname: dbName, cell_id: 'F0C0', dark_mode: 'true', channel: 'fluo2', max_spots: '10', auto_tune: 'true',
   })
   await page.getByRole('button', { name: 'Next', exact: true }).click()
   await expect(page.getByRole('img', { name: /e-means spots/ })).toHaveCount(0)
   await expect(tuning).toHaveValue('auto')
-  await expect(page.getByRole('spinbutton', { name: 'Max spots', exact: true })).toHaveValue('5')
+  await expect(page.getByText('Max spots: 10', { exact: true })).toBeVisible()
 })
 
 test('Auto ignores hidden invalid manual values and restores them on return', async ({ page }) => {
@@ -236,4 +233,20 @@ test('switching from Auto to Manual cancels a running calculation', async ({ pag
   await expect.poll(() => state.completed).toBe(1)
   await expect(page.getByRole('img', { name: /e-means spots/ })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Calc', exact: true })).toBeEnabled()
+})
+
+
+test('spot count stays fixed independently of the clustering count', async ({ page }) => {
+  const state = await openCells(page)
+  const clusters = page.getByRole('spinbutton', { name: 'Clusters', exact: true })
+  await clusters.fill('')
+  await page.getByLabel('Draw mode', { exact: true }).selectOption('e-means-spots')
+  await expect(page.getByText('Max spots: 10', { exact: true })).toBeVisible()
+  await expect(page.getByRole('spinbutton', { name: 'Max spots', exact: true })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Calc', exact: true }).click()
+  await expect(page.getByRole('img', { name: 'F0C0 e-means spots', exact: true })).toBeVisible()
+  expect(state.requests[0].searchParams.get('max_spots')).toBe('10')
+  await page.getByLabel('Draw mode', { exact: true }).selectOption('e-means')
+  await expect(clusters).toHaveValue('')
+  await expect(page.getByRole('button', { name: 'Calc', exact: true })).toBeDisabled()
 })
