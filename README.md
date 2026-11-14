@@ -181,8 +181,8 @@ the selected cell/channel.
 
 `e-means spots` locates compact, approximately round fluorescence peaks inside
 the selected cell. Open the cell's **Function Panel**, select **Draw mode →
-e-means spots**, leave tuning on **Auto**, choose a fluorescence channel and
-maximum spot count, and press **Calc**. Auto selects the width range and
+e-means spots**, leave tuning on **Auto**, choose a fluorescence channel, and press **Calc**. The maximum spot count is
+fixed at 10. Auto selects the width range and
 acceptance thresholds for each cell; no manual σ or SNR input is required.
 The selected values appear in the result image. Choose **Manual** to override
 the width range and minimum SNR.
@@ -203,7 +203,7 @@ displays. [Open this cell locally](http://localhost:3000/cells?db=260218_SK326_G
 | --- | --- | --- |
 | Channel | `FLUO1` | Fluorescence image to analyze; `FLUO2` is also supported when available. |
 | Tuning | `Auto` | Estimate the width range, minimum SNR, and BIC requirement for each cell. `Manual` exposes width and SNR inputs. |
-| Max spots | `3` | Upper limit on the number of accepted spots, from 1 to 16. It does not force the detector to find this many spots. |
+| Max spots | `10` (fixed) | Upper limit on the number of accepted spots. It does not force the detector to find this many spots. |
 | Min σ / Max σ (Manual) | `1` / `4` px | Allowed Gaussian width along each fitted principal axis. Set `0.5 ≤ Min σ < Max σ ≤ 10`. FWHM is approximately `2.355σ`. |
 | Min SNR (Manual) | `4` | Minimum fitted peak amplitude above the local background, divided by the estimated noise standard deviation. Allowed range: 2–30. |
 
@@ -774,7 +774,7 @@ where $\Phi$ is the standard normal CDF and $M$ is the number of LoG proposals
 retained for fitting (up to 64). Larger searches require stronger evidence.
 The absolute amplitude cutoff also follows the robust noise estimate, which
 is recomputed from the cell and each fit's residuals. The proposal limit is
-independent of **Max spots**, so changing that control only caps the accepted
+independent of the fixed **Max spots** limit, which only caps the accepted
 results in Auto. Thresholds are never lowered just to fill the requested count.
 
 Auto reduces user inputs; it is not parameter-free. The compact-width prior,

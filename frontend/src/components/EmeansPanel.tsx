@@ -21,6 +21,7 @@ type EmeansPanelProps = {
 }
 
 const MAX_CLUSTERS = 64
+const MAX_SPOTS = 10
 
 export default function EmeansPanel({ apiBase, dbName, cellId, clusters, onClustersChange,
   spotMode, spotOptions, onSpotOptionsChange }: EmeansPanelProps) {
@@ -30,15 +31,14 @@ export default function EmeansPanel({ apiBase, dbName, cellId, clusters, onClust
   const controllerRef = useRef<AbortController | null>(null)
   const imageUrlRef = useRef<string | null>(null)
   const count = Number(clusters)
-  const maximumCount = spotMode ? 16 : MAX_CLUSTERS
-  const isCountValid = clusters.trim() !== '' && Number.isInteger(count) && count >= 1 && count <= maximumCount
+  const isCountValid = clusters.trim() !== '' && Number.isInteger(count) && count >= 1 && count <= MAX_CLUSTERS
   const sigmaMin = Number(spotOptions.sigmaMin)
   const sigmaMax = Number(spotOptions.sigmaMax)
   const minSnr = Number(spotOptions.minSnr)
   const isWidthValid = spotOptions.sigmaMin.trim() !== '' && spotOptions.sigmaMax.trim() !== '' &&
     Number.isFinite(sigmaMin) && Number.isFinite(sigmaMax) && sigmaMin >= 0.5 && sigmaMin < sigmaMax && sigmaMax <= 10
   const isSnrValid = spotOptions.minSnr.trim() !== '' && Number.isFinite(minSnr) && minSnr >= 2 && minSnr <= 30
-  const isValid = isCountValid && (!spotMode || spotOptions.autoTune || (isWidthValid && isSnrValid))
+  const isValid = spotMode ? (spotOptions.autoTune || (isWidthValid && isSnrValid)) : isCountValid
 
   useEffect(() => () => {
     controllerRef.current?.abort()
@@ -67,7 +67,7 @@ export default function EmeansPanel({ apiBase, dbName, cellId, clusters, onClust
       })
       if (spotMode) {
         params.set('channel', spotOptions.channel)
-        params.set('max_spots', String(count))
+        params.set('max_spots', String(MAX_SPOTS))
         params.set('auto_tune', String(spotOptions.autoTune))
         if (!spotOptions.autoTune) {
           params.set('sigma_min', String(sigmaMin))
@@ -125,23 +125,23 @@ export default function EmeansPanel({ apiBase, dbName, cellId, clusters, onClust
           </NativeSelect.Field>
           <NativeSelect.Indicator />
         </NativeSelect.Root>}
-        <Text as="label" htmlFor="e-means-clusters" fontSize="xs" color="ink.700">
-          {spotMode ? 'Max spots' : 'Clusters'}
-        </Text>
-        <Input
-          id="e-means-clusters" type="number" min={1} max={maximumCount} step={1}
-          size="sm" w="5rem" bg="sand.50" value={clusters} aria-invalid={!isCountValid}
-          aria-describedby="e-means-clusters-hint"
-          onChange={(event) => { clearResult(); onClustersChange(event.target.value) }}
-        />
+        {spotMode ? <Text fontSize="xs" color="ink.700">Max spots: {MAX_SPOTS}</Text> : <>
+          <Text as="label" htmlFor="e-means-clusters" fontSize="xs" color="ink.700">Clusters</Text>
+          <Input
+            id="e-means-clusters" type="number" min={1} max={MAX_CLUSTERS} step={1}
+            size="sm" w="5rem" bg="sand.50" value={clusters} aria-invalid={!isCountValid}
+            aria-describedby="e-means-clusters-hint"
+            onChange={(event) => { clearResult(); onClustersChange(event.target.value) }}
+          />
+        </>}
         <Button size="sm" variant="outline" onClick={() => void calculate()}
           loading={isLoading} loadingText="Calculating..."
           disabled={!isValid || !dbName || !cellId || isLoading}>
           Calc
         </Button>
-        <Text id="e-means-clusters-hint" fontSize="xs" color="ink.700">
-          1–{maximumCount}
-        </Text>
+        {!spotMode && <Text id="e-means-clusters-hint" fontSize="xs" color="ink.700">
+          1–{MAX_CLUSTERS}
+        </Text>}
       </HStack>
       {spotMode && spotOptions.autoTune && <Text fontSize="xs" color="ink.700">
         Auto estimates widths and acceptance thresholds for this cell. Selected values appear in the plot.
