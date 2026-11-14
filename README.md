@@ -248,6 +248,7 @@ Bulk Engine modes:
 | Mode | Description |
 | --- | --- |
 | `Phenotype map` | Compare eight fluorescence localization descriptors within/across databases using one shared channel and background correction, DB-colored scatter plots, cumulative distributions, quartile summaries, linked images and CSV/JSON exports. |
+| `GFP spot localization` | Normalize detected foci by contour-derived centerline length and local width; compare point clouds, position frequencies and per-cell patterns. Auto detection, at most 10 spots per cell; CSV and SVG exports. |
 | `Cell length` | Measure cell length in pixels from contour geometry. |
 | `Cell width` | Export mean and median full-width estimates in pixels. |
 | `Cell area` | Export cell area in pixels squared. |
@@ -258,6 +259,12 @@ Bulk Engine modes:
 | `Contours` | Visualize aligned contours and export transformed contour coordinates. |
 | `Map256` | Render population-level Map256 strips or contour maps. |
 | `Raw data` | Export raw pixel intensities inside each contour. |
+
+GFP spot localization uses cell geometry to compare foci independently of GFP brightness.
+The example below shows the first 40 label-1 cells from `260218_SK326_Gen_90min.db`
+(FLUO1): 77 detected spots, displayed by nearest-pole distance and absolute transverse position.
+
+![GFP spot localization point cloud, cell-frequency distribution and per-cell positions](docs/screenshots/gfp-spot-localization.png)
 
 JSON and CSV exports are available for downstream analysis.
 

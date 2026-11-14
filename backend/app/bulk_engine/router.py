@@ -11,6 +11,7 @@ from fastapi.responses import StreamingResponse
 from app.activity_tracker.crud import ACTION_BULK_ENGINE, record_activity
 from app.bulk_engine.crud import FITC_AGGREGATION_THRESHOLD, BulkEngineCrud
 from app.bulk_engine.phenotype_features import get_phenotype_comparison, get_phenotype_features
+from app.bulk_engine.spot_localization import get_spot_localization
 from app.slack.notifier import build_bulk_engine_completed_message, notify_slack
 
 
@@ -31,6 +32,7 @@ router_bulk_engine: APIRouter = APIRouter(
 bulk_executor: ProcessPoolExecutor = ProcessPoolExecutor()
 heatmap_bulk_executor: ProcessPoolExecutor = ProcessPoolExecutor(max_workers=1)
 phenotype_executor: ProcessPoolExecutor = ProcessPoolExecutor(max_workers=1)
+spot_localization_executor: ProcessPoolExecutor = ProcessPoolExecutor(max_workers=1)
 
 
 async def _notify_bulk_engine_completed(
@@ -193,6 +195,25 @@ async def get_phenotype_features_endpoint(
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router_bulk_engine.get("/get-gfp-spot-localization")
+async def get_spot_localization_endpoint(
+    dbname: Annotated[str, Query()] = ...,
+    label: Annotated[str | None, Query()] = None,
+    channel: Annotated[Literal["fluo1", "fluo2"], Query()] = "fluo1",
+) -> dict:
+    try:
+        return await asyncio.get_running_loop().run_in_executor(
+            spot_localization_executor, get_spot_localization, dbname, label, channel,
+        )
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Database not found")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception:
+        logger.exception("GFP spot localization failed")
+        raise HTTPException(status_code=500, detail="Could not calculate GFP spot localization")
 
 
 @router_bulk_engine.get("/get-heatmap-vectors-csv")

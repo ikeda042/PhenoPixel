@@ -27,6 +27,7 @@ import PageContainer from '../components/PageContainer'
 import ReloadButton from '../components/ReloadButton'
 import ThemeToggleButton from '../components/ThemeToggleButton'
 import PhenotypeMapPanel from '../components/PhenotypeMapPanel'
+import SpotLocalizationPanel from '../components/SpotLocalizationPanel'
 import { getApiBase } from '../utils/apiBase'
 
 type BulkCell = {
@@ -171,9 +172,12 @@ export default function BulkEnginePage() {
   const [error, setError] = useState<string | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
   const [analysisMode, setAnalysisMode] = useState(() =>
-    searchParams.get('mode') === 'phenotype-map' ? 'phenotype-map' : 'cell-length',
+    ['phenotype-map', 'gfp-spot-localization'].includes(searchParams.get('mode') ?? '')
+      ? searchParams.get('mode')! : 'cell-length',
   )
   const showPhenotypeMap = analysisMode === 'phenotype-map'
+  const showSpotLocalization = analysisMode === 'gfp-spot-localization'
+  const showFullWidthAnalysis = showPhenotypeMap || showSpotLocalization
   const [analysisLabel, setAnalysisLabel] = useState('1')
   const [analysisChannel, setAnalysisChannel] = useState('ph')
   const [lengthPlotUrl, setLengthPlotUrl] = useState<string | null>(null)
@@ -269,7 +273,7 @@ export default function BulkEnginePage() {
       setPreviewCellId(null)
       return
     }
-    if (showPhenotypeMap) return
+    if (showFullWidthAnalysis) return
 
     let isActive = true
     const controller = new AbortController()
@@ -335,7 +339,7 @@ export default function BulkEnginePage() {
       isActive = false
       controller.abort()
     }
-  }, [apiBase, dbName, selectedChannel, previewDownscale, showPhenotypeMap])
+  }, [apiBase, dbName, selectedChannel, previewDownscale, showFullWidthAnalysis])
 
   useEffect(() => {
     const nextUrls = new Set(cells.map((cell) => cell.url))
@@ -2030,25 +2034,25 @@ export default function BulkEnginePage() {
             <Text fontSize="sm" color="ink.700">
               {showPhenotypeMap ? 'Starting database' : 'Database'}: {dbName || 'Not selected'}
             </Text>
-            {!showPhenotypeMap && <Text fontSize="xs" color="ink.700">
+            {!showFullWidthAnalysis && <Text fontSize="xs" color="ink.700">
               Showing {filteredCells.length} / {cells.length}
             </Text>}
           </HStack>
 
-          {!showPhenotypeMap && isLoading && (
+          {!showFullWidthAnalysis && isLoading && (
             <HStack spacing="3" color="ink.700">
               <Spinner size="sm" />
               <Text fontSize="sm">Generating images...</Text>
             </HStack>
           )}
 
-          {!showPhenotypeMap && !isLoading && error && (
+          {!showFullWidthAnalysis && !isLoading && error && (
             <Text fontSize="sm" color="violet.300">
               {error}
             </Text>
           )}
 
-          {!showPhenotypeMap && !isLoading && !error && cells.length === 0 && (
+          {!showFullWidthAnalysis && !isLoading && !error && cells.length === 0 && (
             <Text fontSize="sm" color="ink.700">
               No annotation images found.
             </Text>
@@ -2056,7 +2060,7 @@ export default function BulkEnginePage() {
 
           {dbName && (
             <Grid
-              templateColumns={{ base: 'minmax(0, 1fr)', lg: showPhenotypeMap ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))' }}
+              templateColumns={{ base: 'minmax(0, 1fr)', lg: showFullWidthAnalysis ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))' }}
               templateRows={{ base: 'auto', lg: 'minmax(0, 1fr)' }}
               gap="6"
               alignItems="start"
@@ -2064,7 +2068,7 @@ export default function BulkEnginePage() {
               minH="0"
               h={{ base: 'auto', lg: '100%' }}
             >
-              {!showPhenotypeMap && <Box
+              {!showFullWidthAnalysis && <Box
                 bg="sand.100"
                 border="1px solid"
                 borderColor="sand.200"
@@ -2326,6 +2330,7 @@ export default function BulkEnginePage() {
                         }}
                       >
                         <option value="phenotype-map">Phenotype map</option>
+                        <option value="gfp-spot-localization">GFP spot localization</option>
                         <option value="cell-length">Cell length</option>
                         <option value="cell-width">Cell width</option>
                         <option value="cell-area">Cell area</option>
@@ -2344,6 +2349,7 @@ export default function BulkEnginePage() {
                     {showPhenotypeMap ? 'Explore cell phenotypes' : 'Parameter settings'}
                   </Text>
                   {showPhenotypeMap && <PhenotypeMapPanel key={dbName} apiBase={apiBase} dbName={dbName} />}
+                  {showSpotLocalization && <SpotLocalizationPanel key={dbName} apiBase={apiBase} dbName={dbName} />}
                   {analysisMode === 'cell-length' && (
                     <Stack spacing="3" mt="2">
                       <Text fontSize="sm" fontWeight="600" color="ink.900">
