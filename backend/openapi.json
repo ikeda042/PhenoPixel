@@ -3262,6 +3262,80 @@
           }
         }
       }
+    },
+    "/api/v1/get-gfp-spot-localization": {
+      "get": {
+        "tags": [
+          "bulk_engine"
+        ],
+        "summary": "Get Spot Localization Endpoint",
+        "operationId": "get_spot_localization_endpoint_api_v1_get_gfp_spot_localization_get",
+        "parameters": [
+          {
+            "name": "dbname",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Dbname"
+            }
+          },
+          {
+            "name": "label",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Label"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "fluo1",
+                "fluo2"
+              ],
+              "type": "string",
+              "default": "fluo1",
+              "title": "Channel"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Spot Localization Endpoint Api V1 Get Gfp Spot Localization Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {

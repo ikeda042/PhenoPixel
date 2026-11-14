@@ -324,3 +324,47 @@ curl -G \
   - `404` if the database is missing or no data is available
   - `400` for invalid parameters (e.g., unsupported channel or degree)
   - `500` for unexpected failures
+
+## GFP spot localization
+
+**GET** `/get-gfp-spot-localization?dbname=example.db&label=All&channel=fluo1`
+
+`channel` accepts `fluo1` or `fluo2`; `label` supports `All`, numeric labels and `N/A`.
+The detector uses the same Auto settings as the single-cell e-means spots panel, with
+`max_spots=10` fixed server-side. A single process worker performs the computation.
+Small numeric results are cached by image/contour content and analysis version.
+
+The JSON response contains `cells`, `summary`, coordinate/orientation metadata, channel,
+label, version and detector settings. Each successful cell has zero or more `spots`,
+`length_px`, Auto thresholds and `at_cap`. Missing/invalid cells have `status=skipped`
+and an error reason; a valid zero-spot cell has `status=ok` and an empty spot list.
+Each spot contains raw image `(raw_x, raw_y)`, `longitudinal` (0–1),
+`nearest_pole=min(longitudinal, 1-longitudinal)` (0–0.5), `lateral` (−1–1 or null),
+amplitude, SNR and BIC improvement. No intensity-based flip or symmetry duplication is used.
+
+The contour defines PCA alignment, a quartic centerline fit to unambiguous cross-section
+midpoints, and its intersections with the contour at the poles. Longitudinal position
+uses centerline arc length; lateral position uses signed normal distance / local half-width.
+At least 80% of sampled sections must be unambiguous. Unsupported shapes are skipped.
+Transverse positions near centerline endpoints, with half-width below 1 px, or outside
+the local section are null with `lateral_reason`; longitudinal positions remain available.
+These coordinates describe 2D projected locations, not 3D membrane distances or biological polarity.
+
+`summary` reports total/analyzed/skipped cells, positive cells, total spots,
+cells reaching the cap and spots without transverse coordinates. Include successful
+zero-spot cells in cell-frequency denominators; exclude skipped cells. Counts at the cap
+are potentially censored. Spatial frequency is not area-corrected enrichment.
+
+For a fitted focus, let `s` be arc length from the first contour/centerline
+intersection, `L` the total pole-to-pole arc length, `d` the signed normal distance,
+and `w_side(s)` the positive half-width on the corresponding side:
+
+```text
+longitudinal = s / L
+nearest_pole = min(longitudinal, 1 - longitudinal)
+lateral = d / w_side(s)
+```
+
+The first pole and transverse sign use an image-geometry convention, not old/new
+pole identity. Folding `nearest_pole` and `abs(lateral)` permits orientation-independent
+population plots, while retaining signed coordinates and cell IDs preserves individual patterns.

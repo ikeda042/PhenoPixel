@@ -35,6 +35,7 @@ class Spot:
     amplitude: float
     snr: float
     bic_improvement: float
+    raw_center: np.ndarray | None = None
 
 
 @dataclass(frozen=True)
@@ -240,7 +241,8 @@ def analyze_spots(image, coordinates, points, max_spots=3, sigma_min=1.0, sigma_
             break
     projected = [Spot(np.r_[spot.center, 1] @ transform,
                       transform[:2].T @ spot.covariance @ transform[:2],
-                      spot.amplitude, spot.snr, spot.bic_improvement) for spot in distinct]
+                      spot.amplitude, spot.snr, spot.bic_improvement,
+                      raw_center=spot.center.copy()) for spot in distinct]
     return SpotAnalysis(projected, signal_values, noise, settings)
 
 

@@ -17,7 +17,7 @@ Bulk Engine は、Annotation 後の database からラベル別の細胞集団�
 1. database を指定して Bulk Engine を開く。
 2. preview channel と label を選び、解析対象の細胞集団を確認する。
 3. `Analysis mode` で指標を選ぶ。
-4. `Phenotype map`, `Cell length`, `Cell width`, `Cell area`, `Normalized median`, `FITC aggregation ratio`, `Entropy`, `Heatmap`, `Contours`, `Map256`, `Raw data` を実行する。
+4. `GFP spot localization`, `Phenotype map`, `Cell length`, `Cell width`, `Cell area`, `Normalized median`, `FITC aggregation ratio`, `Entropy`, `Heatmap`, `Contours`, `Map256`, `Raw data` を実行する。
 5. plot を確認し、必要に応じて JSON/CSV を export する。
 
 ![Bulk engine modes](/img/screenshots/bulk3.png)
@@ -25,6 +25,43 @@ Bulk Engine は、Annotation 後の database からラベル別の細胞集団�
 ![Bulk engine heatmap](/img/screenshots/bulk4.png)
 
 ## 主要な解析
+
+### GFP spot localization
+
+`Analysis mode = GFP spot localization` は、GFP ドットの位置を細胞形状で正規化して同じ集団内で比較します。
+`Spot manual label` と GFP を含む `FLUO1` / `FLUO2` を選び、`Calc` を押します。
+単一細胞の e-means spots と同じ **Auto 検出・Max spots = 10 / cell 固定**を使います。
+
+- **長軸位置**：輪郭から求めた中心線に沿う弧長を細胞長で割ります。一方の極が 0%、反対の極が 100% です。
+- **横方向**：中心線への法線方向の距離を、その位置・その側の局所半幅で割ります。中心線は 0、両側の境界は −1 / +1 です。
+- **Nearest pole（初期表示）**：近い極からの相対距離（0〜50%）と、横方向の絶対値（0〜1）を表示します。左右・上下の向きに依存しません。
+- **Full length**：0〜100% の長軸位置と符号付きの横方向を表示します。極の旧・新や上下の生物学的な向きは未割り当てです。
+
+GFP 輝度に応じた反転や、対称化による点の複製は行いません。Map256 の画像座標とは別の座標系です。
+二次元マップは 1 点 = 1 検出スポットです。極の先端・局所半幅が 1 px 未満・局所輪郭範囲外では横方向を欠測とし、
+二次元マップから除外しますが、長軸分布・細胞ごとの図・CSV には残します。
+中心線は輪郭の断面中点への 4 次多項式近似です。画素単位の小さな切れ込みはフィットから除きますが、
+断面の 20% 超が曖昧な形状、長軸が不明瞭な細胞、中心線が細胞内を通らない形状は解析対象外になります。
+
+`Distribution measure` で次を切り替えます。
+
+| 表示 | 集計 |
+| --- | --- |
+| Cells with a spot (%) | 区間に 1 個以上のドットを持つ細胞数 / 解析成功細胞数。同一細胞の複数ドットは区間内で 1 回だけ数え、0 個の細胞も分母に含めます。複数区間に寄与するため合計は 100% とは限りません。 |
+| Spot count | 区間内の全ドット数。ドットが多い細胞は多く寄与します。 |
+
+下段は **1 行 = 1 細胞**の長軸ドット図です。片極に集中する細胞と、両極に持つ細胞を区別できます。
+細胞 ID または点をクリックすると PH/GFP 画像と検出設定を確認でき、Cell Viewer へ移動できます。
+表示切り替えは再計算不要です。小さい画面ではグラフを横スクロールできます。
+
+`Analyzed cells`、`Spot-positive cells`、`Spots`、`Cells at cap`、`Skipped cells` を表示します。
+10 個の上限に達した細胞では、それ以外の検出候補が省かれている可能性があります。
+未検出の細胞と、画像欠損・輪郭不良による解析失敗を区別します。位置の頻度は、一様分布に対する濃縮度ではありません。
+2D 画像上の相対位置であり、3D の膜までの距離を示すものではありません。
+
+`Export spots CSV` は元画像の中心、正規化座標、SNR、振幅、BIC 改善量を、
+`Export cells CSV` は 0 個や失敗した細胞を含む細胞別の結果・検出閾値を保存します。
+`Export map SVG` で現在の点群表示を保存できます。元画像・輪郭と解析設定に基づくキャッシュを使い、編集後は再計算します。
 
 ### Phenotype map
 
@@ -147,6 +184,7 @@ GET /api/v1/get-raw-intensities
 GET /api/v1/get-heatmap-vectors-csv
 GET /api/v1/get-heatmap-abs-plot
 GET /api/v1/get-heatmap-rel-plot
+GET /api/v1/get-gfp-spot-localization
 GET /api/v1/get-map256-strip
 GET /api/v1/get-contours-grid-plot
 GET /api/v1/get-contours-grid-json
