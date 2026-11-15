@@ -295,6 +295,13 @@ images or raw intensity data through the analysis pipeline.
 
 ## Default Parameters
 
+CPU-heavy Graph Engine, bulk analysis, and database image jobs share a process
+pool. The default is up to four workers per server process, limited by available
+CPUs. Set `PHENOPIXEL_ANALYSIS_WORKERS` to an integer from 1 to 32 to tune it for
+your machine. Each worker has its own bounded caches, so more workers can use
+more memory and may reduce cache reuse. ND2 parsing has a separate pool, tuned
+with `ND2PARSER_MAX_WORKERS`; account for both pools when sizing a deployment.
+
 | Parameter | Default / current behavior |
 | --- | --- |
 | Extraction threshold `param1` | `130` |

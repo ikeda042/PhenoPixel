@@ -1,3 +1,4 @@
+import asyncio
 import os
 import re
 from datetime import date, datetime, time, timedelta
@@ -326,8 +327,8 @@ async def upload_nd2_file(
 
 @router_nd2.get("/nd2_files")
 async def get_nd2_files() -> JSONResponse:
-    upload_dir = _ensure_upload_dir()
-    return JSONResponse(content={"files": _list_nd2_files(upload_dir)})
+    files = await asyncio.to_thread(lambda: _list_nd2_files(_ensure_upload_dir()))
+    return JSONResponse(content={"files": files})
 
 
 @router_nd2.delete("/nd2_files/{filename}")

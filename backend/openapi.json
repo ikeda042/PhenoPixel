@@ -3336,6 +3336,48 @@
           }
         }
       }
+    },
+    "/api/v1/graph_engine/images": {
+      "post": {
+        "tags": [
+          "graph_engine"
+        ],
+        "summary": "Graph Engine Images",
+        "operationId": "graph_engine_images_api_v1_graph_engine_images_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_graph_engine_images_api_v1_graph_engine_images_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/zip": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3607,6 +3649,31 @@
           "dbnames"
         ],
         "title": "DatabaseBulkDownloadRequest"
+      },
+      "Body_graph_engine_images_api_v1_graph_engine_images_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mode"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_graph_engine_images_api_v1_graph_engine_images_post"
       }
     }
   }

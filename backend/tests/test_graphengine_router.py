@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import unittest
+import io
+import zipfile
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -51,6 +53,32 @@ class GraphEngineRouterTest(unittest.TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(response.headers["content-type"], "image/png")
                 self.assertGreater(len(response.content), 0)
+
+    def test_bundle_route_contains_all_four_images(self):
+        response = self.client.post(
+            "/api/v1/graph_engine/images",
+            files={"file": ("sample.csv", _sample_heatmap_csv(), "text/csv")},
+            data={"mode": "HU_aggregation_ratio"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers["content-type"], "application/zip")
+        with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
+            self.assertEqual(set(archive.namelist()), {"abs.png", "rel.png", "dist.png", "dist_box.png"})
+            for name in archive.namelist():
+                self.assertTrue(archive.read(name).startswith(b"\x89PNG"))
+
+    def test_multiple_files_keep_order_and_control(self):
+        response = self.client.post(
+            "/api/v1/graph_engine/HU_aggregation_ratio",
+            files=[
+                ("ctrl_file", ("control.csv", _sample_heatmap_csv(), "text/csv")),
+                ("files", ("first.csv", _sample_heatmap_csv(), "text/csv")),
+                ("files", ("second.csv", _sample_heatmap_csv(), "text/csv")),
+            ],
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([item["filename"] for item in response.json()], ["first.csv", "second.csv"])
+        self.assertEqual([item["nagg_rate"] for item in response.json()], [0., 0.])
 
     def test_analyze_accepts_current_bulk_export_with_control(self):
         axis = list(range(36))

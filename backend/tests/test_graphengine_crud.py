@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import unittest
+import io
+import zipfile
 
 import numpy as np
 
@@ -131,6 +133,22 @@ class GraphEngineCrudTest(unittest.TestCase):
     def test_invalid_heatmap_does_not_fall_back_to_position_rows(self):
         with self.assertRaisesRegex(ValueError, "paired u1 and G"):
             GraphEngineCrud._get_matrix_for_mode(DEFAULT_MODE, "0,1,2\n")
+
+    def test_bundle_matches_individual_plots(self):
+        content = _export_cells([([0., 1., 2.], [3., 5., 4.])]).encode()
+        bundle = GraphEngineCrud.create_plot_bundle(DEFAULT_MODE, content)
+        with zipfile.ZipFile(io.BytesIO(bundle)) as archive:
+            for name, render in (
+                ("abs.png", GraphEngineCrud.create_heatmap_abs_plot),
+                ("rel.png", GraphEngineCrud.create_heatmap_rel_plot),
+                ("dist.png", GraphEngineCrud.create_distribution_plot),
+                ("dist_box.png", GraphEngineCrud.create_distribution_box_plot),
+            ):
+                self.assertEqual(archive.read(name), render(DEFAULT_MODE, content))
+
+    def test_distribution_handles_large_repeated_values(self):
+        values = np.tile(np.array([0.123 + i * 0.973 for i in range(100)]), 1500)
+        self.assertTrue(GraphEngineCrud._build_distribution_image(values).startswith(b"\x89PNG"))
 
 
 if __name__ == "__main__":

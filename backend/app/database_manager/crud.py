@@ -1,5 +1,6 @@
 import io
 import json
+import os
 from contextlib import closing
 from pathlib import Path
 import pickle
@@ -118,6 +119,10 @@ class _DatabaseFileCrud(DirectoryStorageCrud):
     @classmethod
     def should_include_path(cls, path: Path) -> bool:
         return path.is_file() and path.name.endswith(".db")
+
+    @classmethod
+    def should_include_entry(cls, entry: os.DirEntry[str]) -> bool:
+        return entry.name.endswith(".db") and entry.is_file()
 
     @classmethod
     def serialize_upload_result(cls, filename: str, size: int) -> dict[str, object]:

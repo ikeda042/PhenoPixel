@@ -1,7 +1,6 @@
 import asyncio
 import io
 import logging
-from concurrent.futures import ProcessPoolExecutor
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -13,6 +12,7 @@ from app.bulk_engine.crud import FITC_AGGREGATION_THRESHOLD, BulkEngineCrud
 from app.bulk_engine.phenotype_features import get_phenotype_comparison, get_phenotype_features
 from app.bulk_engine.spot_localization import get_spot_localization
 from app.slack.notifier import build_bulk_engine_completed_message, notify_slack
+from app.shared.analysis_executor import analysis_executor
 
 
 logger: logging.Logger = logging.getLogger("uvicorn.error")
@@ -29,10 +29,10 @@ router_bulk_engine: APIRouter = APIRouter(
     tags=["bulk_engine"],
     dependencies=[Depends(_track_bulk_engine_activity)],
 )
-bulk_executor: ProcessPoolExecutor = ProcessPoolExecutor()
-heatmap_bulk_executor: ProcessPoolExecutor = ProcessPoolExecutor(max_workers=1)
-phenotype_executor: ProcessPoolExecutor = ProcessPoolExecutor(max_workers=1)
-spot_localization_executor: ProcessPoolExecutor = ProcessPoolExecutor(max_workers=1)
+bulk_executor = analysis_executor
+heatmap_bulk_executor = analysis_executor
+phenotype_executor = analysis_executor
+spot_localization_executor = analysis_executor
 
 
 async def _notify_bulk_engine_completed(

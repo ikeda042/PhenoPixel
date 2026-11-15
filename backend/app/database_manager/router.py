@@ -1,6 +1,5 @@
 import asyncio
 import io
-from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 from pathlib import Path as FilePath
 from tempfile import TemporaryDirectory
@@ -14,11 +13,12 @@ from starlette.background import BackgroundTask
 from app.database_manager.crud import DatabaseManagerCrud
 from app.database_manager.e_means import MAX_CLUSTERS
 from app.database_manager.spot_detection import MAX_SPOTS
+from app.shared.analysis_executor import analysis_executor
 
 
 router_database_manager: APIRouter = APIRouter(tags=["database_manager"])
-annotation_executor: ProcessPoolExecutor = ProcessPoolExecutor()
-heatmap_executor: ProcessPoolExecutor = ProcessPoolExecutor(max_workers=1)
+annotation_executor = analysis_executor
+heatmap_executor = analysis_executor
 UPLOAD_CHUNK_SIZE: int = 1024 * 1024 * 100
 
 

@@ -1,5 +1,6 @@
 import csv
 import io
+import zipfile
 from dataclasses import dataclass
 
 import matplotlib
@@ -202,7 +203,10 @@ class GraphEngineCrud:
         ax: Axes
         fig, ax = plt.subplots(figsize=(3.4, 3.0), dpi=160)
         bins: int = min(40, max(8, int(np.sqrt(values.size))))
-        ax.hist(values, bins=bins, color="#2c7a7b", alpha=0.8, edgecolor="white")
+        # Explicit edges avoid NumPy's equal-bin fast path, which can fail for
+        # large repeated arrays on some NumPy/Python combinations.
+        edges = np.histogram_bin_edges(values, bins=bins)
+        ax.hist(values, bins=edges, color="#2c7a7b", alpha=0.8, edgecolor="white")
         ax.set_xlabel("Value")
         ax.set_ylabel("Count")
         ax.grid(True, axis="y", alpha=0.3)
@@ -246,33 +250,26 @@ class GraphEngineCrud:
         files: list[tuple[str, bytes]],
         ctrl_bytes: bytes | None,
     ) -> list[GraphEngineResult]:
-        normalized_mode: str = cls.normalize_mode(mode)
-        if normalized_mode != DEFAULT_MODE:
-            raise ValueError("Unsupported graph mode")
-        ctrl_value: float | None = None
-        if ctrl_bytes is not None:
-            ctrl_text: str = cls._safe_decode(ctrl_bytes)
-            try:
-                ctrl_value = cls._parse_ctrl(ctrl_text)
-            except ValueError as exc:
-                raise ValueError(f"Invalid control CSV: {exc}") from exc
-        results: list[GraphEngineResult] = []
-        for name, content in files:
-            text: str = cls._safe_decode(content)
-            mean_length: float
-            nagg_rate: float | None
-            try:
-                mean_length, nagg_rate = cls._analyze_csv(text, ctrl_value)
-            except ValueError as exc:
-                raise ValueError(f"{name}: {exc}") from exc
-            results.append(
-                GraphEngineResult(
-                    filename=name,
-                    mean_length=mean_length,
-                    nagg_rate=nagg_rate,
-                )
-            )
-        return results
+        ctrl_value = cls.parse_control(mode, ctrl_bytes)
+        return [cls.analyze_file(name, content, ctrl_value) for name, content in files]
+
+    @classmethod
+    def parse_control(cls, mode: str, ctrl_bytes: bytes | None) -> float | None:
+        cls.normalize_mode(mode)
+        if ctrl_bytes is None:
+            return None
+        try:
+            return cls._parse_ctrl(cls._safe_decode(ctrl_bytes))
+        except ValueError as exc:
+            raise ValueError(f"Invalid control CSV: {exc}") from exc
+
+    @classmethod
+    def analyze_file(cls, name: str, content: bytes, ctrl: float | None) -> GraphEngineResult:
+        try:
+            mean_length, nagg_rate = cls._analyze_csv(cls._safe_decode(content), ctrl)
+        except ValueError as exc:
+            raise ValueError(f"{name}: {exc}") from exc
+        return GraphEngineResult(filename=name, mean_length=mean_length, nagg_rate=nagg_rate)
 
     @classmethod
     def create_heatmap_abs_plot(cls, mode: str | None, content: bytes) -> bytes:
@@ -315,3 +312,25 @@ class GraphEngineCrud:
         if not row_means:
             raise ValueError("No numeric data found in CSV")
         return cls._build_distribution_box_image(row_means)
+
+    @classmethod
+    def create_plot_bundle(cls, mode: str | None, content: bytes) -> bytes:
+        normalized_mode = cls.normalize_mode(mode)
+        matrix = cls._get_matrix_for_mode(normalized_mode, cls._safe_decode(content))
+        values = matrix[~np.isnan(matrix)]
+        if values.size == 0:
+            raise ValueError("No numeric data found in CSV")
+        row_means = [float(np.nanmean(row)) for row in matrix if not np.all(np.isnan(row))]
+        if not row_means:
+            raise ValueError("No numeric data found in CSV")
+        images = {
+            "abs.png": cls._build_heatmap_image(matrix, normalize_rows=False),
+            "rel.png": cls._build_heatmap_image(matrix, normalize_rows=True),
+            "dist.png": cls._build_distribution_image(values),
+            "dist_box.png": cls._build_distribution_box_image(row_means),
+        }
+        output = io.BytesIO()
+        with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_STORED) as archive:
+            for name, data in images.items():
+                archive.writestr(name, data)
+        return output.getvalue()

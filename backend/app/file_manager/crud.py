@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import AsyncIterator
 
@@ -11,6 +12,10 @@ class FileManagerCrud(DirectoryStorageCrud):
     STORAGE_DIR: Path = FILES_DIR
     FILES_DIR: Path = FILES_DIR
     UPLOAD_CHUNK_SIZE = UPLOAD_CHUNK_SIZE
+
+    @classmethod
+    def should_include_entry(cls, entry: os.DirEntry[str]) -> bool:
+        return not entry.name.startswith(".") and entry.is_file()
 
     @classmethod
     def ensure_files_dir(cls) -> Path:

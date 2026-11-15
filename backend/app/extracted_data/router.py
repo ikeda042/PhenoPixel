@@ -1,7 +1,8 @@
+import asyncio
+import os
 from pathlib import Path
 from typing import Annotated
 
-from aiofiles import os as aioos
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
@@ -12,15 +13,13 @@ EXTRACTED_DATA_DIR: Path = Path(__file__).resolve().parent
 
 
 async def _list_extracted_folders() -> list[str]:
-    if not EXTRACTED_DATA_DIR.exists():
-        return []
-    entries = await aioos.listdir(EXTRACTED_DATA_DIR)
-    folders = [
-        name
-        for name in entries
-        if (EXTRACTED_DATA_DIR / name).is_dir() and not name.startswith((".", "__"))
-    ]
-    return sorted(folders)
+    def scan() -> list[str]:
+        if not EXTRACTED_DATA_DIR.exists():
+            return []
+        with os.scandir(EXTRACTED_DATA_DIR) as entries:
+            return sorted(entry.name for entry in entries
+                          if not entry.name.startswith((".", "__")) and entry.is_dir())
+    return await asyncio.to_thread(scan)
 
 
 def _sanitize_folder(folder: str) -> str:
@@ -60,12 +59,11 @@ async def get_extracted_image_count(
 ) -> dict[str, int]:
     folder_name = _sanitize_folder(folder)
     folder_path = EXTRACTED_DATA_DIR / folder_name
-    if not folder_path.is_dir():
-        raise HTTPException(status_code=404, detail="Folder not found")
-    entries = await aioos.listdir(folder_path)
-    count = sum(
-        1
-        for name in entries
-        if (folder_path / name).is_file() and name.lower().endswith(".png")
-    )
+    def count_images() -> int:
+        if not folder_path.is_dir():
+            raise HTTPException(status_code=404, detail="Folder not found")
+        with os.scandir(folder_path) as entries:
+            return sum(1 for entry in entries
+                       if entry.name.lower().endswith(".png") and entry.is_file())
+    count = await asyncio.to_thread(count_images)
     return {"count": count}

@@ -8,6 +8,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.graphengine.crud import GraphEngineCrud, GraphEngineResult
+from app.shared.analysis_executor import ANALYSIS_WORKERS, analysis_executor
 
 router_graphengine: APIRouter = APIRouter(tags=["graph_engine"])
 
@@ -28,7 +29,7 @@ async def _render_graph_engine_image(
         if not content:
             raise ValueError("Uploaded file is empty")
         loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
-        image_bytes: bytes = await loop.run_in_executor(None, render_fn, mode, content)
+        image_bytes: bytes = await loop.run_in_executor(analysis_executor, render_fn, mode, content)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
@@ -70,6 +71,31 @@ async def graph_engine_distribution_box(
     return await _render_graph_engine_image(GraphEngineCrud.create_distribution_box_plot, mode, file)
 
 
+@router_graphengine.post(
+    "/graph_engine/images",
+    response_class=StreamingResponse,
+    responses={200: {"content": {"application/zip": {"schema": {"type": "string", "format": "binary"}}}}},
+)
+async def graph_engine_images(
+    file: Annotated[UploadFile, File()],
+    mode: Annotated[str | None, Form()] = None,
+) -> StreamingResponse:
+    try:
+        content = await file.read()
+        if not content:
+            raise ValueError("Uploaded file is empty")
+        bundle = await asyncio.get_running_loop().run_in_executor(
+            analysis_executor, GraphEngineCrud.create_plot_bundle, mode, content
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    finally:
+        await file.close()
+    return StreamingResponse(io.BytesIO(bundle), media_type="application/zip")
+
+
 @router_graphengine.post("/graph_engine/{mode}", response_model=list[GraphEngineResultResponse])
 async def analyze_graph_engine(
     mode: str,
@@ -89,9 +115,23 @@ async def analyze_graph_engine(
         if not payloads:
             raise ValueError("No valid CSV files uploaded")
         loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
-        results: list[GraphEngineResult] = await loop.run_in_executor(
-            None, GraphEngineCrud.analyze_files, mode, payloads, ctrl_bytes
-        )
+        if len(payloads) == 1:
+            results: list[GraphEngineResult] = await loop.run_in_executor(
+                analysis_executor, GraphEngineCrud.analyze_files, mode, payloads, ctrl_bytes
+            )
+        else:
+            ctrl = await loop.run_in_executor(
+                analysis_executor, GraphEngineCrud.parse_control, mode, ctrl_bytes
+            )
+            semaphore = asyncio.Semaphore(ANALYSIS_WORKERS)
+
+            async def analyze_one(name: str, content: bytes) -> GraphEngineResult:
+                async with semaphore:
+                    return await loop.run_in_executor(
+                        analysis_executor, GraphEngineCrud.analyze_file, name, content, ctrl
+                    )
+
+            results = await asyncio.gather(*(analyze_one(name, content) for name, content in payloads))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:

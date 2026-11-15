@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import os
 import queue as std_queue
 from datetime import datetime
@@ -298,8 +299,8 @@ async def create_training_dataset(
                 await output.write(chunk)
         if total_size == 0:
             raise HTTPException(status_code=400, detail="Uploaded file is empty")
-        os.replace(temporary, destination)
-        create_training_database(db_path, sanitized)
+        await asyncio.to_thread(os.replace, temporary, destination)
+        await asyncio.to_thread(create_training_database, db_path, sanitized)
     except HTTPException:
         if temporary.exists():
             temporary.unlink()
@@ -310,7 +311,7 @@ async def create_training_dataset(
         if destination.exists() and not db_path.exists():
             destination.unlink()
         raise HTTPException(status_code=500, detail=str(exc)) from exc
-    summary = training_summary(db_path)
+    summary = await asyncio.to_thread(training_summary, db_path)
     return {**(summary or {}), "size_bytes": total_size}
 
 
@@ -574,8 +575,8 @@ async def upload_nd2_file(
                 await output.write(chunk)
         if total_size == 0:
             raise HTTPException(status_code=400, detail="Uploaded file is empty")
-        os.replace(temporary, destination)
-        remove_dataset(sanitized)
+        await asyncio.to_thread(os.replace, temporary, destination)
+        await asyncio.to_thread(remove_dataset, sanitized)
     except HTTPException:
         if temporary.exists():
             temporary.unlink()

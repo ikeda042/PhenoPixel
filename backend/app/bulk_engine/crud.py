@@ -1,6 +1,9 @@
+import hashlib
 import io
 import json
 import pickle
+from collections import OrderedDict
+from threading import Lock
 from typing import Literal, Sequence
 
 import cv2
@@ -21,6 +24,33 @@ from app.shared.objective_scale import DEFAULT_PIXEL_SIZE_UM, normalize_pixel_si
 
 PIXEL_SIZE_UM: float = DEFAULT_PIXEL_SIZE_UM
 FITC_AGGREGATION_THRESHOLD: float = 0.7414
+_HEATMAP_PATH_CACHE_LIMIT = 1024
+_heatmap_path_cache: OrderedDict[bytes, tuple[tuple[float, float], ...]] = OrderedDict()
+_heatmap_path_cache_lock = Lock()
+
+
+def _cached_heatmap_path(image: bytes, contour: bytes, degree: int) -> list[tuple[float, float]]:
+    digest = hashlib.blake2b(digest_size=20)
+    digest.update(str(degree).encode())
+    for blob in (image, contour):
+        digest.update(len(blob).to_bytes(8, "big"))
+        digest.update(blob)
+    key = digest.digest()
+    with _heatmap_path_cache_lock:
+        cached = _heatmap_path_cache.get(key)
+        if cached is not None:
+            _heatmap_path_cache.move_to_end(key)
+            return list(cached)
+    path = calculate_heatmap_path_vector(image, contour, degree=degree)
+    # Degenerate contours can yield one point per pixel; do not retain those
+    # unusually large paths in a process-local cache.
+    if path and len(path) <= 512:
+        with _heatmap_path_cache_lock:
+            _heatmap_path_cache[key] = tuple(path)
+            _heatmap_path_cache.move_to_end(key)
+            while len(_heatmap_path_cache) > _HEATMAP_PATH_CACHE_LIMIT:
+                _heatmap_path_cache.popitem(last=False)
+    return path
 
 
 def _decode_grayscale_preserve_depth(image_raw: bytes) -> np.ndarray | None:
@@ -694,7 +724,7 @@ def _collect_heatmap_paths_with_ids(
             if cell_id is None or image_raw is None or contour_raw is None:
                 continue
             try:
-                path = calculate_heatmap_path_vector(
+                path = _cached_heatmap_path(
                     bytes(image_raw),
                     bytes(contour_raw),
                     degree=degree,

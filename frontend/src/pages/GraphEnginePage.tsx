@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
+import { unzipSync } from 'fflate'
 import {
   AspectRatio,
   Box,
@@ -173,51 +174,50 @@ export default function GraphEnginePage() {
       const nextResults = parseResults(payload)
       setResults(nextResults)
 
-      const createImage = async (endpoint: string, file: File) => {
+      const createImages = async (file: File): Promise<HeatmapUrls | null> => {
         const fd = new FormData()
         fd.append('file', file)
         fd.append('mode', graphMode)
-        const imageRes = await fetch(endpoint, {
+        const imageRes = await fetch(`${apiBase}/graph_engine/images`, {
           method: 'POST',
           body: fd,
         })
         if (!imageRes.ok) {
           throw new Error(`Image request failed (${imageRes.status})`)
         }
-        const blob = await imageRes.blob()
-        const url = URL.createObjectURL(blob)
+        const archive = unzipSync(new Uint8Array(await imageRes.arrayBuffer()))
         if (runIdRef.current !== runId) {
-          URL.revokeObjectURL(url)
           return null
         }
-        return url
+        const names = ['abs.png', 'rel.png', 'dist.png', 'dist_box.png']
+        if (names.some((name) => !archive[name])) {
+          throw new Error('Image response is incomplete')
+        }
+        const url = (name: string) => URL.createObjectURL(
+          new Blob([new Uint8Array(archive[name])], { type: 'image/png' }),
+        )
+        return {
+          abs: url('abs.png'),
+          rel: url('rel.png'),
+          dist: url('dist.png'),
+          dist_box: url('dist_box.png'),
+        }
       }
 
       const heatmapPromises = selectedFiles.map(async (file) => {
-        const [abs, rel, dist, distBox] = await Promise.all([
-          createImage(`${apiBase}/graph_engine/heatmap_abs`, file),
-          createImage(`${apiBase}/graph_engine/heatmap_rel`, file),
-          createImage(`${apiBase}/graph_engine/distribution`, file),
-          createImage(`${apiBase}/graph_engine/distribution_box`, file),
-        ])
-
-        if (!abs && !rel && !dist && !distBox) {
-          return null
-        }
-
-        return [
-          file.name,
-          {
-            abs: abs ?? undefined,
-            rel: rel ?? undefined,
-            dist: dist ?? undefined,
-            dist_box: distBox ?? undefined,
-          },
-        ] as const
+        const urls = await createImages(file)
+        return urls ? [file.name, urls] as const : null
       })
 
       const heatmapEntries = await Promise.allSettled(heatmapPromises)
       if (runIdRef.current !== runId) {
+        heatmapEntries.forEach((entry) => {
+          if (entry.status === 'fulfilled' && entry.value) {
+            Object.values(entry.value[1]).forEach((url) => {
+              if (url) URL.revokeObjectURL(url)
+            })
+          }
+        })
         return
       }
 

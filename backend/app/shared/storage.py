@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import os
 from pathlib import Path
 from typing import Any, AsyncIterator
 
@@ -43,6 +45,10 @@ class DirectoryStorageCrud:
         return path.is_file() and not path.name.startswith(".")
 
     @classmethod
+    def should_include_entry(cls, entry: os.DirEntry[str]) -> bool:
+        return cls.should_include_path(Path(entry.path))
+
+    @classmethod
     def serialize_list_item(cls, path: Path, stat_result: Any) -> Any:
         return path.name
 
@@ -52,15 +58,18 @@ class DirectoryStorageCrud:
 
     @classmethod
     async def list_items(cls) -> list[Any]:
+        return await asyncio.to_thread(cls._list_items_sync)
+
+    @classmethod
+    def _list_items_sync(cls) -> list[Any]:
         if not cls.STORAGE_DIR.is_dir():
             return []
         items: list[Any] = []
-        for name in await aioos.listdir(cls.STORAGE_DIR):
-            path = cls.STORAGE_DIR / name
-            if not cls.should_include_path(path):
-                continue
-            stat_result = await aioos.stat(path)
-            items.append(cls.serialize_list_item(path, stat_result))
+        with os.scandir(cls.STORAGE_DIR) as entries:
+            for entry in entries:
+                if not cls.should_include_entry(entry):
+                    continue
+                items.append(cls.serialize_list_item(Path(entry.path), entry.stat()))
         return cls.sort_list_items(items)
 
     @classmethod
