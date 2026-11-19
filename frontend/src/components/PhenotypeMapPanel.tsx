@@ -2,15 +2,15 @@ import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
 import { Box, Button, Grid, HStack, NativeSelect, Spinner, Stack, Text } from '@chakra-ui/react'
 import PhenotypeComparisonSummary from './PhenotypeComparisonSummary'
+import PhenotypePlotAxes from './PhenotypePlotAxes'
 import {
-  isShapeMetric, metricDescription, metricLabel, metricValue, paddedDomain, parsePhenotypeFeatures,
+  fetchPhenotypeFeatures, formatPhenotypeValue as formatNumber, isShapeMetric, metricDescription,
+  metricLabel, metricValue, paddedDomain, phenotypePoints,
   parsePhenotypeComparison, phenotypeCellKey, singleDatabaseComparison, phenotypeCsv, phenotypeMetrics,
   type BackgroundMode, type Bounds, type ComparisonCell, type FluoChannel, type MetricKey, type PhenotypeComparison,
 } from '../utils/phenotypeMap'
 
 const PALETTE = ['#168477', '#8b5bb5', '#cc6b36', '#327fba', '#bd4d75', '#8c791e', '#5d8390']
-const formatNumber = (value: number | null) => value === null ? 'Missing' :
-  Number(value.toPrecision(4)).toLocaleString('en-US')
 type Selection = { ids: Set<string>; rectangle?: Bounds & { x: MetricKey; y: MetricKey; channel: FluoChannel } }
 type ScreenPoint = { x: number; y: number }
 
@@ -102,17 +102,18 @@ export default function PhenotypeMapPanel({ apiBase, dbName }: { apiBase: string
       setView(null)
       setGalleryPage(0)
       try {
-        const multi = appliedDatabases.length > 1
-        const params = new URLSearchParams({ dbname: appliedDatabases[0], background_mode: backgroundMode })
-        const response = await fetch(multi ? `${apiBase}/get-phenotype-comparison` : `${apiBase}/get-phenotype-features?${params}`, {
-          signal: controller.signal,
-          method: multi ? 'POST' : 'GET',
-          headers: multi ? { accept: 'application/json', 'content-type': 'application/json' } : { accept: 'application/json' },
-          body: multi ? JSON.stringify({ dbnames: appliedDatabases, background_mode: backgroundMode }) : undefined,
-        })
-        if (!response.ok) throw new Error(`Could not load phenotype features (${response.status}).`)
-        const payload: unknown = await response.json()
-        const result = multi ? parsePhenotypeComparison(payload) : singleDatabaseComparison(parsePhenotypeFeatures(payload))
+        let result: PhenotypeComparison
+        if (appliedDatabases.length === 1) {
+          result = singleDatabaseComparison(await fetchPhenotypeFeatures(apiBase, appliedDatabases[0], backgroundMode, controller.signal))
+        } else {
+          const response = await fetch(`${apiBase}/get-phenotype-comparison`, {
+            signal: controller.signal, method: 'POST',
+            headers: { accept: 'application/json', 'content-type': 'application/json' },
+            body: JSON.stringify({ dbnames: appliedDatabases, background_mode: backgroundMode }),
+          })
+          if (!response.ok) throw new Error(`Could not load phenotype features (${response.status}).`)
+          result = parsePhenotypeComparison(await response.json())
+        }
         if (!controller.signal.aborted) { setData(result); setLabel('All') }
       } catch (err) {
         if (!controller.signal.aborted) setError(err instanceof Error ? err.message : 'Could not load phenotype features.')
@@ -137,11 +138,7 @@ export default function PhenotypeMapPanel({ apiBase, dbName }: { apiBase: string
   const labels = useMemo(() => [...new Set(data?.cells.map((cell) => cell.manual_label) ?? [])]
     .sort((a, b) => a.localeCompare(b, undefined, { numeric: true })), [data])
   const filtered = useMemo(() => data?.cells.filter((cell) => label === 'All' || cell.manual_label === label) ?? [], [data, label])
-  const points = useMemo(() => filtered.flatMap((cell) => {
-    const x = metricValue(cell, xMetric, channel)
-    const y = metricValue(cell, yMetric, channel)
-    return x === null || y === null ? [] : [{ cell, x, y }]
-  }), [filtered, xMetric, yMetric, channel])
+  const points = useMemo(() => phenotypePoints(filtered, xMetric, yMetric, channel), [filtered, xMetric, yMetric, channel])
   const selected = useMemo(() => filtered.filter((cell) => selection?.ids.has(phenotypeCellKey(cell))), [filtered, selection])
   const active = filtered.find((cell) => phenotypeCellKey(cell) === activeKey) ?? selected[0] ?? null
   const isComparing = appliedDatabases.length > 1
@@ -236,8 +233,6 @@ export default function PhenotypeMapPanel({ apiBase, dbName }: { apiBase: string
       cells: selected,
     }, null, 2), `phenotype-${safeName}-selection.json`, 'application/json')
   }
-  const tickCount = WIDTH < 460 ? 3 : 5
-  const ticks = Array.from({ length: tickCount + 1 }, (_, index) => index)
   const rectangle = selection?.rectangle
   const showRectangle = rectangle && rectangle.x === xMetric && rectangle.y === yMetric && rectangle.channel === channel
   const visiblePoints = points.filter(({ x, y }) => x >= xDomain[0] && x <= xDomain[1] && y >= yDomain[0] && y <= yDomain[1])
@@ -363,17 +358,8 @@ export default function PhenotypeMapPanel({ apiBase, dbName }: { apiBase: string
                     if (dragStart.current && end) setDrag({ start: dragStart.current, end })
                   }} onPointerUp={onPointerUp} onPointerCancel={() => { dragStart.current = null; setDrag(null) }}>
                   <rect x={PLOT.left} y={PLOT.top} width={PLOT.right - PLOT.left} height={PLOT.bottom - PLOT.top} fill="transparent" />
-                  {ticks.map((index) => {
-                    const x = xDomain[0] + (xDomain[1] - xDomain[0]) * index / tickCount
-                    const y = yDomain[0] + (yDomain[1] - yDomain[0]) * index / tickCount
-                    return <g key={index} pointerEvents="none">
-                      <line x1={scaleX(x)} x2={scaleX(x)} y1={PLOT.top} y2={PLOT.bottom} stroke="var(--chakra-colors-sand-200)" />
-                      <line x1={PLOT.left} x2={PLOT.right} y1={scaleY(y)} y2={scaleY(y)} stroke="var(--chakra-colors-sand-200)" />
-                      <text x={scaleX(x)} y={PLOT.bottom + 24} textAnchor="middle" fontSize="12" fill="currentColor">{formatNumber(x)}</text>
-                      <text x={PLOT.left - 10} y={scaleY(y) + 4} textAnchor="end" fontSize="12" fill="currentColor">{formatNumber(y)}</text>
-                    </g>
-                  })}
-                  <path d={`M${PLOT.left},${PLOT.top}V${PLOT.bottom}H${PLOT.right}`} fill="none" stroke="currentColor" pointerEvents="none" />
+                  <PhenotypePlotAxes plot={PLOT} xDomain={xDomain} yDomain={yDomain} height={HEIGHT}
+                    tickCount={WIDTH < 460 ? 3 : 5} xLabel={metricLabel(xMetric, channel)} yLabel={metricLabel(yMetric, channel)} />
                   {visiblePoints.map(({ cell, x, y }) => (
                     <circle key={phenotypeCellKey(cell)} cx={scaleX(x)} cy={scaleY(y)} r={selection?.ids.has(phenotypeCellKey(cell)) ? 6 : 4.5}
                       fill={pointColor(cell)} fillOpacity={selection?.ids.size && !selection.ids.has(phenotypeCellKey(cell)) ? 0.25 : 0.85}
@@ -394,8 +380,6 @@ export default function PhenotypeMapPanel({ apiBase, dbName }: { apiBase: string
                   {drag && <rect x={Math.min(drag.start.x, drag.end.x)} y={Math.min(drag.start.y, drag.end.y)}
                     width={Math.abs(drag.start.x - drag.end.x)} height={Math.abs(drag.start.y - drag.end.y)}
                     fill="#168477" fillOpacity="0.12" stroke="#168477" pointerEvents="none" />}
-                  <text x={(PLOT.left + PLOT.right) / 2} y={HEIGHT - 12} textAnchor="middle" fill="currentColor" fontSize="14" pointerEvents="none">{metricLabel(xMetric, channel)}</text>
-                  <text transform={`translate(20 ${(PLOT.top + PLOT.bottom) / 2}) rotate(-90)`} textAnchor="middle" fill="currentColor" fontSize="14" pointerEvents="none">{metricLabel(yMetric, channel)}</text>
                 </svg>
               ) : <Text p="8" fontSize="sm">{filtered.length ? 'No cells have both selected axis measurements. Choose another metric or channel.' : 'No cells match this label.'}</Text>}
               <HStack gap="3" flexWrap="wrap" mt="2" aria-label="Color legend">

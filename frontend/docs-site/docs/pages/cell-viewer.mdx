@@ -211,6 +211,7 @@ PH 画像は通常の `get-cell-image` のままです。暗い蛍光 signal の
 | `Replot` | PCA 主軸で細胞を整列し、指定 channel を再描画します。 | `GET /api/v1/get-cell-replot` |
 | `e-means (spatial)` | Replot の 2D 座標をクラスタリングし、クラスタ別の色・中心点・境界を表示します。 | `GET /api/v1/get-cell-e-means` |
 | `e-means spots` | 蛍光スポットの位置と幅を推定し、中心と半値全幅の輪郭を表示します。 | `GET /api/v1/get-cell-e-means-spots` |
+| `Phenotype map` | 選んだ集団を1細胞1点の散布図で表示し、閲覧中の細胞を赤で強調します。 | `GET /api/v1/get-phenotype-features` |
 | `Overlay` | PH を基準に、contour mask 内の蛍光 signal を重ねます。 | `GET /api/v1/get-cell-overlay?overlay_mode=ph` |
 | `Overlay Raw` | PH 上に蛍光 signal を raw overlay します。contour mask による通常 overlay との違いを確認できます。 | `GET /api/v1/get-cell-overlay?overlay_mode=raw` |
 | `Overlay Fluo` | PH なしで、FLUO1/FLUO2 の合成 overlay を表示します。 | `GET /api/v1/get-cell-overlay?overlay_mode=fluo` |
@@ -218,6 +219,12 @@ PH 画像は通常の `get-cell-image` のままです。暗い蛍光 signal の
 | `Map 256` | 細胞座標へ map した signal を 256 px 系の正規化画像として表示します。 | `GET /api/v1/get-cell-map256?map_mode=map256` |
 | `Map Raw` | map256 と同じ座標変換を使い、raw 寄りの map 表示を行います。 | `GET /api/v1/get-cell-map256?map_mode=raw` |
 | `Distribution` | 指定 channel の細胞内 intensity distribution を plot します。 | `GET /api/v1/get-cell-distribution` |
+
+### Phenotype map で現在の細胞を集団と比較する
+
+`Population label` は初期状態で画面上部の `Label Filter` に従います。比較したいラベルを直接選ぶと、閲覧中の細胞を保ったまま背景の点が切り替わります。現在の細胞は集団の外にあっても赤で表示され、別の細胞に移動すると赤い点も移ります。
+
+`Fluorescence channel` で FLUO1 / FLUO2 を選べます。初期の X 軸は `Top 10% signal fraction`、Y 軸は `Normalized median (raw)` です。両軸とも Bulk Engine と同じ指標に切り替えられます。`Population` は両軸の値を持つ細胞数 / 対象集団の細胞数を示します。
 
 ### Replot の Channel
 
