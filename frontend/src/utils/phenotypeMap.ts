@@ -59,6 +59,19 @@ export const metricValue = (cell: PhenotypeCell, key: MetricKey, channel: FluoCh
   return typeof value === 'number' && Number.isFinite(value) ? value : null
 }
 
+export function phenotypePoints<T extends PhenotypeCell>(
+  cells: T[], xMetric: MetricKey, yMetric: MetricKey, channel: FluoChannel,
+) {
+  return cells.flatMap((cell) => {
+    const x = metricValue(cell, xMetric, channel)
+    const y = metricValue(cell, yMetric, channel)
+    return x === null || y === null ? [] : [{ cell, x, y }]
+  })
+}
+
+export const formatPhenotypeValue = (value: number | null) => value === null ? 'Missing' :
+  Number(value.toPrecision(4)).toLocaleString('en-US')
+
 export const metricLabel = (key: MetricKey, channel: FluoChannel) => {
   const metric = phenotypeMetrics.find((item) => item.key === key)!
   return `${isShapeMetric(key) ? '' : `${channel.toUpperCase()} `}${metric.label}${metric.unit ? ` (${metric.unit})` : ''}`
@@ -93,6 +106,17 @@ export function parsePhenotypeFeatures(payload: unknown): PhenotypeFeatures {
     ids.add(cell.cell_id)
   }
   return data
+}
+
+export async function fetchPhenotypeFeatures(
+  apiBase: string, dbName: string, backgroundMode: BackgroundMode, signal: AbortSignal,
+) {
+  const params = new URLSearchParams({ dbname: dbName, background_mode: backgroundMode })
+  const response = await fetch(`${apiBase}/get-phenotype-features?${params}`, {
+    signal, headers: { accept: 'application/json' },
+  })
+  if (!response.ok) throw new Error(`Could not load phenotype features (${response.status}).`)
+  return parsePhenotypeFeatures(await response.json())
 }
 
 export function singleDatabaseComparison(data: PhenotypeFeatures): PhenotypeComparison {

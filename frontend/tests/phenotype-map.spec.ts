@@ -33,14 +33,15 @@ const otherCells = [
   { ...cells[3], cell_id: 'F0C5', ...Object.fromEntries(localizationKeys.filter((key) => key !== 'background_intensity').map((key) => [`fluo1_${key}`, null])), fluo2_entropy_norm: 0.2 },
 ]
 
-async function openMap(page: Page, failFirst = false, empty = false) {
+async function openMap(page: Page, failFirst = false, empty = false, urlToOpen = mapUrl) {
+  const databaseCells = cells.map((cell) => ({ ...cell }))
   const state = { featureRequests: 0, comparisonRequests: [] as { dbnames: string[]; background_mode: string }[],
     imageRequests: [] as URL[], zipRequests: 0, failRequests: failFirst }
   await page.route('**/api/v1/**', async (route) => {
     const url = new URL(route.request().url())
     const headers = { 'access-control-allow-origin': '*' }
     if (route.request().method() === 'OPTIONS') {
-      await route.fulfill({ status: 204, headers: { ...headers, 'access-control-allow-methods': 'GET, POST, OPTIONS', 'access-control-allow-headers': 'content-type' } })
+      await route.fulfill({ status: 204, headers: { ...headers, 'access-control-allow-methods': 'GET, POST, PATCH, OPTIONS', 'access-control-allow-headers': 'content-type' } })
       return
     }
     if (url.pathname.endsWith('/get-databases')) {
@@ -77,8 +78,15 @@ async function openMap(page: Page, failFirst = false, empty = false) {
           coordinate: 'normalized_centerline_arc_length' },
         units: { length_px: 'px', width_mean_px: 'px', width_median_px: 'px', area_px2: 'px^2',
           fluo1_normalized_median: 'dimensionless', fluo2_normalized_median: 'dimensionless' },
-        cells: empty ? [] : requestedDb === dbName ? cells : otherCells,
+        cells: empty ? [] : requestedDb === dbName ? databaseCells : otherCells,
       } })
+    } else if (url.pathname.endsWith('/get-cell-ids') || url.pathname.endsWith('/get-cell-ids-by-label')) {
+      const label = url.searchParams.get('label')
+      await route.fulfill({ headers, json: databaseCells.filter((cell) => !label || cell.manual_label === label).map((cell) => cell.cell_id) })
+    } else if (url.pathname.endsWith('/get-cell-label') || url.pathname.endsWith('/update-cell-label')) {
+      const cell = databaseCells.find((row) => row.cell_id === url.searchParams.get('cell_id'))!
+      if (route.request().method() === 'PATCH') cell.manual_label = url.searchParams.get('label')!
+      await route.fulfill({ headers, json: cell.manual_label })
     } else if (url.pathname.endsWith('/get-cell-image')) {
       state.imageRequests.push(url)
       if (url.searchParams.get('image_type') === 'fluo2' && url.searchParams.get('cell_id') === 'F0C1') {
@@ -92,9 +100,58 @@ async function openMap(page: Page, failFirst = false, empty = false) {
       await route.fulfill({ headers, json: {} })
     }
   })
-  await page.goto(mapUrl)
+  await page.goto(urlToOpen)
   return state
 }
+
+const viewerUrl = `/cells?${new URLSearchParams({ db: dbName, cell_id: 'F0C0' })}`
+
+test('Function Panel draws one point per cell and follows the current cell across labels and channels', async ({ page }) => {
+  const state = await openMap(page, false, false, viewerUrl)
+  const panel = page.getByTestId('cell-phenotype-map')
+  const dots = panel.locator('circle[data-cell-id]')
+  const current = panel.locator('circle[aria-current="true"]')
+  await expect(page.getByRole('button', { name: 'Next', exact: true })).toBeEnabled()
+  expect(state.featureRequests).toBe(0)
+  await page.getByLabel('Draw mode').selectOption('phenotype-map')
+  await expect(panel.getByText('Population 3 / 4 cells')).toBeVisible()
+  const initialRequests = state.featureRequests
+  await expect(dots).toHaveCount(3)
+  await expect(current).toHaveAttribute('data-cell-id', 'F0C0')
+  await expect(dots.last()).toHaveAttribute('fill', '#dc4141')
+  await expect(dots.first()).toHaveAttribute('fill-opacity', '0.35')
+
+  await panel.getByLabel('Population label').selectOption('N/A')
+  await expect(panel.getByText('Population 1 / 1 cells')).toBeVisible()
+  await expect(dots).toHaveCount(2)
+  await expect(dots.first()).toHaveAttribute('data-cell-id', 'F0C3')
+  await expect(panel.getByText('Current F0C0 · label 1 outside population')).toBeVisible()
+  await page.getByRole('button', { name: 'Next', exact: true }).click()
+  await expect(current).toHaveAttribute('data-cell-id', 'F0C1')
+  await panel.getByLabel('Fluorescence channel').selectOption('fluo2')
+  await expect(dots).toHaveCount(1)
+  await expect(current).toHaveCount(0)
+  await expect(panel.getByText(/Current F0C1.*missing axis measurements/)).toBeVisible()
+  await panel.getByLabel('X axis').selectOption('length_px')
+  await panel.getByLabel('Y axis').selectOption('width_mean_px')
+  await expect(current).toHaveAttribute('data-cell-id', 'F0C1')
+  await expect(panel.getByText('Population 0 / 1 cells')).toBeVisible()
+  expect(state.featureRequests).toBe(initialRequests)
+})
+
+test('Function Panel follows the viewer label filter and updates membership after a saved label edit', async ({ page }) => {
+  const state = await openMap(page, false, false, viewerUrl)
+  await page.getByLabel('Label filter', { exact: true }).selectOption('1')
+  await page.getByLabel('Draw mode').selectOption('phenotype-map')
+  const panel = page.getByTestId('cell-phenotype-map')
+  await expect(panel.getByText('Population 2 / 2 cells')).toBeVisible()
+  const initialRequests = state.featureRequests
+  await page.getByLabel('Manual label', { exact: true }).selectOption('2')
+  await expect(panel.getByText('Population 1 / 1 cells')).toBeVisible()
+  await expect(panel.getByText('Current F0C0 · label 2 outside population')).toBeVisible()
+  await expect(panel.locator('circle[data-cell-id="F0C0"]')).toHaveCount(1)
+  expect(state.featureRequests).toBe(initialRequests + 1)
+})
 
 test('links points to cells and exports exactly the selected IDs with nulls intact', async ({ page }) => {
   const state = await openMap(page)

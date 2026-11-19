@@ -26,6 +26,7 @@ import {
   Text,
 } from '@chakra-ui/react'
 import { ArrowLeft, ArrowRight, Download } from 'lucide-react'
+import CellPhenotypeMap from '../components/CellPhenotypeMap'
 import CellsHelpDrawer from '../components/CellsHelpDrawer'
 import EmeansPanel from '../components/EmeansPanel'
 import type { SpotOptions } from '../components/EmeansPanel'
@@ -174,6 +175,7 @@ export default function CellsPage() {
     | 'replot'
     | 'e-means'
     | 'e-means-spots'
+    | 'phenotype-map'
     | 'overlay'
     | 'overlay-fluo'
     | 'overlay-raw'
@@ -214,6 +216,7 @@ export default function CellsPage() {
     channel: 'fluo1', autoTune: true, sigmaMin: '1', sigmaMax: '4', minSnr: '4',
   })
   const [contourRefreshKey, setContourRefreshKey] = useState(0)
+  const [phenotypeRevision, setPhenotypeRevision] = useState(0)
   const [modificationMode, setModificationMode] = useState<
     'elastic' | 'optical-boost' | 'gain'
   >('gain')
@@ -693,6 +696,7 @@ export default function CellsPage() {
         if (!res.ok) {
           throw new Error(`Label update failed (${res.status})`)
         }
+        setPhenotypeRevision((revision) => revision + 1)
         if (fastModeRequested && selectedLabel === 'All') {
           setFastBundle((previous) => {
             if (!previous) return previous
@@ -1112,6 +1116,7 @@ export default function CellsPage() {
           throw new Error(`Request failed (${res.status})`)
         }
         setContourRefreshKey((prev) => prev + 1)
+        setPhenotypeRevision((revision) => revision + 1)
       } else if (modificationMode === 'gain') {
         setAppliedGain(parsedGain)
         setContourRefreshKey((prev) => prev + 1)
@@ -1157,6 +1162,7 @@ export default function CellsPage() {
         )
       }
       setContourRefreshKey((prev) => prev + 1)
+      setPhenotypeRevision((revision) => revision + 1)
     } catch (err) {
       setModificationError(
         err instanceof Error ? err.message : 'Failed to apply modification',
@@ -1293,6 +1299,7 @@ export default function CellsPage() {
     contourMode === 'overlay-fluo' ||
     contourMode === 'overlay-raw'
   const isEmeansMode = contourMode === 'e-means' || contourMode === 'e-means-spots'
+  const showImagePanel = !isEmeansMode && contourMode !== 'phenotype-map'
   const contourPanelError =
     contourMode === 'replot'
       ? replotError
@@ -1476,6 +1483,7 @@ export default function CellsPage() {
                         </Text>
                         <NativeSelect.Root size={{ base: 'md', lg: 'sm' }}>
                           <NativeSelect.Field
+                            aria-label="Label filter"
                             value={selectedLabel}
                             onChange={(event) => setSelectedLabel(event.target.value)}
                             bg="sand.50"
@@ -1501,8 +1509,10 @@ export default function CellsPage() {
                         <Text fontSize="xs" color="ink.700" mb="1">
                           Manual label
                         </Text>
-                        <NativeSelect.Root size={{ base: 'md', lg: 'sm' }}>
+                        <NativeSelect.Root size={{ base: 'md', lg: 'sm' }}
+                          disabled={!dbName || !currentCellId || isLoadingLabel || isUpdatingLabel}>
                           <NativeSelect.Field
+                            aria-label="Manual label"
                             value={manualLabel ?? ''}
                             onChange={(event) => updateManualLabel(event.target.value)}
                             bg="sand.50"
@@ -1510,9 +1520,6 @@ export default function CellsPage() {
                             borderColor="sand.200"
                             w="8rem"
                             color="ink.900"
-                            disabled={
-                              !dbName || !currentCellId || isLoadingLabel || isUpdatingLabel
-                            }
                             _focusVisible={{
                               borderColor: 'tide.400',
                               boxShadow: '0 0 0 1px var(--app-accent-ring)',
@@ -2051,22 +2058,7 @@ export default function CellsPage() {
                       <NativeSelect.Field
                         value={contourMode}
                         aria-label="Draw mode"
-                        onChange={(event) =>
-                          setContourMode(
-                            event.target.value as
-                              | 'contour'
-                              | 'replot'
-                              | 'e-means'
-                              | 'e-means-spots'
-                              | 'overlay'
-                              | 'overlay-fluo'
-                              | 'overlay-raw'
-                              | 'heatmap'
-                              | 'map256'
-                              | 'map-raw'
-                              | 'distribution',
-                          )
-                        }
+                        onChange={(event) => setContourMode(event.target.value as typeof contourMode)}
                         bg="sand.50"
                         border="1px solid"
                         borderColor="sand.200"
@@ -2080,6 +2072,7 @@ export default function CellsPage() {
                         <option value="replot">Replot</option>
                         <option value="e-means">e-means (spatial)</option>
                         <option value="e-means-spots">e-means spots</option>
+                        <option value="phenotype-map">Phenotype map</option>
                         <option value="overlay">Overlay</option>
                         <option value="overlay-raw">Overlay Raw</option>
                         <option value="overlay-fluo">Overlay Fluo</option>
@@ -2092,6 +2085,10 @@ export default function CellsPage() {
                     </NativeSelect.Root>
                   </HStack>
                 </HStack>
+                {contourMode === 'phenotype-map' && (
+                  <CellPhenotypeMap key={dbName} apiBase={apiBase} dbName={dbName} cellId={currentCellId}
+                    viewerLabel={selectedLabel} labelOptions={labelOptions} revision={phenotypeRevision} />
+                )}
                 {isEmeansMode && (
                   <EmeansPanel
                     key={`${dbName}-${currentCellId}-${contourRefreshKey}-${contourMode}`}
@@ -2234,7 +2231,7 @@ export default function CellsPage() {
                     </Switch.Root>
                   </HStack>
                 )}
-                {!isEmeansMode && <Box
+                {showImagePanel && <Box
                   bg="sand.200"
                   borderRadius="lg"
                   overflow="hidden"
@@ -2430,7 +2427,7 @@ export default function CellsPage() {
                     )}
                   </Box>
                 </Box>}
-                {!isEmeansMode && contourPanelError && (
+                {showImagePanel && contourPanelError && (
                   <Text fontSize="sm" color="violet.300">
                     {contourPanelError}
                   </Text>

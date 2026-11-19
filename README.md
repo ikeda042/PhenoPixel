@@ -131,6 +131,7 @@ The cell viewer function panel provides these modes:
 | `Replot` | Replot a cell in its aligned coordinate system. |
 | `e-means (spatial)` | Cluster intracellular pixel coordinates into a specified number of spatial groups. |
 | `e-means spots` | Detect compact fluorescent spots with e-means initialization and local Gaussian fitting. |
+| `Phenotype map` | Compare the current cell (red) with one point per cell in a selected manual-label population. Choose the fluorescence channel and both axes. |
 | `Overlay` | Overlay the contour on the default cell image. |
 | `Overlay Raw` | Overlay fluorescence without contour masking on the raw view. |
 | `Overlay Fluo` | Compose fluorescence channels with selectable colors. |
